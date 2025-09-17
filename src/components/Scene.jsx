@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
@@ -6,7 +6,31 @@ import GridPlane from "./GridPlane";
 
 export default function Scene({ objects, setObjects, selectedId, setSelectedId, snap }) {
   const orbitRef = useRef();
-  
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // 全局监听 Alt 键，仅在按住 Alt 时允许调整视角
+  useEffect(() => {
+    const down = (e) => {
+      if (e.key === "Alt") {
+        e.preventDefault();
+        setIsAltPressed(true);
+      }
+    };
+    const up = (e) => {
+      if (e.key === "Alt") {
+        e.preventDefault();
+        setIsAltPressed(false);
+      }
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
+
   // 对齐回调函数
   const handleAlign = (alignData) => {
     console.log('对齐完成:', alignData);
@@ -29,15 +53,15 @@ export default function Scene({ objects, setObjects, selectedId, setSelectedId, 
             obj={obj}
             selected={selectedId === obj.id}
             setObj={(updater) => setObjects((prev) => prev.map((o) => (o.id === obj.id ? (typeof updater === "function" ? updater(o) : updater) : o)))}
-            orbitRef={orbitRef}
             onSelect={setSelectedId}
             snap={snap}
             allObjects={objects}
             onAlign={handleAlign}
+            setDragging={setIsDragging}
           />
         ))}
       </group>
-      <OrbitControls ref={orbitRef} />
+      <OrbitControls ref={orbitRef} enabled={isAltPressed && !isDragging} />
     </Canvas>
   );
 }

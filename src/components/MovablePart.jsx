@@ -9,12 +9,12 @@ export default function MovablePart({
   obj,
   selected,
   setObj,
-  orbitRef,
   onSelect,
   snap,
   palette,
   allObjects = [], // 添加所有对象用于面检测
   onAlign, // 添加对齐回调
+  setDragging, // 从父级传入，用于控制 OrbitControls 启用逻辑
 }) {
   const t = palette;
   const groupRef = useRef();
@@ -42,14 +42,14 @@ export default function MovablePart({
     else controlsRef.current.detach();
   }, [selected]);
 
-  // 键盘事件监听
+  // 键盘和UI锁事件监听（仅处理 Shift）
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Shift') {
         setIsShiftPressed(true);
       }
     };
-    
+
     const handleKeyUp = (e) => {
       if (e.key === 'Shift') {
         setIsShiftPressed(false);
@@ -60,20 +60,14 @@ export default function MovablePart({
     window.addEventListener('keyup', handleKeyUp);
 
     return () => {
-    window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
 
-  // ✅ TransformControls 根据 uiLock 启用/禁用
-  useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.enabled = !uiLock;
-    }
-    if (orbitRef.current) {
-      orbitRef.current.enabled = !uiLock;
-    }
-  }, [uiLock]);
+  // 视角控制逻辑迁移到 Scene 中统一处理，这里不直接改 OrbitControls.enabled
+
+  // ... (省略了面检测和对齐计算函数)
 
   // 面检测函数 - 只检测用户拖拽轴上的面, 优化距离计算
   const detectNearbyFaces = (currentPos) => {
@@ -238,6 +232,7 @@ export default function MovablePart({
     dragStartRef.current = { pos: p, rot: r };
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
     setIsDragging(true);
+    setDragging?.(true);
   };
 
   const updateDuringDrag = () => {
@@ -259,12 +254,13 @@ export default function MovablePart({
     };
     setDelta(delta);
 
-  // 检测用户拖拽的轴
+    // 计算位移绝对值（供后续判断复用）
+    const absDx = Math.abs(delta.dx);
+    const absDy = Math.abs(delta.dy);
+    const absDz = Math.abs(delta.dz);
+
+    // 检测用户拖拽的轴
     if (isDragging && !dragAxis) {
-      const absDx = Math.abs(delta.dx);
-      const absDy = Math.abs(delta.dy);
-      const absDz = Math.abs(delta.dz);
-      
       // 找到移动最大的轴
       if (absDx > absDy && absDx > absDz) {
         setDragAxis('X');
@@ -353,10 +349,10 @@ export default function MovablePart({
           // ✅ Drei 自带的 prop；也会被上面的 effect 再兜底控制
           enabled={!uiLock}
           translationSnap={snap?.enabled ? toMeters(snap.translate) : undefined}
-          rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined}
+          rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined} 
           onObjectChange={() => {
+            // 拖拽过程中持续更新
             updateDuringDrag();
-            if (!groupRef.current) return;
             const p = groupRef.current.position.clone().multiplyScalar(1000).toArray();
             const r = [
               groupRef.current.rotation.x,
@@ -366,14 +362,17 @@ export default function MovablePart({
             setObj((prev) => ({ ...prev, pos: p, rot: r }));
           }}
           onMouseDown={(e) => {
-            // 注意：这是 TransformControls 的拖拽，不是 HUD
+            // 拖拽开始的瞬间
+            e.stopPropagation();
             startDrag();
-            if (!uiLock && orbitRef.current) orbitRef.current.enabled = false;
+          }}
+          // ✅ 正确的修复方式：使用 onDraggingChange 来控制轨道控制器
+          onDraggingChange={(dragging) => {
+            setIsDragging(dragging);
+            setDragging?.(dragging);
           }}
           onMouseUp={() => {
-            if (!uiLock && orbitRef.current) orbitRef.current.enabled = true;
-            
-            // 拖拽结束时检查是否需要自动对齐（仅在按住Shift键时）
+            // 拖拽结束时检查是否需要自动对齐
             if (isDragging && isShiftPressed && alignPreview) {
               // 执行自动对齐
               const newPos = alignPreview.position;
@@ -392,11 +391,12 @@ export default function MovablePart({
             }
             
             // 清理状态
-            setIsDragging(false);
             setHoveredFace(null);
             setAlignPreview(null);
             setDragAxis(null);
+            setDragging?.(false);
           }}
+          onPointerDown={(e) => e.stopPropagation()}
         />
       )}
 

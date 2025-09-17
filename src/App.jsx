@@ -1,2 +1,4 @@
-import PCEditor from './PCEditor.jsx';
-export default function App() { return <PCEditor />; }
+import PCEditor from "./PCEditor.jsx";
+export default function App() {
+  return <PCEditor />;
+}

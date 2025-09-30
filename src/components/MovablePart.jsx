@@ -3,8 +3,6 @@ import React, { useRef, useEffect, useState } from "react";
 import { TransformControls, Html } from "@react-three/drei";
 import { MotherboardMesh, PartBox, GroupMesh } from "./Meshes.jsx";
 
-const toMeters = (mm) => mm / 1000;
-
 export default function MovablePart({
   obj,
   selected,
@@ -237,7 +235,7 @@ export default function MovablePart({
 
   const startDrag = () => {
     if (!groupRef.current) return;
-    const p = groupRef.current.position.clone().multiplyScalar(1000).toArray();
+    const p = groupRef.current.position.clone().toArray();
     const r = [
       groupRef.current.rotation.x,
       groupRef.current.rotation.y,
@@ -251,7 +249,7 @@ export default function MovablePart({
 
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
-    const p = groupRef.current.position.clone().multiplyScalar(1000).toArray();
+    const p = groupRef.current.position.clone().toArray();
     const r = [
       groupRef.current.rotation.x,
       groupRef.current.rotation.y,
@@ -351,7 +349,7 @@ export default function MovablePart({
     <>
       <group
         ref={groupRef}
-        position={obj.pos.map(toMeters)}
+        position={obj.pos}
         rotation={obj.rot}
         userData={{ objectId: obj.id }}
         onPointerDown={(e) => {
@@ -365,7 +363,7 @@ export default function MovablePart({
         ) : obj.type === "group" ? (
           <GroupMesh obj={obj} selected={selected} />
         ) : (
-          <PartBox obj={{ ...obj, pos: [0, 0, 0] }} selected={selected} />
+          <PartBox obj={obj} selected={selected} />
         )}
       </group>
 
@@ -376,12 +374,12 @@ export default function MovablePart({
           mode={mode}
           // ✅ Drei 自带的 prop；也会被上面的 effect 再兜底控制
           enabled={!uiLock}
-          translationSnap={snap?.enabled ? toMeters(snap.translate) : undefined}
+          translationSnap={snap?.enabled ? snap.translate : undefined}
           rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined} 
           onObjectChange={() => {
             // 拖拽过程中持续更新
             updateDuringDrag();
-            const p = groupRef.current.position.clone().multiplyScalar(1000).toArray();
+            const p = groupRef.current.position.clone().toArray();
             const r = [
               groupRef.current.rotation.x,
               groupRef.current.rotation.y,
@@ -433,9 +431,9 @@ export default function MovablePart({
         <group>
           {/* 目标面中心点高亮 */}
           <mesh
-            position={hoveredFace.targetPosition.map(toMeters)}
+            position={hoveredFace.targetPosition}
           >
-            <sphereGeometry args={[0.02]} />
+            <sphereGeometry args={[2]} />
             <meshBasicMaterial 
               color="#00ff00" 
               transparent 
@@ -444,7 +442,7 @@ export default function MovablePart({
           </mesh>
           
           {/* 面标识文字 */}
-          <Html position={hoveredFace.targetPosition.map(toMeters)}>
+          <Html position={hoveredFace.targetPosition}>
             <div style={{
               background: 'rgba(0, 255, 0, 0.8)',
               color: 'white',
@@ -470,18 +468,18 @@ export default function MovablePart({
                 attach="attributes-position"
                 count={2}
                 array={new Float32Array([
-                  ...groupRef.current?.position.clone().multiplyScalar(1000).toArray() || [0,0,0],
-                  ...alignPreview.position.map(toMeters)
+                  ...(groupRef.current?.position.clone().toArray() || [0, 0, 0]),
+                  ...alignPreview.position,
                 ])}
                 itemSize={3}
               />
             </bufferGeometry>
-            <lineBasicMaterial color="#00ff00" linewidth={2} />
+            <lineBasicMaterial color="#00ff00" linewidth={1} />
           </line>
           
           {/* 对齐目标位置预览 */}
-          <mesh position={alignPreview.position.map(toMeters)}>
-            <boxGeometry args={[obj.dims.w / 1000, obj.dims.h / 1000, obj.dims.d / 1000]} />
+          <mesh position={alignPreview.position}>
+            <boxGeometry args={[obj.dims.w, obj.dims.h, obj.dims.d]} />
             <meshBasicMaterial 
               color="#00ff00" 
               transparent 

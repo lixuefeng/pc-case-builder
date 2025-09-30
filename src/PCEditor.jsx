@@ -6,6 +6,7 @@ import ObjectsList from "./components/UI/ObjectsList";
 import ControlsPanel from "./components/UI/ControlsPanel";
 import FrameBuilderPanel from "./components/UI/FrameBuilderPanel";
 import ProjectPanel from "./components/UI/ProjectPanel";
+import PositionPanel from "./components/UI/PositionPanel";
 import { exportSTLFrom } from "./utils/exportSTL";
 
 const LOCAL_STORAGE_KEY = "pc-case-builder-scene";
@@ -87,6 +88,7 @@ export default function PCEditor() {
     }
   };
   const lastSelectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
+  const selectedObject = objects.find((o) => o.id === lastSelectedId);
 
   const handleGroup = () => {
     if (selectedIds.length <= 1) return;
@@ -147,6 +149,15 @@ export default function PCEditor() {
     setSelectedIds(children.map((c) => c.id));
   };
 
+  const handlePositionChange = (newPos) => {
+    if (!lastSelectedId) return;
+    setObjects((prev) =>
+      prev.map((o) =>
+        o.id === lastSelectedId ? { ...o, pos: newPos } : o
+      )
+    );
+  };
+
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
       {/* Left Panel */}
@@ -156,6 +167,7 @@ export default function PCEditor() {
           <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <ObjectsList objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} />
+          <PositionPanel selectedObject={selectedObject} onPositionChange={handlePositionChange} />
           <ControlsPanel
             objects={objects}
             selectedIds={selectedIds}

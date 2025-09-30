@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { TransformControls, Html } from "@react-three/drei";
 import { MotherboardMesh, PartBox } from "./Meshes.jsx";
+import { MotherboardMesh, PartBox, GroupMesh } from "./Meshes.jsx";
 
 const toMeters = (mm) => mm / 1000;
 
@@ -23,6 +24,24 @@ export default function MovablePart({
 
   // ✅ UI 锁：当在 HUD 上交互时，禁用 TransformControls + OrbitControls
   const [uiLock, setUiLock] = useState(false);
+
+  const handleDimChange = (axis, value) => {
+    setObj((prev) => ({
+      ...prev,
+      dims: { ...prev.dims, [axis]: Number(value) || 0 },
+    }));
+    const newDimValue = Number(value) || 0;
+    setObj((prev) => {
+      const newDims = { ...prev.dims, [axis]: newDimValue };
+      // 如果是 group，需要重新计算子对象的位置
+      if (prev.type === "group") {
+        // 这是一个简化的处理，理想情况下可能需要更复杂的逻辑
+        // 来根据尺寸变化调整子对象，但目前我们先更新包围盒尺寸
+      }
+      return { ...prev, dims: newDims };
+    });
+  };
+
 
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
   const [delta, setDelta] = useState({
@@ -305,6 +324,18 @@ export default function MovablePart({
     }
   };
 
+  const hudInputStyle = {
+    width: 50,
+    padding: "4px 6px",
+    border: `1px solid ${t?.border || "#e5e7eb"}`,
+    borderRadius: 6,
+    background: t?.inputBg || "#fff",
+    color: t?.inputText || "#111827",
+    fontSize: 12,
+    outline: 'none',
+    textAlign: 'center',
+  };
+
   // ✅ 工具函数：把事件彻底拦下
   const eat = (e) => {
     e.stopPropagation();
@@ -330,12 +361,14 @@ export default function MovablePart({
         userData={{ objectId: obj.id }}
         onPointerDown={(e) => {
           e.stopPropagation();
-          console.log('点击物体:', obj.id);
-          onSelect?.(obj.id);
+          const multi = e.ctrlKey || e.metaKey;
+          onSelect?.(obj.id, multi);
         }}
       >
         {obj.type === "motherboard" ? (
           <MotherboardMesh obj={obj} selected={selected} />
+        ) : obj.type === "group" ? (
+          <GroupMesh obj={obj} selected={selected} />
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}
@@ -466,19 +499,20 @@ export default function MovablePart({
 
       {selected && (
         <Html
-          // ✅ 让 HTML 覆盖在上层，并允许交互
-          position={[0, obj.dims.h / 1000 + 0.05, 0]} // 在物体上方5cm处显示
-          style={{ pointerEvents: "auto" }}
+          // 使用 fullscreen 将 HUD 渲染到屏幕空间
+          fullscreen
+          // 容器本身不接收事件，以免遮挡3D场景交互
+          style={{ pointerEvents: "none" }}
           zIndexRange={[1000, 0]} // 提高层级，防止被 Canvas 吞
-          // ✅ 整个 HUD 容器都拦截事件，避免冒泡到 Canvas
-          onPointerDown={lock}
-          onPointerUp={unlock}
-          onWheel={eat}
-          onContextMenu={eat}
-          onPointerMove={eat}
         >
           <div
             style={{
+              // 定位到右下角
+              position: "absolute",
+              right: 20,
+              bottom: 20,
+              // 内容区域接收事件
+              pointerEvents: "auto",
               display: "flex",
               alignItems: "center",
               gap: 12,
@@ -489,9 +523,14 @@ export default function MovablePart({
               boxShadow: t?.shadow || "0 6px 18px rgba(0,0,0,.12)",
               color: t?.text || "#111827",
               fontSize: 12,
-              position: "relative",
               zIndex: 1000,
             }}
+            // ✅ 整个 HUD 容器都拦截事件，避免冒泡到 Canvas
+            onPointerDown={lock}
+            onPointerUp={unlock}
+            onWheel={eat}
+            onContextMenu={eat}
+            onPointerMove={eat}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: t?.muted || "#64748b" }}>Mode:</span>
@@ -552,6 +591,15 @@ export default function MovablePart({
               </select>
             </div>
 
+            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>
+              <span style={{ color: t?.muted || "#64748b" }}>W:</span>
+              <input type="number" value={obj.dims.w} onChange={(e) => handleDimChange("w", e.target.value)} style={hudInputStyle} />
+              <span style={{ color: t?.muted || "#64748b" }}>H:</span>
+              <input type="number" value={obj.dims.h} onChange={(e) => handleDimChange("h", e.target.value)} style={hudInputStyle} />
+              <span style={{ color: t?.muted || "#64748b" }}>D:</span>
+              <input type="number" value={obj.dims.d} onChange={(e) => handleDimChange("d", e.target.value)} style={hudInputStyle} />
+            </div>
+
             <div
               style={{
                 fontFamily:
@@ -559,22 +607,26 @@ export default function MovablePart({
                 color: t?.subText || "#334155",
               }}
             >
+              {/* 移动和旋转的增量显示 */}
+              {/* 
               Δx:{delta.dx}mm Δy:{delta.dy}mm Δz:{delta.dz}mm | Δα:{delta.rx}° Δβ:{delta.ry}° Δγ:{delta.rz}°
             </div>
             
-            {/* 对齐提示 */}
-            <div
-              style={{
-                fontSize: 11,
-                color: isShiftPressed ? "#10b981" : "#94a3b8",
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <span>🔗</span>
-              <span>{isShiftPressed ? "拖拽对齐已启用" : "按住Shift拖拽对齐"}</span>
+              {/* 对齐提示 */}
+              <div
+                style={{
+                  fontSize: 11,
+                  color: isShiftPressed ? "#10b981" : "#94a3b8",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span>🔗</span>
+                <span>{isShiftPressed ? "拖拽对齐已启用" : "按住Shift拖拽对齐"}</span>
+              </div>
+              */}
             </div>
           </div>
         </Html>

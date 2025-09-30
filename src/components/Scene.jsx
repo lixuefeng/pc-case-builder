@@ -4,7 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
 
-export default function Scene({ objects, setObjects, selectedId, setSelectedId, snap }) {
+export default function Scene({ objects, setObjects, selectedIds, onSelect, snap }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -41,7 +41,7 @@ export default function Scene({ objects, setObjects, selectedId, setSelectedId, 
     <Canvas 
       style={{ width: "100%", height: "100%" }} 
       camera={{ position: [0.45, 0.28, 0.85], fov: 55 }} 
-      onPointerMissed={() => setSelectedId(null)}
+      onPointerMissed={() => onSelect(null)}
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[1, 2, 1]} intensity={1} />
@@ -51,9 +51,9 @@ export default function Scene({ objects, setObjects, selectedId, setSelectedId, 
           <MovablePart
             key={obj.id}
             obj={obj}
-            selected={selectedId === obj.id}
+            selected={selectedIds.includes(obj.id)}
             setObj={(updater) => setObjects((prev) => prev.map((o) => (o.id === obj.id ? (typeof updater === "function" ? updater(o) : updater) : o)))}
-            onSelect={setSelectedId}
+            onSelect={onSelect}
             snap={snap}
             allObjects={objects}
             onAlign={handleAlign}

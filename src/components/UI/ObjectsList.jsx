@@ -36,7 +36,7 @@ const BtnGhost = ({ children, onClick }) => (
   </button>
 );
 
-export default function ObjectsList({ objects, setObjects, selectedId, setSelectedId }) {
+export default function ObjectsList({ objects, setObjects, selectedIds, onSelect }) {
   const toggleVisible = (id) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)));
   const remove = (id) => setObjects((prev) => prev.filter((o) => o.id !== id));
@@ -60,8 +60,8 @@ export default function ObjectsList({ objects, setObjects, selectedId, setSelect
               gap: 8,
               padding: "8px 10px",
               borderRadius: 10,
-              border: `1px solid ${selectedId === o.id ? "#3b82f680" : "#e5e7eb"}`,
-              background: selectedId === o.id ? "#eff6ff" : "#fff",
+              border: `1px solid ${selectedIds.includes(o.id) ? "#3b82f680" : "#e5e7eb"}`,
+              background: selectedIds.includes(o.id) ? "#eff6ff" : "#fff",
               color: "inherit",
             }}
           >
@@ -72,7 +72,7 @@ export default function ObjectsList({ objects, setObjects, selectedId, setSelect
               title="显示/隐藏"
             />
             <button
-              onClick={() => setSelectedId(o.id)}
+              onClick={() => onSelect(o.id)}
               title="选中"
               style={{
                 width: 22,

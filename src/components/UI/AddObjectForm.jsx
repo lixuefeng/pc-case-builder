@@ -43,44 +43,61 @@ const Btn = ({ children, onClick, variant = "primary" }) => {
 };
 
 export default function AddObjectForm({ onAdd }) {
-  const [type, setType] = useState("motherboard");
-  const [presetKey, setPresetKey] = useState("itx");
-  const [dims, setDims] = useState({ w: 170, h: 2, d: 170 });
-  const [pos, setPos] = useState({ x: 85, y: 1, z: 85 });
+  const [type, setType] = useState("structure"); // 默认选中新功能
+  const [presetKey, setPresetKey] = useState("");
+  const [dims, setDims] = useState({ w: 100, h: 20, d: 20 }); // 结构块的默认尺寸
+  const [pos, setPos] = useState({ x: 0, y: 0, z: 0 });
   const [name, setName] = useState("");
 
-  // 切换类型时带出第一项预设
+  // 切换类型时更新状态
   useEffect(() => {
-    const p = (PRESETS[type] || [])[0];
-    if (p) {
-      setPresetKey(p.key);
-      setDims(p.dims);
+    if (type === "structure") {
+      setPresetKey(""); // 结构块没有预设
+      setDims({ w: 100, h: 20, d: 20 }); // 设置一个默认尺寸
+    } else {
+      const p = (PRESETS[type] || [])[0];
+      if (p) {
+        setPresetKey(p.key);
+        setDims(p.dims);
+      }
     }
   }, [type]);
 
   // 切换预设时更新尺寸
   useEffect(() => {
-    const list = PRESETS[type] || [];
-    const p = list.find((x) => x.key === presetKey) || list[0];
-    if (p) setDims(p.dims);
-  }, [type, presetKey]);
+    if (type !== "structure") {
+      const list = PRESETS[type] || [];
+      const p = list.find((x) => x.key === presetKey);
+      if (p) setDims(p.dims);
+    }
+  }, [presetKey]); // 仅在 presetKey 改变时触发
 
   const presets = PRESETS[type] || [];
 
   const handleAdd = () => {
     const id = `obj_${Date.now()}_${Math.floor(Math.random() * 1e5)}`;
-    const preset = presets.find((p) => p.key === presetKey);
+    let finalName = name;
+    let meta = {};
+
+    if (type === "structure") {
+      if (!finalName) finalName = `Block ${dims.w}x${dims.h}x${dims.d}`;
+    } else {
+      const preset = presets.find((p) => p.key === presetKey);
+      if (!finalName) finalName = preset?.label || `${type}-${preset?.key || "custom"}`;
+      meta = preset?.meta || {};
+    }
+
     const obj = {
       id,
       type,
-      name: name || `${type}-${preset?.key || "custom"}`,
+      name: finalName,
       dims: { w: Number(dims.w), h: Number(dims.h), d: Number(dims.d) },
       pos: [Number(pos.x), Number(pos.y), Number(pos.z)],
       rot: [0, 0, 0],
       color: undefined,
       visible: true,
       includeInExport: true,
-      meta: preset?.meta || {},
+      meta,
     };
     onAdd(obj);
     setName("");
@@ -89,7 +106,7 @@ export default function AddObjectForm({ onAdd }) {
   return (
     <div style={card}>
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
-        添加物体
+        添加装机零件
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center" }}>

@@ -36,12 +36,13 @@ export function MotherboardMesh({ obj, selected }) {
 }
 
 export function PartBox({ obj, selected }) {
-  const { dims, color } = obj;
+  const { dims, color, type } = obj;
+  const defaultColor = type === "structure" ? "#d1d5db" : "#ffaa44";
   return (
     <mesh userData={{ objectId: obj.id }}>
       <boxGeometry args={[toMeters(dims.w), toMeters(dims.h), toMeters(dims.d)]} />
       <meshStandardMaterial
-        color={selected ? "#ef4444" : color || "#ffaa44"}
+        color={selected ? "#ef4444" : color || defaultColor}
         opacity={0.95}
         transparent
       />

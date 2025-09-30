@@ -41,13 +41,20 @@ const Btn = ({ children, onClick }) => (
 
 export default function ControlsPanel({
   objects,
-  selectedId,
+  selectedIds,
   setObjects,
   align,
   setAlign,
   snap,
   setSnap,
+  onGroup,
+  onUngroup,
 }) {
+  const selectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
+  const selectedObject = objects.find((o) => o.id === selectedId);
+  const canGroup = selectedIds.length > 1;
+  const canUngroup = selectedIds.length === 1 && selectedObject?.type === "group";
+
   const doAlign = () => {
     if (!align.targetId || !selectedId) return;
     const self = objects.find((o) => o.id === selectedId);
@@ -92,6 +99,21 @@ export default function ControlsPanel({
 
   return (
     <>
+      {/* 编组/解组 */}
+      {(canGroup || canUngroup) && (
+        <div style={card}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
+            编组
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {canGroup && <Btn onClick={onGroup}>创建编组</Btn>}
+            {canUngroup && <Btn onClick={onUngroup} variant="secondary">
+              取消编组
+            </Btn>}
+          </div>
+        </div>
+      )}
+
       {/* 面对齐 */}
       <div style={card}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>🎯 面对齐（MVP）</div>

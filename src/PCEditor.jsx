@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import * as THREE from "three";
 import Scene from "./components/Scene";
 import AddObjectForm from "./components/UI/AddObjectForm";
 import ObjectsList from "./components/UI/ObjectsList";
@@ -87,6 +88,65 @@ export default function PCEditor() {
   };
   const lastSelectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
 
+  const handleGroup = () => {
+    if (selectedIds.length <= 1) return;
+
+    const selectedObjects = objects.filter((o) => selectedIds.includes(o.id));
+
+    // 1. 计算包围盒和中心点
+    const box = new THREE.Box3();
+    selectedObjects.forEach((obj) => {
+      const { w, d, h } = obj.dims;
+      const pos = new THREE.Vector3(...obj.pos);
+      const objBox = new THREE.Box3().setFromCenterAndSize(
+        pos,
+        new THREE.Vector3(w, h, d)
+      );
+      box.union(objBox);
+    });
+
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    // 2. 创建新的 group 对象
+    const newGroup = {
+      id: `group_${Date.now()}`,
+      type: "group",
+      name: "新建编组",
+      pos: center.toArray(),
+      rot: [0, 0, 0],
+      dims: { w: size.x, h: size.y, d: size.z },
+      children: selectedObjects.map((obj) => ({
+        ...obj,
+        // 存储相对于组中心的原始位置
+        pos: [obj.pos[0] - center.x, obj.pos[1] - center.y, obj.pos[2] - center.z],
+      })),
+      visible: true,
+      includeInExport: true,
+      meta: {},
+    };
+
+    // 3. 更新 objects 数组
+    setObjects((prev) => [...prev.filter((o) => !selectedIds.includes(o.id)), newGroup]);
+    setSelectedIds([newGroup.id]);
+  };
+
+  const handleUngroup = () => {
+    const group = objects.find((o) => o.id === lastSelectedId && o.type === "group");
+    if (!group) return;
+
+    const children = group.children.map((child) => ({
+      ...child,
+      pos: [child.pos[0] + group.pos[0], child.pos[1] + group.pos[1], child.pos[2] + group.pos[2]],
+    }));
+
+    setObjects((prev) => [...prev.filter((o) => o.id !== group.id), ...children]);
+    setSelectedIds(children.map((c) => c.id));
+  };
+
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
       {/* Left Panel */}
@@ -96,7 +156,17 @@ export default function PCEditor() {
           <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <ObjectsList objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} />
-          <ControlsPanel objects={objects} selectedId={lastSelectedId} setObjects={setObjects} align={align} setAlign={setAlign} snap={snap} setSnap={setSnap} />
+          <ControlsPanel
+            objects={objects}
+            selectedIds={selectedIds}
+            setObjects={setObjects}
+            align={align}
+            setAlign={setAlign}
+            snap={snap}
+            setSnap={setSnap}
+            onGroup={handleGroup}
+            onUngroup={handleUngroup}
+          />
           <button onClick={() => exportSTLFrom(window.__lastThreeRoot)} style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white", fontWeight: 600 }}>导出 STL</button>
         </div>
       </div>

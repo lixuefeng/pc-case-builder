@@ -1,7 +1,6 @@
 // components/MovablePart.jsx — 选中/移动/旋转 + HUD（修复下拉被吞事件）
 import React, { useRef, useEffect, useState } from "react";
 import { TransformControls, Html } from "@react-three/drei";
-import { MotherboardMesh, PartBox } from "./Meshes.jsx";
 import { MotherboardMesh, PartBox, GroupMesh } from "./Meshes.jsx";
 
 const toMeters = (mm) => mm / 1000;
@@ -26,10 +25,6 @@ export default function MovablePart({
   const [uiLock, setUiLock] = useState(false);
 
   const handleDimChange = (axis, value) => {
-    setObj((prev) => ({
-      ...prev,
-      dims: { ...prev.dims, [axis]: Number(value) || 0 },
-    }));
     const newDimValue = Number(value) || 0;
     setObj((prev) => {
       const newDims = { ...prev.dims, [axis]: newDimValue };
@@ -370,7 +365,7 @@ export default function MovablePart({
         ) : obj.type === "group" ? (
           <GroupMesh obj={obj} selected={selected} />
         ) : (
-          <PartBox obj={obj} selected={selected} />
+          <PartBox obj={{ ...obj, pos: [0, 0, 0] }} selected={selected} />
         )}
       </group>
 

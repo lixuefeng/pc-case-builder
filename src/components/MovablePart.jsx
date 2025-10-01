@@ -41,12 +41,10 @@ export default function MovablePart({
     dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0
   });
 
-  // 拖拽对齐相关状态
-  const [isDragging, setIsDragging] = useState(false);
-  const [hoveredFace, setHoveredFace] = useState(null);
-  const [alignPreview, setAlignPreview] = useState(null);
+  // ✅ 新的智能对齐状态
   const [isShiftPressed, setIsShiftPressed] = useState(false);
-  const [dragAxis, setDragAxis] = useState(null); // 记录用户拖拽的轴
+  const [bestAlignCandidate, setBestAlignCandidate] = useState(null);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     if (!controlsRef.current || !groupRef.current) return;
@@ -65,6 +63,7 @@ export default function MovablePart({
     const handleKeyUp = (e) => {
       if (e.key === 'Shift') {
         setIsShiftPressed(false);
+        setBestAlignCandidate(null); // 松开 Shift 时，清除对齐候选
       }
     };
 
@@ -79,159 +78,119 @@ export default function MovablePart({
 
   // 视角控制逻辑迁移到 Scene 中统一处理，这里不直接改 OrbitControls.enabled
 
-  // ... (省略了面检测和对齐计算函数)
+  // 获取一个物体在某个轴向上的两个面的世界坐标和中心点
+  const getObjectFaces = (object, position) => {
+    const { w, h, d } = object.dims;
+    const [x, y, z] = position;
+    return {
+      X: [
+        { name: '+X', coord: x + w / 2, center: [x + w / 2, y, z] },
+        { name: '-X', coord: x - w / 2, center: [x - w / 2, y, z] },
+      ],
+      Y: [
+        { name: '+Y', coord: y + h / 2, center: [x, y + h / 2, z] },
+        { name: '-Y', coord: y - h / 2, center: [x, y - h / 2, z] },
+      ],
+      Z: [
+        { name: '+Z', coord: z + d / 2, center: [x, y, z + d / 2] },
+        { name: '-Z', coord: z - d / 2, center: [x, y, z - d / 2] },
+      ],
+    };
+  };
 
-  // 面检测函数 - 只检测用户拖拽轴上的面, 优化距离计算
-  const detectNearbyFaces = (currentPos) => {
-    if (!dragAxis) return []; // 如果没有拖拽轴，不检测
-    
-    const threshold = 100; // 100mm 检测距离
-    const nearbyFaces = [];
-    
-    allObjects.forEach(targetObj => {
-      if (targetObj.id === obj.id || !targetObj.visible) return;
-      
-      const targetPos = targetObj.pos;
-      const targetDims = targetObj.dims;
-      const selfPos = currentPos;
-      const selfDims = obj.dims;
-      
-      // 计算两个物体中心点距离
-      const centerDistanceSq = (
-        Math.pow(selfPos[0] - targetPos[0], 2) +
-        Math.pow(selfPos[1] - targetPos[1], 2) +
-        Math.pow(selfPos[2] - targetPos[2], 2)
-      );
-      
-      if (centerDistanceSq < threshold * threshold) {
-        // 只检测拖拽轴上的面
-        const axisFaces = {
-          'X': [
-            { name: '+X', pos: [selfPos[0] + selfDims.w/2, selfPos[1], selfPos[2]] },
-            { name: '-X', pos: [selfPos[0] - selfDims.w/2, selfPos[1], selfPos[2]] }
-          ],
-          'Y': [
-            { name: '+Y', pos: [selfPos[0], selfPos[1] + selfDims.h/2, selfPos[2]] },
-            { name: '-Y', pos: [selfPos[0], selfPos[1] - selfDims.h/2, selfPos[2]] }
-          ],
-          'Z': [
-            { name: '+Z', pos: [selfPos[0], selfPos[1], selfPos[2] + selfDims.d/2] },
-            { name: '-Z', pos: [selfPos[0], selfPos[1], selfPos[2] - selfDims.d/2] }
-          ]
-        };
-        
-        const targetAxisFaces = {
-          'X': [
-            { name: '+X', pos: [targetPos[0] + targetDims.w/2, targetPos[1], targetPos[2]] },
-            { name: '-X', pos: [targetPos[0] - targetDims.w/2, targetPos[1], targetPos[2]] }
-          ],
-          'Y': [
-            { name: '+Y', pos: [targetPos[0], targetPos[1] + targetDims.h/2, targetPos[2]] },
-            { name: '-Y', pos: [targetPos[0], targetPos[1] - targetDims.h/2, targetPos[2]] }
-          ],
-          'Z': [
-            { name: '+Z', pos: [targetPos[0], targetPos[1], targetPos[2] + targetDims.d/2] },
-            { name: '-Z', pos: [targetPos[0], targetPos[1], targetPos[2] - targetDims.d/2] }
-          ]
-        };
-        
-        // 只检测拖拽轴上的面
-        const selfFaces = axisFaces[dragAxis] || [];
-        const targetFaces = targetAxisFaces[dragAxis] || [];
-        
-        // 计算面组合的距离，找到最近的一对
-        let minDistance = Infinity;
-        let bestPair = null;
-        
-        selfFaces.forEach(selfFace =>{
-          targetFaces.forEach(targetFace => {
-            // 计算两个面之间的距离
-            const distanceSq = (
-              Math.pow(selfFace.pos[0] - targetFace.pos[0], 2) +
-              Math.pow(selfFace.pos[1] - targetFace.pos[1], 2) +
-              Math.pow(selfFace.pos[2] - targetFace.pos[2], 2)
-            );
-            
-            // 只考虑距离在阈值内的面
-            if (distanceSq < threshold * threshold) {
-              const distance = Math.sqrt(distanceSq);
-              if (distanceSq < minDistance) {
-                minDistance = distance;
-                bestPair = {
-                  selfFace: selfFace.name,
-                  targetFace: targetFace.name,
-                  distance: distance,
-                  targetObj,
-                  targetPosition: targetFace.pos
-                };
-              }
-            }
-          });
-        });
-        
-        if (bestPair && minDistance < threshold) {
-          nearbyFaces.push(bestPair);
+  // 查找最佳对齐候选
+  const findBestAlignCandidate = (currentPos, axis) => {
+    const threshold = 50; // 50mm 检测距离
+    let bestCandidate = null;
+    let minDistance = Infinity;
+
+    // ✅ 修复：获取被拖动物体的相关面
+    const selfFaces = getObjectFaces(obj, currentPos)[axis];
+
+    for (const targetObj of allObjects) {
+      if (targetObj.id === obj.id || !targetObj.visible) continue;
+
+      const targetFaces = getObjectFaces(targetObj, targetObj.pos)[axis];
+
+      // ✅ 修复：遍历所有“面对面”组合，找到距离最近的一对
+      for (const selfFace of selfFaces) {
+        for (const targetFace of targetFaces) {
+          const distance = Math.abs(selfFace.coord - targetFace.coord);
+          if (distance < minDistance && distance < threshold) {
+            minDistance = distance;
+            bestCandidate = {
+              selfFace: selfFace.name,
+              targetFace: targetFace.name,
+              targetObj: targetObj,
+              distance: distance,
+            };
+          }
         }
       }
-    });
-    
-    // 添加调试信息
-    if (nearbyFaces.length > 0) {
-      console.log(`检测到${dragAxis}轴最近面对:`, nearbyFaces);
     }
-    
-    return nearbyFaces.sort((a, b) => a.distance - b.distance);
+
+    setBestAlignCandidate(bestCandidate);
   };
 
-  // 计算对齐位置 - 让物体的面贴到目标物体的面
-  const calculateAlignPosition = (facePair) => {
-    const { selfFace, targetFace, targetObj } = facePair;
-    const selfHalf = { x: obj.dims.w / 2, y: obj.dims.h / 2, z: obj.dims.d / 2 };
-    const tgtHalf = { x: targetObj.dims.w / 2, y: targetObj.dims.h / 2, z: targetObj.dims.d / 2 };
-    const tgtPos = { x: targetObj.pos[0], y: targetObj.pos[1], z: targetObj.pos[2] };
-    const currentPos = { x: obj.pos[0], y: obj.pos[1], z: obj.pos[2] };
+  // ✅ 修复：重新添加缺失的对齐位置计算函数
+  const calculateAlignPosition = (candidate) => {
+    const { selfFace, targetFace, targetObj } = candidate;
+    const offset = 0; // 未来可以配置的吸附偏移量
+    const axis = selfFace[1]; // 'X', 'Y', or 'Z'
+    const axisIndex = { X: 0, Y: 1, Z: 2 }[axis];
 
-    const faceCoord = (pos, half, face) => {
-      switch (face) {
-        case "+X": return pos.x + half.x;
-        case "-X": return pos.x - half.x;
-        case "+Y": return pos.y + half.y;
-        case "-Y": return pos.y - half.y;
-        case "+Z": return pos.z + half.z;
-        case "-Z": return pos.z - half.z;
-        default: return pos.x;
-      }
-    };
-    
-    const axisOf = (face) => face[1];
-    const signOf = (face) => (face[0] === "+" ? 1 : -1);
+    const selfSign = selfFace[0] === '+' ? 1 : -1;
+    const selfHalfSize = obj.dims[{ X: 'w', Y: 'h', Z: 'd' }[axis]] / 2;
 
-    // 获取目标面的坐标
-    const targetAxis = axisOf(targetFace);
-    const tgtFaceCoord = faceCoord(tgtPos, tgtHalf, targetFace);
-    
-    // 计算物体中心应该移动到的位置
-    // 让物体的selfFace贴到目标物体的targetFace，但不相交
-    const selfHalfSize = selfHalf[targetAxis.toLowerCase()];
-    const tgtHalfSize = tgtHalf[targetAxis.toLowerCase()];
-    
-    // 计算两个物体中心之间的距离，确保它们相邻而不相交
-    const totalHalfSize = selfHalfSize + tgtHalfSize;
-    const desiredCenter = tgtFaceCoord - signOf(selfFace) * totalHalfSize;
+    // 获取目标面的世界坐标
+    const targetFaces = getObjectFaces(targetObj, targetObj.pos)[axis];
+    const targetFaceCoord = targetFaces.find(f => f.name === targetFace).coord;
 
-    // 只修改拖拽轴，保持其他轴不变
-    const newPos = { ...currentPos };
-    if (targetAxis === "X") newPos.x = desiredCenter;
-    if (targetAxis === "Y") newPos.y = desiredCenter;
-    if (targetAxis === "Z") newPos.z = desiredCenter;
+    // 计算被拖动物体中心点的新坐标，使其表面与目标表面贴合
+    const newCenterCoord = targetFaceCoord - (selfSign * selfHalfSize);
 
-    console.log(`对齐: ${selfFace} -> ${targetFace}`);
-    console.log(`  目标面坐标: ${tgtFaceCoord.toFixed(2)}`);
-    console.log(`  自身半尺寸: ${selfHalfSize.toFixed(2)}, 目标半尺寸: ${tgtHalfSize.toFixed(2)}`);
-    console.log(`  总距离: ${totalHalfSize.toFixed(2)}, 新中心: ${desiredCenter.toFixed(2)}`);
+    // ✅ 修复：必须基于物体拖拽结束时的实时位置来计算，而不是用 obj.pos (拖拽开始前的位置)
+    // 只修改主轴坐标，保持其他轴不变
+    const newPos = groupRef.current.position.clone().toArray();
+    newPos[axisIndex] = newCenterCoord;
 
-    return [newPos.x, newPos.y, newPos.z];
+    return newPos;
   };
+
+  // 获取一个物体某个面的中心点和尺寸，用于高亮
+  const getFaceDetails = (object, faceName, position) => {
+    const axis = faceName[1];
+    const faces = getObjectFaces(object, position);
+    const face = faces[axis].find(f => f.name === faceName);
+    if (!face || !face.center) return null;
+
+    const { w, h, d } = object.dims;
+    const [x, y, z] = position; // 使用物体的中心点作为基准
+    const sign = faceName[0] === '+' ? 1 : -1;
+    const thickness = 0.2;
+    // ✅ 修复 Z-fighting：在半个厚度的基础上再增加一个微小的偏移量 (epsilon)，
+    // 避免高亮面与物体表面完全重合导致闪烁。
+    const offset = thickness / 2 + 0.1;
+
+    // ✅ 修复：所有轴的计算逻辑都基于物体中心点(position)和其半尺寸，而不是依赖 face.center
+    // 这样可以避免坐标重复计算导致的偏移错误。
+    switch (faceName) {
+      case '+X': case '-X': return { center: [x + sign * (w / 2 + offset), y, z], size: [thickness, h, d] };
+      case '+Y': case '-Y': return { center: [x, y + sign * (h / 2 + offset), z], size: [w, thickness, d] };
+      case '+Z': case '-Z': return { center: [x, y, z + sign * (d / 2 + offset)], size: [w, h, thickness] };
+      default: return null;
+    }
+  };
+
+  // 计算高亮面的细节
+  const targetHighlightDetails = bestAlignCandidate
+    ? getFaceDetails(bestAlignCandidate.targetObj, bestAlignCandidate.targetFace, bestAlignCandidate.targetObj.pos)
+    : null;
+  // ✅ 修复：计算自身高亮时，应使用物体当前在世界中的位置
+  const selfHighlightDetails = bestAlignCandidate
+    // groupRef.current.position 是物体在拖拽过程中的实时世界坐标
+    ? getFaceDetails(obj, bestAlignCandidate.selfFace, groupRef.current.position.toArray())
+    : null;
 
   const startDrag = () => {
     if (!groupRef.current) return;
@@ -243,8 +202,7 @@ export default function MovablePart({
     ];
     dragStartRef.current = { pos: p, rot: r };
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
-    setIsDragging(true);
-    setDragging?.(true);
+    isDraggingRef.current = true;
   };
 
   const updateDuringDrag = () => {
@@ -271,49 +229,21 @@ export default function MovablePart({
     const absDy = Math.abs(delta.dy);
     const absDz = Math.abs(delta.dz);
 
-    // 检测用户拖拽的轴
-    if (isDragging && !dragAxis) {
-      // 找到移动最大的轴
-      if (absDx > absDy && absDx > absDz) {
-        setDragAxis('X');
-      } else if (absDy > absDx && absDy > absDz) {
-        setDragAxis('Y');
-      } else if (absDz > absDx && absDz > absDy) {
-        setDragAxis('Z');
-      }
+    // ✅ 修复：在每一帧都重新确定拖拽主轴，而不是只在开始时确定一次
+    let currentDragAxis = null;
+    if (absDx > absDy && absDx > absDz) {
+      currentDragAxis = 'X';
+    } else if (absDy > absDx && absDy > absDz) {
+      currentDragAxis = 'Y';
+    } else if (absDz > absDx && absDz > absDy) {
+      currentDragAxis = 'Z';
     }
 
-    // 如果 dragAxis 已经确定，并且移动的距离小于某个阈值，则清除 dragAxis
-    const minMovementThreshold = 1; // 1mm
-    if (dragAxis && absDx < minMovementThreshold && absDy < minMovementThreshold && absDz < minMovementThreshold) {
-        setDragAxis(null);
-        setHoveredFace(null);
-        setAlignPreview(null);
-        return; // 提前退出，避免不必要的计算
-    }
-
-    // 拖拽时检测附近的面（仅在按住Shift键时）
-    if (isDragging && isShiftPressed && dragAxis) {
-      const nearbyFaces = detectNearbyFaces(p);
-      if (nearbyFaces.length > 0) {
-        const closestFacePair = nearbyFaces[0];
-        console.log(`设置${dragAxis}轴高亮面对:`, closestFacePair);
-        setHoveredFace(closestFacePair);
-        
-        // 计算对齐预览位置
-        const alignPos = calculateAlignPosition(closestFacePair);
-        setAlignPreview({
-          facePair: closestFacePair,
-          position: alignPos
-        });
-      } else {
-        setHoveredFace(null);
-        setAlignPreview(null);
-      }
-    } else if (isDragging && !isShiftPressed) {
-      // 松开Shift键时清除对齐预览
-      setHoveredFace(null);
-      setAlignPreview(null);
+    // 2. 如果按住 Shift 且已确定主轴，则开始检测
+    if (isShiftPressed && currentDragAxis) {
+      findBestAlignCandidate(p, currentDragAxis);
+    } else {
+      setBestAlignCandidate(null); // 没按 Shift 或没确定主轴，则清除候选
     }
   };
 
@@ -389,104 +319,72 @@ export default function MovablePart({
           }}
           onMouseDown={(e) => {
             // 拖拽开始的瞬间
-            e.stopPropagation();
             startDrag();
           }}
           // ✅ 正确的修复方式：使用 onDraggingChange 来控制轨道控制器
           onDraggingChange={(dragging) => {
-            setIsDragging(dragging);
+            isDraggingRef.current = dragging;
             setDragging?.(dragging);
+            if (!dragging) {
+              // 拖拽结束
+              if (isShiftPressed && bestAlignCandidate) {
+                // ✅ 执行吸附
+                const newPos = calculateAlignPosition(bestAlignCandidate);
+                setObj((prev) => ({ ...prev, pos: newPos }));
+              } else {
+                // ✅ 如果不吸附，则应用 TransformControls 的最终位置
+                const p = groupRef.current.position.clone().toArray();
+                const r = [
+                  groupRef.current.rotation.x,
+                  groupRef.current.rotation.y,
+                  groupRef.current.rotation.z,
+                ];
+                setObj((prev) => ({ ...prev, pos: p, rot: r }));
+              }
+              // 清理状态
+              setBestAlignCandidate(null);
+            }
           }}
           onMouseUp={() => {
-            // 拖拽结束时检查是否需要自动对齐
-            if (isDragging && isShiftPressed && alignPreview) {
-              // 执行自动对齐
-              const newPos = alignPreview.position;
-              setObj((prev) => ({ ...prev, pos: newPos })); // 应用新位置
-              
-              // 调用对齐回调
-              if (onAlign) {
-                onAlign({
-                  sourceObj: obj,
-                  targetObj: alignPreview.facePair.targetObj,
-                  selfFace: alignPreview.facePair.selfFace,
-                  targetFace: alignPreview.facePair.targetFace,
-                  newPosition: newPos
-                });
-              }
-            }
-            
-            // 清理状态
-            setHoveredFace(null);
-            setAlignPreview(null);
-            setDragAxis(null);
-            setDragging?.(false);
+            // onDraggingChange 已经处理了主要逻辑，这里可以留空或做补充清理
           }}
           onPointerDown={(e) => e.stopPropagation()}
         />
       )}
 
-      {/* 面高亮效果 */}
-      {hoveredFace && isDragging && (
+      {/* ✅ 新的、正确的面高亮效果 */}
+      {bestAlignCandidate && (
         <group>
-          {/* 目标面中心点高亮 */}
-          <mesh
-            position={hoveredFace.targetPosition}
-          >
-            <sphereGeometry args={[2]} />
-            <meshBasicMaterial 
-              color="#00ff00" 
-              transparent 
-              opacity={1}
-            />
-          </mesh>
-          
+          {/* 目标面高亮 (渲染在世界坐标系中，因为它在 MovablePart 外部) */}
+          {targetHighlightDetails && (
+            <mesh position={targetHighlightDetails.center}>
+              <boxGeometry args={targetHighlightDetails.size} />
+              <meshBasicMaterial color="#00ff00" transparent opacity={0.5} />
+            </mesh>
+          )}
+          {/* ✅ 修复：自身高亮面也必须在世界坐标系中渲染 */}
+          {selfHighlightDetails && (
+            <mesh position={selfHighlightDetails.center}>
+              <boxGeometry args={selfHighlightDetails.size} />
+              <meshBasicMaterial color="#3b82f6" transparent opacity={0.5} />
+            </mesh>
+          )}
           {/* 面标识文字 */}
-          <Html position={hoveredFace.targetPosition}>
-            <div style={{
-              background: 'rgba(0, 255, 0, 0.8)',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              pointerEvents: 'none'
-            }}>
-              {hoveredFace.selfFace} → {hoveredFace.targetFace}
+          <Html position={bestAlignCandidate.targetObj.pos}>
+            <div
+              style={{
+                background: "rgba(0, 255, 0, 0.8)",
+                color: "white",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: "bold",
+                pointerEvents: "none",
+              }}
+            >
+              {bestAlignCandidate.selfFace} → {bestAlignCandidate.targetFace}
             </div>
           </Html>
-        </group>
-      )}
-
-      {/* 对齐预览线 */}
-      {alignPreview && isDragging && (
-        <group>
-          {/* 从当前位置到对齐位置的预览线 */}
-          <line>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={2}
-                array={new Float32Array([
-                  ...(groupRef.current?.position.clone().toArray() || [0, 0, 0]),
-                  ...alignPreview.position,
-                ])}
-                itemSize={3}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color="#00ff00" linewidth={1} />
-          </line>
-          
-          {/* 对齐目标位置预览 */}
-          <mesh position={alignPreview.position}>
-            <boxGeometry args={[obj.dims.w, obj.dims.h, obj.dims.d]} />
-            <meshBasicMaterial 
-              color="#00ff00" 
-              transparent 
-              opacity={0.2}
-              wireframe={true}
-            />
-          </mesh>
         </group>
       )}
 
@@ -619,7 +517,6 @@ export default function MovablePart({
                 <span>🔗</span>
                 <span>{isShiftPressed ? "拖拽对齐已启用" : "按住Shift拖拽对齐"}</span>
               </div>
-              */}
             </div>
           </div>
         </Html>

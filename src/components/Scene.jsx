@@ -9,7 +9,7 @@ export default function Scene({ objects, setObjects, selectedIds, onSelect, snap
   const [isAltPressed, setIsAltPressed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // 全局监听 Alt 键，仅在按住 Alt 时允许调整视角
+  // 修复：恢复对 Alt 键的全局监听，以控制视角
   useEffect(() => {
     const down = (e) => {
       if (e.key === "Alt") {
@@ -68,7 +68,7 @@ export default function Scene({ objects, setObjects, selectedIds, onSelect, snap
       </group>
       <OrbitControls
         ref={orbitRef}
-        enabled={isAltPressed && !isDragging}
+        enabled={isAltPressed && !isDragging} // ✅ 最终修复：同时检查 Alt 键和拖拽状态
         // 修复：禁用阻尼效果，让视角旋转立即停止，感觉更“跟手”
         enableDamping={false}
       />

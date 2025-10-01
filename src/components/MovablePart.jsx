@@ -1,5 +1,6 @@
-// components/MovablePart.jsx — 选中/移动/旋转 + HUD（修复下拉被吞事件）
-import React, { useRef, useEffect, useState } from "react";
+// components/MovablePart.jsx — 选中/移动/旋转 + HUD（修复下拉被吞事件 & 旋转下高亮/吸附准确）
+import React, { useRef, useEffect, useState, useMemo } from "react";
+import * as THREE from "three";
 import { TransformControls, Html } from "@react-three/drei";
 import { MotherboardMesh, PartBox, GroupMesh } from "./Meshes.jsx";
 
@@ -10,9 +11,9 @@ export default function MovablePart({
   onSelect,
   snap,
   palette,
-  allObjects = [], // 添加所有对象用于面检测
-  onAlign, // 添加对齐回调
-  setDragging, // 从父级传入，用于控制 OrbitControls 启用逻辑
+  allObjects = [], // 用于面检测
+  onAlign, // 可选：对齐回调
+  setDragging, // 告知父组件控制 OrbitControls
 }) {
   const t = palette;
   const groupRef = useRef();
@@ -26,22 +27,15 @@ export default function MovablePart({
     const newDimValue = Number(value) || 0;
     setObj((prev) => {
       const newDims = { ...prev.dims, [axis]: newDimValue };
-      // 如果是 group，需要重新计算子对象的位置
-      if (prev.type === "group") {
-        // 这是一个简化的处理，理想情况下可能需要更复杂的逻辑
-        // 来根据尺寸变化调整子对象，但目前我们先更新包围盒尺寸
-      }
+      // group 的子对象布局调整，暂不实现，仅更新包围盒
       return { ...prev, dims: newDims };
     });
   };
 
-
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
-  const [delta, setDelta] = useState({
-    dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0
-  });
+  const [delta, setDelta] = useState({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
 
-  // ✅ 新的智能对齐状态
+  // ✅ 智能对齐状态
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [bestAlignCandidate, setBestAlignCandidate] = useState(null);
   const isDraggingRef = useRef(false);
@@ -52,154 +46,203 @@ export default function MovablePart({
     else controlsRef.current.detach();
   }, [selected]);
 
-  // 键盘和UI锁事件监听（仅处理 Shift）
+  // ⌨️ 仅处理 Shift
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Shift') {
-        setIsShiftPressed(true);
-      }
-    };
-
-    const handleKeyUp = (e) => {
-      if (e.key === 'Shift') {
-        setIsShiftPressed(false);
-        setBestAlignCandidate(null); // 松开 Shift 时，清除对齐候选
-      }
-    };
-
+    const handleKeyDown = (e) => { if (e.key === 'Shift') setIsShiftPressed(true); };
+    const handleKeyUp = (e) => { if (e.key === 'Shift') { setIsShiftPressed(false); setBestAlignCandidate(null); } };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
 
-  // 视角控制逻辑迁移到 Scene 中统一处理，这里不直接改 OrbitControls.enabled
+  // ===== 工具：世界位姿、轴与 OBB 投影 =====
+  function getWorldTransform({ ref, obj }) {
+    const p = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    if (ref?.current) {
+      ref.current.getWorldPosition(p);
+      ref.current.getWorldQuaternion(q);
+    } else {
+      p.set(obj.pos[0], obj.pos[1], obj.pos[2]);
+      const e = new THREE.Euler(obj.rot[0], obj.rot[1], obj.rot[2], 'XYZ');
+      q.setFromEuler(e);
+    }
+    const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const az = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    return { p, q, axes: { ax, ay, az } };
+  }
 
-  // 获取一个物体在某个轴向上的两个面的世界坐标和中心点
-  const getObjectFaces = (object, position) => {
-    const { w, h, d } = object.dims;
-    const [x, y, z] = position;
+  // OBB 在世界轴 a 上的投影半径
+  function projectedHalfExtentAlongAxis(worldAxis, dims, axes) {
+    const { ax, ay, az } = axes;
+    const w2 = dims.w / 2, h2 = dims.h / 2, d2 = dims.d / 2;
+    return (
+      Math.abs(worldAxis.dot(ax)) * w2 +
+      Math.abs(worldAxis.dot(ay)) * h2 +
+      Math.abs(worldAxis.dot(az)) * d2
+    );
+  }
+
+  // 计算物体在三个世界轴上的“面中心坐标”（考虑旋转后的投影半宽）
+  const getObjectFaces = ({ obj, ref }) => {
+    const { p, q, axes } = getWorldTransform({ ref, obj });
+    const X = new THREE.Vector3(1, 0, 0);
+    const Y = new THREE.Vector3(0, 1, 0);
+    const Z = new THREE.Vector3(0, 0, 1);
+    const hx = projectedHalfExtentAlongAxis(X, obj.dims, axes);
+    const hy = projectedHalfExtentAlongAxis(Y, obj.dims, axes);
+    const hz = projectedHalfExtentAlongAxis(Z, obj.dims, axes);
     return {
       X: [
-        { name: '+X', coord: x + w / 2, center: [x + w / 2, y, z] },
-        { name: '-X', coord: x - w / 2, center: [x - w / 2, y, z] },
+        { name: '+X', coord: p.x + hx, center: new THREE.Vector3(p.x + hx, p.y, p.z), p, q },
+        { name: '-X', coord: p.x - hx, center: new THREE.Vector3(p.x - hx, p.y, p.z), p, q },
       ],
       Y: [
-        { name: '+Y', coord: y + h / 2, center: [x, y + h / 2, z] },
-        { name: '-Y', coord: y - h / 2, center: [x, y - h / 2, z] },
+        { name: '+Y', coord: p.y + hy, center: new THREE.Vector3(p.x, p.y + hy, p.z), p, q },
+        { name: '-Y', coord: p.y - hy, center: new THREE.Vector3(p.x, p.y - hy, p.z), p, q },
       ],
       Z: [
-        { name: '+Z', coord: z + d / 2, center: [x, y, z + d / 2] },
-        { name: '-Z', coord: z - d / 2, center: [x, y, z - d / 2] },
+        { name: '+Z', coord: p.z + hz, center: new THREE.Vector3(p.x, p.y, p.z + hz), p, q },
+        { name: '-Z', coord: p.z - hz, center: new THREE.Vector3(p.x, p.y, p.z - hz), p, q },
       ],
     };
   };
 
-  // 查找最佳对齐候选
-  const findBestAlignCandidate = (currentPos, axis) => {
+  // === 基于“任意世界方向”的面（用于本地轴拖拽后的世界方向） ===
+  function getFacesAlongDir({ obj, ref, dir }) {
+    const { p, q, axes } = getWorldTransform({ ref, obj });
+    const n = dir.clone().normalize();
+    const half = projectedHalfExtentAlongAxis(n, obj.dims, axes);
+    const centerPlus = p.clone().add(n.clone().multiplyScalar(half));
+    const centerMinus = p.clone().add(n.clone().multiplyScalar(-half));
+    const s = p.dot(n);
+    return [
+      { name: '+D', coord: s + half, center: centerPlus, p, q, n },
+      { name: '-D', coord: s - half, center: centerMinus, p, q, n },
+    ];
+  }
+
+  function getLocalAxisDir(tf, axisLabel) {
+    if (axisLabel === 'X') return tf.axes.ax.clone();
+    if (axisLabel === 'Y') return tf.axes.ay.clone();
+    if (axisLabel === 'Z') return tf.axes.az.clone();
+    return null;
+  }
+
+  function pickTargetBasis(targetTF, selfDir) {
+    const { ax, ay, az } = targetTF.axes;
+    const candidates = [
+      { v: ax, label: 'X' },
+      { v: ay, label: 'Y' },
+      { v: az, label: 'Z' },
+    ];
+    let best = candidates[0], bestAbs = -1;
+    for (const c of candidates) {
+      const v = Math.abs(c.v.dot(selfDir));
+      if (v > bestAbs) { bestAbs = v; best = c; }
+    }
+    return { dir: best.v.clone().normalize(), label: best.label };
+}
+
+// 查找最佳对齐候选（基于当前拖拽本地轴投影到世界后的方向）
+  const findBestAlignCandidate = (worldDir, axisLabel) => {
     const threshold = 50; // 50mm 检测距离
     let bestCandidate = null;
     let minDistance = Infinity;
 
-    // ✅ 修复：获取被拖动物体的相关面
-    const selfFaces = getObjectFaces(obj, currentPos)[axis];
+    const selfFaces = getFacesAlongDir({ obj, ref: groupRef, dir: worldDir });
 
     for (const targetObj of allObjects) {
       if (targetObj.id === obj.id || !targetObj.visible) continue;
+      const targetTF = getWorldTransform({ ref: null, obj: targetObj });
+      const picked = pickTargetBasis(targetTF, worldDir);
+      const targetDir = picked.dir;
+      const targetAxisLabel = picked.label; // 'X' | 'Y' | 'Z'
+      const targetFaces = getFacesAlongDir({ obj: targetObj, ref: null, dir: targetDir });
 
-      const targetFaces = getObjectFaces(targetObj, targetObj.pos)[axis];
-
-      // ✅ 修复：遍历所有“面对面”组合，找到距离最近的一对
       for (const selfFace of selfFaces) {
         for (const targetFace of targetFaces) {
           const distance = Math.abs(selfFace.coord - targetFace.coord);
           if (distance < minDistance && distance < threshold) {
             minDistance = distance;
             bestCandidate = {
+              axisLabel,
               selfFace: selfFace.name,
               targetFace: targetFace.name,
-              targetObj: targetObj,
-              distance: distance,
+              targetObj,
+              distance,
+              selfDir: worldDir.clone(),
+              targetDir: targetDir.clone(),
+              targetAxisLabel,
             };
           }
         }
       }
     }
-
     setBestAlignCandidate(bestCandidate);
   };
 
-  // ✅ 修复：重新添加缺失的对齐位置计算函数
+  // 旋转安全的吸附计算：沿当前拖拽方向做一维替换
   const calculateAlignPosition = (candidate) => {
-    const { selfFace, targetFace, targetObj } = candidate;
-    const offset = 0; // 未来可以配置的吸附偏移量
-    const axis = selfFace[1]; // 'X', 'Y', or 'Z'
-    const axisIndex = { X: 0, Y: 1, Z: 2 }[axis];
+    const { selfFace, targetFace, targetObj, selfDir, targetDir } = candidate;
+    const dir = selfDir.clone().normalize();
 
-    const selfSign = selfFace[0] === '+' ? 1 : -1;
-    const selfHalfSize = obj.dims[{ X: 'w', Y: 'h', Z: 'd' }[axis]] / 2;
+    const selfTF = getWorldTransform({ ref: groupRef, obj });
+    const targetTF = getWorldTransform({ ref: null, obj: targetObj });
 
-    // 获取目标面的世界坐标
-    const targetFaces = getObjectFaces(targetObj, targetObj.pos)[axis];
-    const targetFaceCoord = targetFaces.find(f => f.name === targetFace).coord;
+    const selfHalf = projectedHalfExtentAlongAxis(dir, obj.dims, selfTF.axes);
+    const targetHalf = projectedHalfExtentAlongAxis(targetDir, targetObj.dims, targetTF.axes);
 
-    // 计算被拖动物体中心点的新坐标，使其表面与目标表面贴合
-    const newCenterCoord = targetFaceCoord - (selfSign * selfHalfSize);
+    const selfSign = selfFace[0] === '+' ? +1 : -1;
+    const targetSign = targetFace[0] === '+' ? +1 : -1;
 
-    // ✅ 修复：必须基于物体拖拽结束时的实时位置来计算，而不是用 obj.pos (拖拽开始前的位置)
-    // 只修改主轴坐标，保持其他轴不变
-    const newPos = groupRef.current.position.clone().toArray();
-    newPos[axisIndex] = newCenterCoord;
+    const targetFaceCoord = targetTF.p.dot(targetDir) + targetSign * targetHalf;
 
-    return newPos;
+    const cur = groupRef.current.position.clone();
+    const s = cur.dot(dir);
+    const newCenterCoord = targetFaceCoord - selfSign * selfHalf;
+    const newPos = cur.add(dir.multiplyScalar(newCenterCoord - s));
+    return newPos.toArray();
   };
 
-  // 获取一个物体某个面的中心点和尺寸，用于高亮
-  const getFaceDetails = (object, faceName, position) => {
-    const axis = faceName[1];
-    const faces = getObjectFaces(object, position);
-    const face = faces[axis].find(f => f.name === faceName);
-    if (!face || !face.center) return null;
-
-    const { w, h, d } = object.dims;
-    const [x, y, z] = position; // 使用物体的中心点作为基准
+  // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
+  const getFaceDetails = ({ obj, ref, faceName }) => {
+    const { p, q } = getWorldTransform({ ref, obj });
+    const { w, h, d } = obj.dims;
     const sign = faceName[0] === '+' ? 1 : -1;
     const thickness = 0.2;
-    // ✅ 修复 Z-fighting：在半个厚度的基础上再增加一个微小的偏移量 (epsilon)，
-    // 避免高亮面与物体表面完全重合导致闪烁。
-    const offset = thickness / 2 + 0.1;
+    const offset = thickness / 2 + 0.1; // 防止 Z-fighting
 
-    // ✅ 修复：所有轴的计算逻辑都基于物体中心点(position)和其半尺寸，而不是依赖 face.center
-    // 这样可以避免坐标重复计算导致的偏移错误。
+    let localOffset, size;
     switch (faceName) {
-      case '+X': case '-X': return { center: [x + sign * (w / 2 + offset), y, z], size: [thickness, h, d] };
-      case '+Y': case '-Y': return { center: [x, y + sign * (h / 2 + offset), z], size: [w, thickness, d] };
-      case '+Z': case '-Z': return { center: [x, y, z + sign * (d / 2 + offset)], size: [w, h, thickness] };
-      default: return null;
+      case '+X': case '-X':
+        localOffset = new THREE.Vector3(sign * (w / 2 + offset), 0, 0);
+        size = [thickness, h, d];
+        break;
+      case '+Y': case '-Y':
+        localOffset = new THREE.Vector3(0, sign * (h / 2 + offset), 0);
+        size = [w, thickness, d];
+        break;
+      case '+Z': case '-Z':
+        localOffset = new THREE.Vector3(0, 0, sign * (d / 2 + offset));
+        size = [w, h, thickness];
+        break;
+      default:
+        return null;
     }
+    const worldOffset = localOffset.applyQuaternion(q);
+    const center = new THREE.Vector3().copy(p).add(worldOffset);
+    return { center: center.toArray(), size, quaternion: q };
   };
-
-  // 计算高亮面的细节
-  const targetHighlightDetails = bestAlignCandidate
-    ? getFaceDetails(bestAlignCandidate.targetObj, bestAlignCandidate.targetFace, bestAlignCandidate.targetObj.pos)
-    : null;
-  // ✅ 修复：计算自身高亮时，应使用物体当前在世界中的位置
-  const selfHighlightDetails = bestAlignCandidate
-    // groupRef.current.position 是物体在拖拽过程中的实时世界坐标
-    ? getFaceDetails(obj, bestAlignCandidate.selfFace, groupRef.current.position.toArray())
-    : null;
 
   const startDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
-    const r = [
-      groupRef.current.rotation.x,
-      groupRef.current.rotation.y,
-      groupRef.current.rotation.z,
-    ];
+    const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
     dragStartRef.current = { pos: p, rot: r };
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
     isDraggingRef.current = true;
@@ -208,13 +251,9 @@ export default function MovablePart({
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
-    const r = [
-      groupRef.current.rotation.x,
-      groupRef.current.rotation.y,
-      groupRef.current.rotation.z,
-    ];
+    const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
     const s = dragStartRef.current;
-    const delta = {
+    const d = {
       dx: +(p[0] - s.pos[0]).toFixed(3),
       dy: +(p[1] - s.pos[1]).toFixed(3),
       dz: +(p[2] - s.pos[2]).toFixed(3),
@@ -222,28 +261,29 @@ export default function MovablePart({
       ry: +(((r[1] - s.rot[1]) * 180) / Math.PI).toFixed(2),
       rz: +(((r[2] - s.rot[2]) * 180) / Math.PI).toFixed(2),
     };
-    setDelta(delta);
+    setDelta(d);
 
-    // 计算位移绝对值（供后续判断复用）
-    const absDx = Math.abs(delta.dx);
-    const absDy = Math.abs(delta.dy);
-    const absDz = Math.abs(delta.dz);
-
-    // ✅ 修复：在每一帧都重新确定拖拽主轴，而不是只在开始时确定一次
+    const absDx = Math.abs(d.dx), absDy = Math.abs(d.dy), absDz = Math.abs(d.dz);
     let currentDragAxis = null;
-    if (absDx > absDy && absDx > absDz) {
-      currentDragAxis = 'X';
-    } else if (absDy > absDx && absDy > absDz) {
-      currentDragAxis = 'Y';
-    } else if (absDz > absDx && absDz > absDy) {
-      currentDragAxis = 'Z';
-    }
+    if (absDx > absDy && absDx > absDz) currentDragAxis = 'X';
+    else if (absDy > absDx && absDy > absDz) currentDragAxis = 'Y';
+    else if (absDz > absDx && absDz > absDy) currentDragAxis = 'Z';
 
-    // 2. 如果按住 Shift 且已确定主轴，则开始检测
-    if (isShiftPressed && currentDragAxis) {
-      findBestAlignCandidate(p, currentDragAxis);
+    if (isShiftPressed) {
+      const axisLabel = controlsRef.current?.axis; // 'X' | 'Y' | 'Z' | null
+      if (axisLabel === 'X' || axisLabel === 'Y' || axisLabel === 'Z') {
+        const selfTF = getWorldTransform({ ref: groupRef, obj });
+        const worldDir = getLocalAxisDir(selfTF, axisLabel);
+        if (worldDir) findBestAlignCandidate(worldDir, axisLabel);
+      } else if (currentDragAxis) {
+        // 退化：按世界三轴判断
+        const worldDir = currentDragAxis === 'X' ? new THREE.Vector3(1,0,0) : currentDragAxis === 'Y' ? new THREE.Vector3(0,1,0) : new THREE.Vector3(0,0,1);
+        findBestAlignCandidate(worldDir, currentDragAxis);
+      } else {
+        setBestAlignCandidate(null);
+      }
     } else {
-      setBestAlignCandidate(null); // 没按 Shift 或没确定主轴，则清除候选
+      setBestAlignCandidate(null);
     }
   };
 
@@ -259,11 +299,10 @@ export default function MovablePart({
     textAlign: 'center',
   };
 
-  // ✅ 工具函数：把事件彻底拦下
+  // ✅ 工具：把事件彻底拦下
   const eat = (e) => {
     e.stopPropagation();
     e.preventDefault();
-    // 有些浏览器需要原生事件也阻止
     if (e.nativeEvent) {
       e.nativeEvent.stopImmediatePropagation?.();
       e.nativeEvent.stopPropagation?.();
@@ -274,6 +313,33 @@ export default function MovablePart({
   // ✅ HUD 聚焦期间上锁；失焦/关闭时解锁
   const lock = (e) => { eat(e); setUiLock(true); };
   const unlock = (e) => { eat(e); setUiLock(false); };
+
+  // ===== 计算高亮薄盒 =====
+  const targetHighlightDetails = useMemo(() => {
+    if (!bestAlignCandidate) return null;
+    const { targetObj, targetDir, targetFace, targetAxisLabel } = bestAlignCandidate;
+    const { p, q, axes } = getWorldTransform({ ref: null, obj: targetObj });
+    const half = projectedHalfExtentAlongAxis(targetDir, targetObj.dims, axes);
+    const sign = targetFace[0] === '+' ? 1 : -1;
+    const offset = 0.1; // 防穿模
+    const center = p.clone().add(targetDir.clone().multiplyScalar(sign * (half + offset)));
+
+    // 根据目标轴选择正确的薄盒尺寸（在目标的本地空间定义，再由 quaternion 对齐）
+    const thickness = 0.2;
+    let size;
+    if (targetAxisLabel === 'X') size = [thickness, targetObj.dims.h, targetObj.dims.d];
+    else if (targetAxisLabel === 'Y') size = [targetObj.dims.w, thickness, targetObj.dims.d];
+    else size = [targetObj.dims.w, targetObj.dims.h, thickness];
+
+    return { center: center.toArray(), size, quaternion: q };
+  }, [bestAlignCandidate]);
+
+  const selfHighlightDetails = useMemo(() => {
+    if (!bestAlignCandidate) return null;
+    const axis = bestAlignCandidate.axisLabel;
+    const face = bestAlignCandidate.selfFace[0] + axis; // '+X' / '-Y' / ...
+    return getFaceDetails({ obj, ref: groupRef, faceName: face });
+  }, [bestAlignCandidate, obj]);
 
   return (
     <>
@@ -302,74 +368,55 @@ export default function MovablePart({
           ref={controlsRef}
           object={groupRef.current}
           mode={mode}
-          // ✅ Drei 自带的 prop；也会被上面的 effect 再兜底控制
+          space="local"
           enabled={!uiLock}
           translationSnap={snap?.enabled ? snap.translate : undefined}
-          rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined} 
+          rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined}
           onObjectChange={() => {
             // 拖拽过程中持续更新
             updateDuringDrag();
             const p = groupRef.current.position.clone().toArray();
-            const r = [
-              groupRef.current.rotation.x,
-              groupRef.current.rotation.y,
-              groupRef.current.rotation.z,
-            ];
+            const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
             setObj((prev) => ({ ...prev, pos: p, rot: r }));
           }}
-          onMouseDown={(e) => {
-            // 拖拽开始的瞬间
+          onMouseDown={() => {
             startDrag();
           }}
-          // ✅ 正确的修复方式：使用 onDraggingChange 来控制轨道控制器
           onDraggingChange={(dragging) => {
             isDraggingRef.current = dragging;
             setDragging?.(dragging);
             if (!dragging) {
-              // 拖拽结束
               if (isShiftPressed && bestAlignCandidate) {
-                // ✅ 执行吸附
                 const newPos = calculateAlignPosition(bestAlignCandidate);
                 setObj((prev) => ({ ...prev, pos: newPos }));
+                onAlign?.(bestAlignCandidate);
               } else {
-                // ✅ 如果不吸附，则应用 TransformControls 的最终位置
                 const p = groupRef.current.position.clone().toArray();
-                const r = [
-                  groupRef.current.rotation.x,
-                  groupRef.current.rotation.y,
-                  groupRef.current.rotation.z,
-                ];
+                const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
                 setObj((prev) => ({ ...prev, pos: p, rot: r }));
               }
-              // 清理状态
               setBestAlignCandidate(null);
             }
-          }}
-          onMouseUp={() => {
-            // onDraggingChange 已经处理了主要逻辑，这里可以留空或做补充清理
           }}
           onPointerDown={(e) => e.stopPropagation()}
         />
       )}
 
-      {/* ✅ 新的、正确的面高亮效果 */}
+      {/* ✅ 面高亮（世界坐标 & 继承物体旋转） */}
       {bestAlignCandidate && (
         <group>
-          {/* 目标面高亮 (渲染在世界坐标系中，因为它在 MovablePart 外部) */}
           {targetHighlightDetails && (
-            <mesh position={targetHighlightDetails.center}>
+            <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion}>
               <boxGeometry args={targetHighlightDetails.size} />
               <meshBasicMaterial color="#00ff00" transparent opacity={0.5} />
             </mesh>
           )}
-          {/* ✅ 修复：自身高亮面也必须在世界坐标系中渲染 */}
           {selfHighlightDetails && (
-            <mesh position={selfHighlightDetails.center}>
+            <mesh position={selfHighlightDetails.center} quaternion={selfHighlightDetails.quaternion}>
               <boxGeometry args={selfHighlightDetails.size} />
               <meshBasicMaterial color="#3b82f6" transparent opacity={0.5} />
             </mesh>
           )}
-          {/* 面标识文字 */}
           <Html position={bestAlignCandidate.targetObj.pos}>
             <div
               style={{
@@ -389,20 +436,12 @@ export default function MovablePart({
       )}
 
       {selected && (
-        <Html
-          // 使用 fullscreen 将 HUD 渲染到屏幕空间
-          fullscreen
-          // 容器本身不接收事件，以免遮挡3D场景交互
-          style={{ pointerEvents: "none" }}
-          zIndexRange={[1000, 0]} // 提高层级，防止被 Canvas 吞
-        >
+        <Html fullscreen style={{ pointerEvents: "none" }} zIndexRange={[1000, 0]}>
           <div
             style={{
-              // 定位到右下角
               position: "absolute",
               right: 20,
               bottom: 20,
-              // 内容区域接收事件
               pointerEvents: "auto",
               display: "flex",
               alignItems: "center",
@@ -416,7 +455,6 @@ export default function MovablePart({
               fontSize: 12,
               zIndex: 1000,
             }}
-            // ✅ 整个 HUD 容器都拦截事件，避免冒泡到 Canvas
             onPointerDown={lock}
             onPointerUp={unlock}
             onWheel={eat}
@@ -425,14 +463,9 @@ export default function MovablePart({
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: t?.muted || "#64748b" }}>Mode:</span>
-
-              {/* ✅ 修复：简化事件处理，只拦截必要的事件 */}
               <select
                 value={mode}
-                onChange={(e) => { 
-                  e.stopPropagation(); 
-                  setMode(e.target.value); 
-                }}
+                onChange={(e) => { e.stopPropagation(); setMode(e.target.value); }}
                 style={{
                   width: 110,
                   padding: "6px 10px",
@@ -443,39 +476,15 @@ export default function MovablePart({
                   position: "relative",
                   zIndex: 1001,
                 }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  setUiLock(true);
-                }}
-                onMouseUp={(e) => {
-                  e.stopPropagation();
-                  setUiLock(false);
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-                onFocus={(e) => {
-                  e.stopPropagation();
-                  setUiLock(true);
-                }}
-                onBlur={(e) => {
-                  e.stopPropagation();
-                  setUiLock(false);
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  setUiLock(true);
-                }}
-                onPointerUp={(e) => {
-                  e.stopPropagation();
-                  setUiLock(false);
-                }}
-                onContextMenu={(e) => {
-                  e.stopPropagation();
-                }}
-                onWheel={(e) => {
-                  e.stopPropagation();
-                }}
+                onMouseDown={(e) => { e.stopPropagation(); setUiLock(true); }}
+                onMouseUp={(e) => { e.stopPropagation(); setUiLock(false); }}
+                onClick={(e) => { e.stopPropagation(); }}
+                onFocus={(e) => { e.stopPropagation(); setUiLock(true); }}
+                onBlur={(e) => { e.stopPropagation(); setUiLock(false); }}
+                onPointerDown={(e) => { e.stopPropagation(); setUiLock(true); }}
+                onPointerUp={(e) => { e.stopPropagation(); setUiLock(false); }}
+                onContextMenu={(e) => { e.stopPropagation(); }}
+                onWheel={(e) => { e.stopPropagation(); }}
               >
                 <option value="translate">Move</option>
                 <option value="rotate">Rotate</option>
@@ -491,29 +500,11 @@ export default function MovablePart({
               <input type="number" value={obj.dims.d} onChange={(e) => handleDimChange("d", e.target.value)} style={hudInputStyle} />
             </div>
 
-            <div
-              style={{
-                fontFamily:
-                  "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-                color: t?.subText || "#334155",
-              }}
-            >
-              {/* 移动和旋转的增量显示 */}
-              {/* 
+            <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", color: t?.subText || "#334155" }}>
+              {/* 如需显示增量可开启：
               Δx:{delta.dx}mm Δy:{delta.dy}mm Δz:{delta.dz}mm | Δα:{delta.rx}° Δβ:{delta.ry}° Δγ:{delta.rz}°
-            </div>
-            
-              {/* 对齐提示 */}
-              <div
-                style={{
-                  fontSize: 11,
-                  color: isShiftPressed ? "#10b981" : "#94a3b8",
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
+              */}
+              <div style={{ fontSize: 11, color: isShiftPressed ? "#10b981" : "#94a3b8", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                 <span>🔗</span>
                 <span>{isShiftPressed ? "拖拽对齐已启用" : "按住Shift拖拽对齐"}</span>
               </div>

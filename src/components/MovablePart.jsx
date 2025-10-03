@@ -1,8 +1,12 @@
-// components/MovablePart.jsx — 选中/移动/旋转 + HUD（修复下拉被吞事件 & 旋转下高亮/吸附准确）
+// components/MovablePart.jsx — 选中/移动/旋转 + HUD（旋转安全的高亮/吸附 + 调试日志）
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
 import { TransformControls, Html } from "@react-three/drei";
 import { MotherboardMesh, PartBox, GroupMesh } from "./Meshes.jsx";
+
+// === Debug helpers ===
+const DEBUG_ALIGN = true; // 控制调试日志；需要时改为 false 关闭
+const dlog = (...args) => { if (DEBUG_ALIGN) console.log("[align]", ...args); };
 
 export default function MovablePart({
   obj,
@@ -27,24 +31,22 @@ export default function MovablePart({
     const newDimValue = Number(value) || 0;
     setObj((prev) => {
       const newDims = { ...prev.dims, [axis]: newDimValue };
-      // group 的子对象布局调整，暂不实现，仅更新包围盒
       return { ...prev, dims: newDims };
     });
   };
 
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
+  const prevPosRef = useRef(null); // 上一帧世界位置，用来推断真实拖拽轴
   const [delta, setDelta] = useState({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
 
   // ✅ 智能对齐状态
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [bestAlignCandidate, setBestAlignCandidate] = useState(null);
+  // 记录拖拽过程中的最后一个可用候选，用于松手时吸附
+  const lastAlignCandidateRef = useRef(null);
   const isDraggingRef = useRef(false);
-
-  useEffect(() => {
-    if (!controlsRef.current || !groupRef.current) return;
-    if (selected) controlsRef.current.attach(groupRef.current);
-    else controlsRef.current.detach();
-  }, [selected]);
+  const noHitFramesRef = useRef(0); // 连续无候选的帧数（用于宽限）
+  const upListenerRef = useRef(null); // 全局 pointerup 兜底监听
 
   // ⌨️ 仅处理 Shift
   useEffect(() => {
@@ -57,6 +59,16 @@ export default function MovablePart({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // === 吸附并行性容差（仅当两面近似平行才高亮/吸附） ===
+  const ALIGN_ANG_TOL_DEG = 5; // 允许 5° 以内的夹角误差
+  const PARALLEL_COS = Math.cos(THREE.MathUtils.degToRad(ALIGN_ANG_TOL_DEG));
+  const DIST_THRESHOLD = 50; // 50mm 检测距离
+  const MIN_MOVE_EPS = 0.25; // 本帧最小移动阈值，避免第一帧 axis 误判
+  // ——— 抗抖/粘滞参数（抑制高亮闪烁） ———
+  const HYST_MM = 3;           // 候选切换的最小改进（小于3mm不切）
+  const IMPROVE_MM = 2;        // 新候选需要至少优于上一个2mm才替换
+  const GRACE_FRAMES = 6;      // 丢失候选后，保留旧候选的宽限帧数
 
   // ===== 工具：世界位姿、轴与 OBB 投影 =====
   function getWorldTransform({ ref, obj }) {
@@ -79,38 +91,13 @@ export default function MovablePart({
   // OBB 在世界轴 a 上的投影半径
   function projectedHalfExtentAlongAxis(worldAxis, dims, axes) {
     const { ax, ay, az } = axes;
-    const w2 = dims.w / 2, h2 = dims.h / 2, d2 = dims.d / 2;
+    const w2 = (dims?.w ?? 0) / 2, h2 = (dims?.h ?? 0) / 2, d2 = (dims?.d ?? 0) / 2;
     return (
       Math.abs(worldAxis.dot(ax)) * w2 +
       Math.abs(worldAxis.dot(ay)) * h2 +
       Math.abs(worldAxis.dot(az)) * d2
     );
   }
-
-  // 计算物体在三个世界轴上的“面中心坐标”（考虑旋转后的投影半宽）
-  const getObjectFaces = ({ obj, ref }) => {
-    const { p, q, axes } = getWorldTransform({ ref, obj });
-    const X = new THREE.Vector3(1, 0, 0);
-    const Y = new THREE.Vector3(0, 1, 0);
-    const Z = new THREE.Vector3(0, 0, 1);
-    const hx = projectedHalfExtentAlongAxis(X, obj.dims, axes);
-    const hy = projectedHalfExtentAlongAxis(Y, obj.dims, axes);
-    const hz = projectedHalfExtentAlongAxis(Z, obj.dims, axes);
-    return {
-      X: [
-        { name: '+X', coord: p.x + hx, center: new THREE.Vector3(p.x + hx, p.y, p.z), p, q },
-        { name: '-X', coord: p.x - hx, center: new THREE.Vector3(p.x - hx, p.y, p.z), p, q },
-      ],
-      Y: [
-        { name: '+Y', coord: p.y + hy, center: new THREE.Vector3(p.x, p.y + hy, p.z), p, q },
-        { name: '-Y', coord: p.y - hy, center: new THREE.Vector3(p.x, p.y - hy, p.z), p, q },
-      ],
-      Z: [
-        { name: '+Z', coord: p.z + hz, center: new THREE.Vector3(p.x, p.y, p.z + hz), p, q },
-        { name: '-Z', coord: p.z - hz, center: new THREE.Vector3(p.x, p.y, p.z - hz), p, q },
-      ],
-    };
-  };
 
   // === 基于“任意世界方向”的面（用于本地轴拖拽后的世界方向） ===
   function getFacesAlongDir({ obj, ref, dir }) {
@@ -133,6 +120,20 @@ export default function MovablePart({
     return null;
   }
 
+  // 根据移动向量在本地基上的投影，推断最可能的拖拽轴
+  function inferAxisFromMovement(mv, tf) {
+    if (!mv) return { axis: null, proj: { X: 0, Y: 0, Z: 0 }, len: 0 };
+    const { ax, ay, az } = tf.axes;
+    const len = mv.length();
+    const px = Math.abs(mv.dot(ax));
+    const py = Math.abs(mv.dot(ay));
+    const pz = Math.abs(mv.dot(az));
+    let axis = 'X';
+    if (py >= px && py >= pz) axis = 'Y';
+    else if (pz >= px && pz >= py) axis = 'Z';
+    return { axis, proj: { X: px, Y: py, Z: pz }, len };
+  }
+
   function pickTargetBasis(targetTF, selfDir) {
     const { ax, ay, az } = targetTF.axes;
     const candidates = [
@@ -146,28 +147,40 @@ export default function MovablePart({
       if (v > bestAbs) { bestAbs = v; best = c; }
     }
     return { dir: best.v.clone().normalize(), label: best.label };
-}
+  }
 
-// 查找最佳对齐候选（基于当前拖拽本地轴投影到世界后的方向）
+  // 查找最佳对齐候选（基于当前拖拽本地轴投影到世界后的方向）
   const findBestAlignCandidate = (worldDir, axisLabel) => {
-    const threshold = 50; // 50mm 检测距离
+    const dirN = worldDir.clone().normalize();
+    dlog("findBestAlignCandidate:start", { axisLabel, worldDir: dirN.toArray() });
+
+    const selfFaces = getFacesAlongDir({ obj, ref: groupRef, dir: dirN });
     let bestCandidate = null;
     let minDistance = Infinity;
-
-    const selfFaces = getFacesAlongDir({ obj, ref: groupRef, dir: worldDir });
 
     for (const targetObj of allObjects) {
       if (targetObj.id === obj.id || !targetObj.visible) continue;
       const targetTF = getWorldTransform({ ref: null, obj: targetObj });
-      const picked = pickTargetBasis(targetTF, worldDir);
-      const targetDir = picked.dir;
+      const picked = pickTargetBasis(targetTF, dirN);
+      const targetDir = picked.dir; // 已归一化
       const targetAxisLabel = picked.label; // 'X' | 'Y' | 'Z'
+
+      // ⛔ 角度不平行则跳过（仅当 |cosθ| >= cos(tol) 才认为可对齐）
+      const parallelCos = Math.abs(dirN.dot(targetDir));
+      if (parallelCos < PARALLEL_COS) {
+        dlog("skip:not-parallel", { targetId: targetObj.id, parallelCos, need: PARALLEL_COS });
+        continue;
+      }
+
       const targetFaces = getFacesAlongDir({ obj: targetObj, ref: null, dir: targetDir });
 
       for (const selfFace of selfFaces) {
         for (const targetFace of targetFaces) {
-          const distance = Math.abs(selfFace.coord - targetFace.coord);
-          if (distance < minDistance && distance < threshold) {
+          // 统一标量方向：若 targetDir 与 selfDir 反向，则把目标侧标量翻转到同一坐标系
+          const sameOrientation = Math.sign(targetDir.dot(dirN)) || 1;
+          const targetCoordAligned = sameOrientation * targetFace.coord;
+          const distance = Math.abs(selfFace.coord - targetCoordAligned);
+          if (distance < minDistance && distance < DIST_THRESHOLD) {
             minDistance = distance;
             bestCandidate = {
               axisLabel,
@@ -175,15 +188,47 @@ export default function MovablePart({
               targetFace: targetFace.name,
               targetObj,
               distance,
-              selfDir: worldDir.clone(),
+              selfDir: dirN.clone(),
               targetDir: targetDir.clone(),
               targetAxisLabel,
             };
+            dlog("candidate:update", { targetId: targetObj.id, distance, axisLabel, targetAxisLabel });
           }
         }
       }
     }
-    setBestAlignCandidate(bestCandidate);
+
+    // —— 粘滞/抗抖：没有新候选时，短时间保留旧候选；有新候选时，只有明显更好才替换 ——
+    let finalCandidate = bestAlignCandidate;
+    const prev = lastAlignCandidateRef.current;
+
+    if (!bestCandidate) {
+      if (prev && noHitFramesRef.current < GRACE_FRAMES) {
+        finalCandidate = prev; // 宽限期内沿用上一个
+        noHitFramesRef.current += 1;
+        dlog('candidate:stick(prev)', { noHitFrames: noHitFramesRef.current });
+      } else {
+        finalCandidate = null;
+        noHitFramesRef.current = 0;
+      }
+    } else {
+      noHitFramesRef.current = 0;
+      if (prev && prev.targetObj?.id === bestCandidate.targetObj?.id && prev.targetAxisLabel === bestCandidate.targetAxisLabel) {
+        // 若新候选没有“显著更好”（小于 IMPROVE_MM），继续沿用旧候选，避免来回跳
+        if (bestCandidate.distance > prev.distance - IMPROVE_MM) {
+          finalCandidate = prev;
+          dlog('candidate:keep(prev)', { prevDist: prev.distance, newDist: bestCandidate.distance });
+        } else {
+          finalCandidate = bestCandidate;
+        }
+      } else {
+        finalCandidate = bestCandidate;
+      }
+    }
+
+    setBestAlignCandidate(finalCandidate);
+    dlog("candidate:final", finalCandidate);
+    if (finalCandidate) lastAlignCandidateRef.current = finalCandidate;
   };
 
   // 旋转安全的吸附计算：沿当前拖拽方向做一维替换
@@ -200,13 +245,80 @@ export default function MovablePart({
     const selfSign = selfFace[0] === '+' ? +1 : -1;
     const targetSign = targetFace[0] === '+' ? +1 : -1;
 
-    const targetFaceCoord = targetTF.p.dot(targetDir) + targetSign * targetHalf;
+    // 若目标法线与当前拖拽方向反向，统一到 selfDir 的标量系
+    const sameOrientation = Math.sign(targetDir.dot(dir)) || 1;
+    const targetFaceCoordRaw = targetTF.p.dot(targetDir) + targetSign * targetHalf;
+    const targetFaceCoord = sameOrientation * targetFaceCoordRaw;
 
     const cur = groupRef.current.position.clone();
     const s = cur.dot(dir);
     const newCenterCoord = targetFaceCoord - selfSign * selfHalf;
     const newPos = cur.add(dir.multiplyScalar(newCenterCoord - s));
-    return newPos.toArray();
+    const out = newPos.toArray();
+    dlog("calculateAlignPosition", { selfFace, targetFace, selfHalf, targetHalf, targetFaceCoord, newPos: out });
+    return out;
+  };
+
+  // 平滑吸附动画，避免瞬移（120ms 线性插值）
+  const snapToCandidate = (candidate) => {
+    const targetPos = calculateAlignPosition(candidate);
+    const ctrl = controlsRef.current;
+    const from = groupRef.current.position.clone();
+    const to = new THREE.Vector3(targetPos[0], targetPos[1], targetPos[2]);
+    const start = performance.now();
+    const dur = 120; // ms
+
+    const prevEnabled = ctrl?.enabled;
+    if (ctrl) ctrl.enabled = false;
+
+    function step(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const cur = from.clone().lerp(to, t);
+      groupRef.current.position.copy(cur);
+      groupRef.current.updateMatrixWorld(true);
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        const p = groupRef.current.position.clone().toArray();
+        setObj((prev) => ({ ...prev, pos: p }));
+        if (ctrl) {
+          ctrl.detach();
+          ctrl.attach(groupRef.current);
+          ctrl.enabled = prevEnabled ?? true;
+        }
+        dlog('snap:applied', { pos: p });
+        onAlign?.({ ...candidate, pos: p });
+      }
+    }
+
+    requestAnimationFrame(step);
+  };
+
+  // 统一的“拖拽结束”处理：onDraggingChange(false) 与全局 pointerup 都会调用
+  const handleDragEnd = () => {
+    const candidate = bestAlignCandidate || lastAlignCandidateRef.current;
+    dlog("onDragEnd", {
+      hasCandidate: !!candidate,
+      best: !!bestAlignCandidate,
+      cached: !!lastAlignCandidateRef.current,
+      isShiftPressed,
+    });
+
+    if (candidate) {
+      // 只要当前/最近存在高亮候选，就吸附（不再强制要求 Shift）
+      snapToCandidate(candidate);
+    } else {
+      const p = groupRef.current.position.clone().toArray();
+      const r = [
+        groupRef.current.rotation.x,
+        groupRef.current.rotation.y,
+        groupRef.current.rotation.z,
+      ];
+      setObj((prev) => ({ ...prev, pos: p, rot: r }));
+      dlog("onDragEnd:no-snap", { pos: p });
+    }
+    setBestAlignCandidate(null);
+    lastAlignCandidateRef.current = null;
   };
 
   // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
@@ -244,14 +356,20 @@ export default function MovablePart({
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
     dragStartRef.current = { pos: p, rot: r };
+    prevPosRef.current = p; // 初始化上一帧位置
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
     isDraggingRef.current = true;
+    dlog("startDrag", { pos: p, rot: r });
   };
 
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
-    const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
+    const r = [
+      groupRef.current.rotation.x,
+      groupRef.current.rotation.y,
+      groupRef.current.rotation.z,
+    ];
     const s = dragStartRef.current;
     const d = {
       dx: +(p[0] - s.pos[0]).toFixed(3),
@@ -263,27 +381,75 @@ export default function MovablePart({
     };
     setDelta(d);
 
+    // 计算当前帧移动向量（上一帧 -> 当前帧）
+    let mv = null;
+    if (prevPosRef.current) {
+      mv = new THREE.Vector3(
+        p[0] - prevPosRef.current[0],
+        p[1] - prevPosRef.current[1],
+        p[2] - prevPosRef.current[2]
+      );
+    }
+    prevPosRef.current = p;
+
+    // 未按住 Shift：不对齐
+    if (!isShiftPressed) { setBestAlignCandidate(null); return; }
+
+    // 备用：世界轴主导判断（退化用）
     const absDx = Math.abs(d.dx), absDy = Math.abs(d.dy), absDz = Math.abs(d.dz);
     let currentDragAxis = null;
     if (absDx > absDy && absDx > absDz) currentDragAxis = 'X';
     else if (absDy > absDx && absDy > absDz) currentDragAxis = 'Y';
     else if (absDz > absDx && absDz > absDy) currentDragAxis = 'Z';
 
-    if (isShiftPressed) {
-      const axisLabel = controlsRef.current?.axis; // 'X' | 'Y' | 'Z' | null
-      if (axisLabel === 'X' || axisLabel === 'Y' || axisLabel === 'Z') {
-        const selfTF = getWorldTransform({ ref: groupRef, obj });
-        const worldDir = getLocalAxisDir(selfTF, axisLabel);
-        if (worldDir) findBestAlignCandidate(worldDir, axisLabel);
-      } else if (currentDragAxis) {
-        // 退化：按世界三轴判断
-        const worldDir = currentDragAxis === 'X' ? new THREE.Vector3(1,0,0) : currentDragAxis === 'Y' ? new THREE.Vector3(0,1,0) : new THREE.Vector3(0,0,1);
-        findBestAlignCandidate(worldDir, currentDragAxis);
-      } else {
-        setBestAlignCandidate(null);
-      }
+    // 等移动超过阈值再解析轴，避免第一帧误判
+    const selfTF = getWorldTransform({ ref: groupRef, obj });
+    const mvLen = mv ? mv.length() : 0;
+    if (mvLen < MIN_MOVE_EPS) {
+      dlog('axis:wait-move', { mvLen });
+      // 保持现有候选，避免低速/停顿帧导致的闪烁
+      return;
+    }
+
+    // 解析轴：控件轴优先，必要时用移动向量纠错
+    const axisFromCtrlRaw = controlsRef.current?.axis || null; // 'X'|'Y'|'Z'|'XY'|'YZ'|'XZ'|null
+    let resolvedAxis = (axisFromCtrlRaw === 'X' || axisFromCtrlRaw === 'Y' || axisFromCtrlRaw === 'Z') ? axisFromCtrlRaw : null;
+
+    const { axis: inferred, proj } = inferAxisFromMovement(mv, selfTF);
+    dlog('axis:mv-proj', { mv: mv?.toArray?.(), len: +mvLen.toFixed(3), proj });
+
+    if (!resolvedAxis) {
+      resolvedAxis = inferred || currentDragAxis;
     } else {
-      setBestAlignCandidate(null);
+      // 仅当推断轴投影显著更大时才覆盖控件轴
+      const margin = 1.25; // 25%
+      const ctrlProj = proj[resolvedAxis] ?? 0;
+      const infProj = inferred ? (proj[inferred] ?? 0) : 0;
+      if (inferred && inferred !== resolvedAxis && infProj > ctrlProj * margin) {
+        dlog('axis:override', { from: resolvedAxis, to: inferred, ctrlProj, infProj });
+        resolvedAxis = inferred;
+      } else {
+        dlog('axis:keep', { kept: resolvedAxis, ctrlProj, infProj, mvLen });
+      }
+    }
+
+    // 根据解析的轴找候选（不平行/超距会被过滤）
+    if (resolvedAxis === 'X' || resolvedAxis === 'Y' || resolvedAxis === 'Z') {
+      const worldDir = getLocalAxisDir(selfTF, resolvedAxis);
+      dlog('axis:resolved', { axisFromCtrlRaw, resolvedAxis, mv: mv?.toArray?.() });
+      if (worldDir) findBestAlignCandidate(worldDir, resolvedAxis);
+    } else if (currentDragAxis) {
+      const worldDir =
+        currentDragAxis === 'X'
+          ? new THREE.Vector3(1, 0, 0)
+          : currentDragAxis === 'Y'
+          ? new THREE.Vector3(0, 1, 0)
+          : new THREE.Vector3(0, 0, 1);
+      dlog('axis:fallback-world', { currentDragAxis });
+      findBestAlignCandidate(worldDir, currentDragAxis);
+    } else {
+      // 解析不到轴时，保留上一候选，避免短促抖动造成的熄灭
+      // （findBestAlignCandidate 内部也有粘滞/宽限控制）
     }
   };
 
@@ -373,29 +539,41 @@ export default function MovablePart({
           translationSnap={snap?.enabled ? snap.translate : undefined}
           rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined}
           onObjectChange={() => {
-            // 拖拽过程中持续更新
             updateDuringDrag();
             const p = groupRef.current.position.clone().toArray();
-            const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
+            const r = [
+              groupRef.current.rotation.x,
+              groupRef.current.rotation.y,
+              groupRef.current.rotation.z,
+            ];
             setObj((prev) => ({ ...prev, pos: p, rot: r }));
           }}
           onMouseDown={() => {
             startDrag();
+            lastAlignCandidateRef.current = null;
+            // 添加全局 pointerup 兜底：某些平台 TransformControls 不总是触发 dragging=false
+            if (upListenerRef.current) {
+              window.removeEventListener('pointerup', upListenerRef.current);
+              upListenerRef.current = null;
+            }
+            upListenerRef.current = () => {
+              if (isDraggingRef.current) handleDragEnd();
+              window.removeEventListener('pointerup', upListenerRef.current);
+              upListenerRef.current = null;
+            };
+            window.addEventListener('pointerup', upListenerRef.current, { once: true });
           }}
           onDraggingChange={(dragging) => {
             isDraggingRef.current = dragging;
             setDragging?.(dragging);
             if (!dragging) {
-              if (isShiftPressed && bestAlignCandidate) {
-                const newPos = calculateAlignPosition(bestAlignCandidate);
-                setObj((prev) => ({ ...prev, pos: newPos }));
-                onAlign?.(bestAlignCandidate);
-              } else {
-                const p = groupRef.current.position.clone().toArray();
-                const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
-                setObj((prev) => ({ ...prev, pos: p, rot: r }));
+              // 优先用控件回调触发一次结束逻辑
+              handleDragEnd();
+              // 清理全局 pointerup 监听
+              if (upListenerRef.current) {
+                window.removeEventListener('pointerup', upListenerRef.current);
+                upListenerRef.current = null;
               }
-              setBestAlignCandidate(null);
             }
           }}
           onPointerDown={(e) => e.stopPropagation()}
@@ -406,15 +584,45 @@ export default function MovablePart({
       {bestAlignCandidate && (
         <group>
           {targetHighlightDetails && (
-            <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion}>
+            <mesh
+              position={targetHighlightDetails.center}
+              quaternion={targetHighlightDetails.quaternion}
+              renderOrder={9998}
+              frustumCulled={false}
+            >
               <boxGeometry args={targetHighlightDetails.size} />
-              <meshBasicMaterial color="#00ff00" transparent opacity={0.5} />
+              <meshBasicMaterial
+                color="#00ff00"
+                transparent
+                opacity={0.5}
+                depthTest={false}
+                depthWrite={false}
+                polygonOffset
+                polygonOffsetFactor={-2}
+                polygonOffsetUnits={-2}
+                toneMapped={false}
+              />
             </mesh>
           )}
           {selfHighlightDetails && (
-            <mesh position={selfHighlightDetails.center} quaternion={selfHighlightDetails.quaternion}>
+            <mesh
+              position={selfHighlightDetails.center}
+              quaternion={selfHighlightDetails.quaternion}
+              renderOrder={9999}
+              frustumCulled={false}
+            >
               <boxGeometry args={selfHighlightDetails.size} />
-              <meshBasicMaterial color="#3b82f6" transparent opacity={0.5} />
+              <meshBasicMaterial
+                color="#3b82f6"
+                transparent
+                opacity={0.5}
+                depthTest={false}
+                depthWrite={false}
+                polygonOffset
+                polygonOffsetFactor={-4}
+                polygonOffsetUnits={-4}
+                toneMapped={false}
+              />
             </mesh>
           )}
           <Html position={bestAlignCandidate.targetObj.pos}>

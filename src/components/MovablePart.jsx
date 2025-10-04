@@ -35,6 +35,25 @@ export default function MovablePart({
     });
   };
 
+  const handlePosChange = (axisIndex, value) => {
+    const newPosValue = Number(value) || 0;
+    setObj((prev) => {
+      const newPos = [...prev.pos];
+      newPos[axisIndex] = newPosValue;
+      return { ...prev, pos: newPos };
+    });
+  };
+
+  const handleRotChange = (axisIndex, value) => {
+    const newRotValueDeg = Number(value) || 0;
+    const newRotValueRad = THREE.MathUtils.degToRad(newRotValueDeg);
+    setObj((prev) => {
+      const newRot = [...prev.rot];
+      newRot[axisIndex] = newRotValueRad;
+      return { ...prev, rot: newRot };
+    });
+  };
+
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
   const prevPosRef = useRef(null); // 上一帧世界位置，用来推断真实拖拽轴
   const [delta, setDelta] = useState({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
@@ -697,6 +716,24 @@ export default function MovablePart({
                 <option value="translate">Move</option>
                 <option value="rotate">Rotate</option>
               </select>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>
+              <span style={{ color: t?.muted || "#64748b" }}>X:</span>
+              <input type="number" value={Number(obj.pos[0].toFixed(1))} onChange={(e) => handlePosChange(0, e.target.value)} style={hudInputStyle} />
+              <span style={{ color: t?.muted || "#64748b" }}>Y:</span>
+              <input type="number" value={Number(obj.pos[1].toFixed(1))} onChange={(e) => handlePosChange(1, e.target.value)} style={hudInputStyle} />
+              <span style={{ color: t?.muted || "#64748b" }}>Z:</span>
+              <input type="number" value={Number(obj.pos[2].toFixed(1))} onChange={(e) => handlePosChange(2, e.target.value)} style={hudInputStyle} />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>
+              <span style={{ color: t?.muted || "#64748b" }}>Rx:</span>
+              <input type="number" value={Number(THREE.MathUtils.radToDeg(obj.rot[0]).toFixed(1))} onChange={(e) => handleRotChange(0, e.target.value)} style={hudInputStyle} />
+              <span style={{ color: t?.muted || "#64748b" }}>Ry:</span>
+              <input type="number" value={Number(THREE.MathUtils.radToDeg(obj.rot[1]).toFixed(1))} onChange={(e) => handleRotChange(1, e.target.value)} style={hudInputStyle} />
+              <span style={{ color: t?.muted || "#64748b" }}>Rz:</span>
+              <input type="number" value={Number(THREE.MathUtils.radToDeg(obj.rot[2]).toFixed(1))} onChange={(e) => handleRotChange(2, e.target.value)} style={hudInputStyle} />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>

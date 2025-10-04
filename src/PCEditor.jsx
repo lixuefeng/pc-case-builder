@@ -2,11 +2,9 @@ import React, { useState, useEffect } from "react";
 import * as THREE from "three";
 import Scene from "./components/Scene";
 import AddObjectForm from "./components/UI/AddObjectForm";
-import ObjectsList from "./components/UI/ObjectsList";
-import ControlsPanel from "./components/UI/ControlsPanel";
+import ObjectsList from "./components/UI/ObjectsList"; // 假设 ControlsPanel 的 group/ungroup 按钮移到这里或别处
 import FrameBuilderPanel from "./components/UI/FrameBuilderPanel";
 import ProjectPanel from "./components/UI/ProjectPanel";
-import PositionPanel from "./components/UI/PositionPanel";
 import { exportSTLFrom } from "./utils/exportSTL";
 
 const LOCAL_STORAGE_KEY = "pc-case-builder-scene";
@@ -27,8 +25,6 @@ export default function PCEditor() {
     return [];
   });
   const [selectedIds, setSelectedIds] = useState([]);
-  const [snap, setSnap] = useState({ enabled: true, translate: 1, rotate: 15 });
-  const [align, setAlign] = useState({ selfFace: "+Y", targetId: "", targetFace: "-Y", offset: 0 });
 
   useEffect(() => {
     try {
@@ -149,15 +145,6 @@ export default function PCEditor() {
     setSelectedIds(children.map((c) => c.id));
   };
 
-  const handlePositionChange = (newPos) => {
-    if (!lastSelectedId) return;
-    setObjects((prev) =>
-      prev.map((o) =>
-        o.id === lastSelectedId ? { ...o, pos: newPos } : o
-      )
-    );
-  };
-
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
       {/* Left Panel */}
@@ -166,26 +153,14 @@ export default function PCEditor() {
           <AddObjectForm onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
-          <ObjectsList objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} />
-          <PositionPanel selectedObject={selectedObject} onPositionChange={handlePositionChange} />
-          <ControlsPanel
-            objects={objects}
-            selectedIds={selectedIds}
-            setObjects={setObjects}
-            align={align}
-            setAlign={setAlign}
-            snap={snap}
-            setSnap={setSnap}
-            onGroup={handleGroup}
-            onUngroup={handleUngroup}
-          />
+          <ObjectsList objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} onGroup={handleGroup} onUngroup={handleUngroup} />
           <button onClick={() => exportSTLFrom(window.__lastThreeRoot)} style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white", fontWeight: 600 }}>导出 STL</button>
         </div>
       </div>
 
       {/* Right 3D Area */}
       <div style={{ flex: 1, position: "relative" }}>
-        <Scene objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} snap={snap} />
+        <Scene objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} />
       </div>
     </div>
   );

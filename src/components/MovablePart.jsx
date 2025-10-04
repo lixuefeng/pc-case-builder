@@ -13,10 +13,8 @@ export default function MovablePart({
   selected,
   setObj,
   onSelect,
-  snap,
   palette,
   allObjects = [], // 用于面检测
-  onAlign, // 可选：对齐回调
   setDragging, // 告知父组件控制 OrbitControls
 }) {
   const t = palette;
@@ -305,8 +303,6 @@ export default function MovablePart({
           ctrl.attach(groupRef.current);
           ctrl.enabled = prevEnabled ?? true;
         }
-        dlog('snap:applied', { pos: p });
-        onAlign?.({ ...candidate, pos: p });
       }
     }
 
@@ -555,8 +551,6 @@ export default function MovablePart({
           mode={mode}
           space="local"
           enabled={!uiLock}
-          translationSnap={snap?.enabled ? snap.translate : undefined}
-          rotationSnap={snap?.enabled ? (snap.rotate * Math.PI) / 180 : undefined}
           onObjectChange={() => {
             updateDuringDrag();
             const p = groupRef.current.position.clone().toArray();

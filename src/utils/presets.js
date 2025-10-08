@@ -1,20 +1,85 @@
 // utils/presets.js — 预设与孔位
 export const ITX_HOLES_MM = [
-  [6.35, 10.16],
-  [163.83, 33.02],
-  [163.83, 165.10],
-  [6.35, 165.10],
+  [6.5, 6.5],
+  [163.5, 6.5],
+  [163.5, 163.5],
+  [6.5, 163.5],
 ];
 
 export const PRESETS = {
   motherboard: [
-    { key: "itx",  label: "ITX 170×170",    dims: { w: 170, h: 2, d: 170 }, meta: { holeMap: ITX_HOLES_MM } },
-    { key: "matx", label: "mATX 244×244",   dims: { w: 244, h: 2, d: 244 }, meta: { holeMap: [] } },
-    { key: "atx",  label: "ATX 305×244",    dims: { w: 305, h: 2, d: 244 }, meta: { holeMap: [] } },
+    {
+      key: "itx",
+      label: "ITX 170×170",
+      dims: { w: 170, h: 2, d: 170 },
+      meta: { presetKey: "itx", holeMap: ITX_HOLES_MM },
+    },
+    {
+      key: "matx",
+      label: "mATX 244×244",
+      dims: { w: 244, h: 2, d: 244 },
+      meta: { presetKey: "matx", holeMap: [] },
+    },
+    {
+      key: "atx",
+      label: "ATX 305×244",
+      dims: { w: 305, h: 2, d: 244 },
+      meta: { presetKey: "atx", holeMap: [] },
+    },
   ],
   gpu: [
-    { key: "std",   label: "GPU 270×112×40", dims: { w: 270, h: 40, d: 112 } },
-    { key: "large", label: "GPU 310×140×60", dims: { w: 310, h: 60, d: 140 } },
+    {
+      key: "std",
+      label: "GPU 267×112×42",
+      dims: { w: 267, h: 42, d: 112 },
+      meta: {
+        presetKey: "std",
+        layoutVersion: 1,
+        pcie: {
+          fingerLength: 89,
+          fingerThickness: 1.6,
+          fingerDepth: 5,
+          fingerOffsetFromBracket: 11,
+          fingerDrop: 1.2,
+        },
+        bracket: {
+          width: 19.05,
+          height: 120,
+          thickness: 2,
+        },
+        pcb: {
+          thickness: 1.6,
+          clearanceAbove: 10,
+          insetFromBottom: 7,
+        },
+      },
+    },
+    {
+      key: "large",
+      label: "GPU 313×140×62",
+      dims: { w: 313, h: 62, d: 140 },
+      meta: {
+        presetKey: "large",
+        layoutVersion: 1,
+        pcie: {
+          fingerLength: 89,
+          fingerThickness: 1.6,
+          fingerDepth: 5.5,
+          fingerOffsetFromBracket: 11,
+          fingerDrop: 1.4,
+        },
+        bracket: {
+          width: 19.05,
+          height: 120,
+          thickness: 2,
+        },
+        pcb: {
+          thickness: 1.6,
+          clearanceAbove: 12,
+          insetFromBottom: 8,
+        },
+      },
+    },
   ],
   psu: [
     { key: "sfx", label: "SFX 125×63.5×100", dims: { w: 125, h: 63.5, d: 100 }, meta: { standard: "SFX" } },

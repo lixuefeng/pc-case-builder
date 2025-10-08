@@ -72,7 +72,7 @@ export default function AddObjectForm({ onAdd }) {
       color: undefined,
       visible: true,
       includeInExport: true,
-      meta: preset.meta || {},
+      meta: preset.meta ? JSON.parse(JSON.stringify(preset.meta)) : {},
     };
     onAdd(obj);
     setName("");

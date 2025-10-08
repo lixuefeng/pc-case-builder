@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-import { MotherboardMesh, PartBox, GroupMesh, ImportedMesh } from "./Meshes.jsx";
+import { MotherboardMesh, GPUMesh, PartBox, GroupMesh, ImportedMesh } from "./Meshes.jsx";
 
 // === Debug helpers ===
 const DEBUG_ALIGN = false; // 控制调试日志；需要时改为 false 关闭
@@ -538,6 +538,8 @@ export default function MovablePart({
       >
         {obj.type === "motherboard" ? (
           <MotherboardMesh obj={obj} selected={selected} />
+        ) : obj.type === "gpu" ? (
+          <GPUMesh obj={obj} selected={selected} />
         ) : obj.type === "group" ? (
           <GroupMesh obj={obj} selected={selected} />
         ) : obj.type === "imported" ? (

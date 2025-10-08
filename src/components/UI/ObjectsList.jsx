@@ -36,7 +36,7 @@ const BtnGhost = ({ children, onClick }) => (
   </button>
 );
 
-export default function ObjectsList({ objects, setObjects, selectedIds, onSelect }) {
+export default function ObjectsList({ objects, setObjects, selectedIds, onSelect, onGroup, onUngroup }) {
   const toggleVisible = (id) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)));
   const remove = (id) => setObjects((prev) => prev.filter((o) => o.id !== id));
@@ -46,6 +46,13 @@ export default function ObjectsList({ objects, setObjects, selectedIds, onSelect
   return (
     <div style={card}>
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>物体列表</div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <BtnGhost onClick={onGroup} disabled={selectedIds.length <= 1}>
+          编组
+        </BtnGhost>
+        <BtnGhost onClick={onUngroup}>解散编组</BtnGhost>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 210, overflow: "auto", paddingRight: 4 }}>
         {objects.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>暂无物体</div>}

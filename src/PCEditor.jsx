@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import * as THREE from "three";
 import Scene from "./components/Scene";
 import AddObjectForm from "./components/UI/AddObjectForm";
@@ -6,41 +6,19 @@ import ObjectsList from "./components/UI/ObjectsList"; // 假设 ControlsPanel �
 import FrameBuilderPanel from "./components/UI/FrameBuilderPanel";
 import ProjectPanel from "./components/UI/ProjectPanel";
 import { exportSTLFrom } from "./utils/exportSTL";
-
-const LOCAL_STORAGE_KEY = "pc-case-builder-scene";
+import { useStore, useTemporalStore } from "./store";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 export default function PCEditor() {
-  const [objects, setObjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load from localStorage", e);
-    }
-    return [];
-  });
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  useEffect(() => {
-    try {
-      const data = JSON.stringify(objects);
-      localStorage.setItem(LOCAL_STORAGE_KEY, data);
-    } catch (e) {
-      console.error("Failed to save to localStorage", e);
-    }
-  }, [objects]);
+  const { objects, setObjects, selectedIds, setSelectedIds } = useStore();
+  const { undo, redo, future, past } = useTemporalStore((state) => state);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(objects, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.download = `pc-case-design-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `pc-case-design-${new Date().toISOString().slice(0, 10)}.json`; // Keep filename logic
     link.href = url;
     document.body.appendChild(link);
     link.click();
@@ -48,23 +26,71 @@ export default function PCEditor() {
     URL.revokeObjectURL(url);
   };
 
+  // Base64 转换工具
+  const arrayBufferToBase64 = (buffer) => {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+  };
+
   const handleImport = (file) => {
+    if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedObjects = JSON.parse(e.target.result);
-        if (Array.isArray(importedObjects)) {
-          setObjects(importedObjects);
-          setSelectedIds([]);
-          alert(`成功导入 ${importedObjects.length} 个物体！`);
-        } else {
-          throw new Error("Invalid file format: not an array.");
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith(".json")) {
+      reader.onload = (e) => {
+        try {
+          const importedObjects = JSON.parse(e.target.result);
+          if (Array.isArray(importedObjects)) {
+            setObjects(importedObjects);
+            setSelectedIds([]);
+            alert(`成功导入 ${importedObjects.length} 个物体！`);
+          } else {
+            throw new Error("Invalid file format: not an array.");
+          }
+        } catch (error) {
+          alert(`导入失败: ${error.message}`);
         }
-      } catch (error) {
-        alert(`导入失败: ${error.message}`);
-      }
-    };
-    reader.readAsText(file);
+      };
+      reader.readAsText(file);
+    } else if (fileName.endsWith(".stl")) {
+      reader.onload = (e) => {
+        try {
+          const contents = e.target.result; // ArrayBuffer
+          const loader = new STLLoader();
+          const geometry = loader.parse(contents);
+          geometry.computeBoundingBox();
+          const box = geometry.boundingBox;
+          const size = new THREE.Vector3();
+          box.getSize(size);
+
+          const newObject = {
+            id: `imported_${Date.now()}`,
+            type: "imported",
+            name: file.name.replace(/\.stl$/i, ""),
+            pos: [0, 0, size.y / 2], // 把它放在地面上
+            rot: [0, 0, 0],
+            dims: { w: size.x, h: size.y, d: size.z },
+            visible: true,
+            includeInExport: true,
+            meta: { geometryBase64: arrayBufferToBase64(contents) },
+          };
+          setObjects((prev) => [...prev, newObject]);
+          setSelectedIds([newObject.id]);
+        } catch (error) {
+          alert(`STL 文件导入失败: ${error.message}`);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      alert("不支持的文件类型。请选择 .json 或 .stl 文件。");
+    }
   };
 
   const handleSelect = (id, multi = false) => {
@@ -153,6 +179,14 @@ export default function PCEditor() {
           <AddObjectForm onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={undo} disabled={past.length === 0} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", disabled: { opacity: 0.5 } }}>
+              撤销 (Undo)
+            </button>
+            <button onClick={redo} disabled={future.length === 0} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", disabled: { opacity: 0.5 } }}>
+              重做 (Redo)
+            </button>
+          </div>
           <ObjectsList objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} onGroup={handleGroup} onUngroup={handleUngroup} />
           <button onClick={() => exportSTLFrom(window.__lastThreeRoot)} style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white", fontWeight: 600 }}>导出 STL</button>
         </div>

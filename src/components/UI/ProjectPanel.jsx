@@ -57,7 +57,7 @@ export default function ProjectPanel({ onExport, onImport }) {
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <Btn onClick={handleImportClick} variant="secondary">
-          导入 (.json)
+          导入 (.json, .stl)
         </Btn>
         <Btn onClick={onExport}>导出 (.json)</Btn>
         <input
@@ -65,7 +65,7 @@ export default function ProjectPanel({ onExport, onImport }) {
           ref={fileInputRef}
           onChange={handleFileChange}
           style={{ display: "none" }}
-          accept=".json,application/json"
+          accept=".json,.stl,application/json"
         />
       </div>
     </div>

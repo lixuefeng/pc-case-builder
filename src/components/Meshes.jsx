@@ -1,6 +1,7 @@
 // components/Meshes.jsx — MotherboardMesh / PartBox
-import React from "react";
+import React, { useMemo } from "react";
 import * as THREE from "three";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 export function MotherboardMesh({ obj, selected }) {
   const { dims, color, meta } = obj;
@@ -74,6 +75,61 @@ export function PartBox({ obj, selected }) {
         color={selected ? "#ef4444" : color || defaultColor}
         opacity={1}
         transparent={false}
+      />
+    </mesh>
+  );
+}
+
+// Base64 解码工具
+const base64ToArrayBuffer = (base64) => {
+  const binary_string = window.atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary_string.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
+export function ImportedMesh({ obj, selected }) {
+  const geometry = useMemo(() => {
+    if (!obj.meta?.geometryBase64) return null;
+    try {
+      const buffer = base64ToArrayBuffer(obj.meta.geometryBase64);
+      const loader = new STLLoader();
+      const geom = loader.parse(buffer);
+
+      // 重要：将几何体中心移动到原点
+      // STLLoader 加载的模型可能自带偏移，我们需要将其归零，
+      // 因为我们的位置控制是基于物体中心在 (0,0,0) 的假设。
+      geom.computeBoundingBox();
+      const center = new THREE.Vector3();
+      geom.boundingBox.getCenter(center);
+      geom.translate(-center.x, -center.y, -center.z);
+
+      return geom;
+    } catch (e) {
+      console.error("Failed to parse stored STL geometry", e);
+      return null;
+    }
+  }, [obj.meta?.geometryBase64]);
+
+  if (!geometry) {
+    // 如果几何体加载失败，显示一个红色错误盒子
+    return (
+      <mesh>
+        <boxGeometry args={[obj.dims.w || 10, obj.dims.h || 10, obj.dims.d || 10]} />
+        <meshStandardMaterial color="red" />
+      </mesh>
+    );
+  }
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial
+        color={selected ? "#60a5fa" : "#94a3b8"}
+        metalness={0.3}
+        roughness={0.6}
       />
     </mesh>
   );

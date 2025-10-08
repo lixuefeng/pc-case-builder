@@ -2,10 +2,11 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
 import { TransformControls, Html } from "@react-three/drei";
-import { MotherboardMesh, PartBox, GroupMesh } from "./Meshes.jsx";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
+import { MotherboardMesh, PartBox, GroupMesh, ImportedMesh } from "./Meshes.jsx";
 
 // === Debug helpers ===
-const DEBUG_ALIGN = true; // 控制调试日志；需要时改为 false 关闭
+const DEBUG_ALIGN = false; // 控制调试日志；需要时改为 false 关闭
 const dlog = (...args) => { if (DEBUG_ALIGN) console.log("[align]", ...args); };
 
 export default function MovablePart({
@@ -539,6 +540,8 @@ export default function MovablePart({
           <MotherboardMesh obj={obj} selected={selected} />
         ) : obj.type === "group" ? (
           <GroupMesh obj={obj} selected={selected} />
+        ) : obj.type === "imported" ? (
+          <ImportedMesh obj={obj} selected={selected} />
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}

@@ -1,69 +1,101 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 const approxEqual = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
 const GPU_BASE_META = {
-  bracket: { width: 19.05, height: 120, thickness: 2 },
+  bracket: {
+    width: 36.84,
+    height: 120.65,
+    thickness: 1.6,
+    topTabHeight: 11.1,
+    topTabOut: 6.35,
+    bottomFootHeight: 12.7,
+    bottomFootOut: 3.2,
+    screwSlotHeight: 6.6,
+    screwSlotWidth: 4.5,
+    screwSlotOffsetFromTop: 2.5,
+    screwSlotInset: 2.6,
+    ioCutouts: [],
+  },
   pcie: {
     fingerLength: 89,
     fingerThickness: 1.6,
     fingerDepth: 5,
     fingerOffsetFromBracket: 11,
     fingerDrop: 1.2,
+    fingerFrontInset: 8,
   },
   pcb: { thickness: 1.6, clearanceAbove: 10, insetFromBottom: 7 },
 };
 
-const GPU_PRESET_OVERRIDES = {
-  std: {},
-  large: {
-    pcb: { clearanceAbove: 14, insetFromBottom: 8 },
-    pcie: { fingerDepth: 5.5, fingerDrop: 1.4 },
-  },
-};
-
-const resolveGpuPresetKey = (obj) => {
-  if (obj?.meta?.presetKey) return obj.meta.presetKey;
-  const w = obj?.dims?.w;
-  if (!w) return "std";
-  if (w > 300) return "large";
-  return "std";
-};
-
 const mergeGpuMeta = (obj) => {
-  const preset = resolveGpuPresetKey(obj);
-  const override = GPU_PRESET_OVERRIDES[preset] || {};
   return {
     bracket: {
       ...GPU_BASE_META.bracket,
-      ...(override.bracket || {}),
       ...(obj?.meta?.bracket || {}),
     },
     pcie: {
       ...GPU_BASE_META.pcie,
-      ...(override.pcie || {}),
       ...(obj?.meta?.pcie || {}),
     },
     pcb: {
       ...GPU_BASE_META.pcb,
-      ...(override.pcb || {}),
       ...(obj?.meta?.pcb || {}),
     },
   };
 };
 
+const buildPcieBracketGeometry = (userSpec = {}) => {
+  const spec = {
+    thickness: 1.6,
+    width: 36.84,
+    height: 120.02,
+    ...userSpec,
+  };
+
+  const zFront = -spec.width / 2;
+  const zBack = spec.width / 2;
+  const yBottom = 0;
+  const yTop = spec.height;
+
+  const shape = new THREE.Shape();
+  shape.moveTo(zFront, yBottom);
+  shape.lineTo(zBack, yBottom);
+  shape.lineTo(zBack, yTop);
+  shape.lineTo(zFront, yTop);
+  shape.closePath();
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: spec.thickness,
+    bevelEnabled: false,
+    curveSegments: 16,
+  });
+
+  // 厚度居中到 X=0
+  geo.translate(-spec.thickness / 2, 0, 0);
+
+  // 重新计算包围盒，做底边落地 & Z 居中
+  geo.computeBoundingBox();
+  const b = geo.boundingBox;
+  const cx = (b.min.x + b.max.x) / 2;
+  const cz = (b.min.z + b.max.z) / 2;
+
+  // X 再次精确居中（基本为 0），Y 落到 0，Z 居中
+  geo.translate(-cx, -b.min.y, -cz);
+
+  geo.computeVertexNormals();
+  return geo;
+};
+
 const MOTHERBOARD_LAYOUT_BUILDERS = {
   itx: (dims) => {
-    const keepoutSize = 95;
-    const keepoutLeft = 24;
-    const keepoutTop = 18;
+    const keepoutSize = 77.5;
+    const keepoutLeft = 61.3;
+    const keepoutTop = 51.3;
     const cpuSocketSize = { w: 45, h: 4.5, d: 37.5 };
     const cpuSocketLeft = keepoutLeft + (keepoutSize - cpuSocketSize.w) / 2;
     const cpuSocketTop = keepoutTop + (keepoutSize - cpuSocketSize.d) / 2;
-    const ramLength = Math.min(130, dims.d - keepoutTop - 28);
-    const chipsetLeft = Math.min(dims.w - 46, keepoutLeft + keepoutSize + 8);
 
     return {
       cpuKeepout: {
@@ -81,9 +113,9 @@ const MOTHERBOARD_LAYOUT_BUILDERS = {
       },
       ramSlots: {
         count: 2,
-        size: { w: 6.2, h: 4, d: ramLength },
+        size: { w: 127, h: 4, d: 6 },
         fromRight: 14,
-        fromTop: keepoutTop,
+        fromTop: 139,
         pitch: 9.5,
         anchor: "right",
         colors: ["#e2e8f0", "#cbd5f5"],
@@ -91,166 +123,35 @@ const MOTHERBOARD_LAYOUT_BUILDERS = {
       powerConnectors: [
         {
           key: "eps8",
-          size: { w: 15, h: 7, d: 14 },
-          fromLeft: Math.max(6, keepoutLeft - 10),
-          fromTop: Math.max(4, keepoutTop - 8),
+          size: { w: 10, h: 5, d: 18.75 },
+          fromRight: 0,
+          fromTop: 42,
           color: "#1e293b",
         },
         {
           key: "atx24",
-          size: { w: 24, h: 8, d: 16 },
-          fromRight: 6,
-          fromTop: keepoutTop + 6,
+          size: { w: 52, h: 5, d: 10 },
+          fromRight: 11.5,
+          fromBottom: 1,
           color: "#334155",
         },
       ],
       pcieSlots: [
         {
           key: "pcie16",
-          size: { w: 89, h: 4, d: 6 },
-          fromLeft: 20,
-          fromBottom: 18,
+          size: { w: 6, h: 4, d: 89.5 },
+          fromLeft: 2.5,
+          fromTop: 42,
           color: "#1e293b",
         },
       ],
       chipset: {
-        size: { w: 32, h: 4, d: 32 },
-        fromLeft: chipsetLeft,
-        fromBottom: 32,
-        color: "#64748b",
-      },
-    };
-  },
-  matx: (dims) => {
-    const keepoutSize = 95;
-    const keepoutLeft = 38;
-    const keepoutTop = 24;
-    const cpuSocketSize = { w: 45, h: 4.5, d: 37.5 };
-    const cpuSocketLeft = keepoutLeft + (keepoutSize - cpuSocketSize.w) / 2;
-    const cpuSocketTop = keepoutTop + (keepoutSize - cpuSocketSize.d) / 2;
-    const ramLength = Math.min(140, dims.d - keepoutTop - 40);
-    const chipsetLeft = Math.min(dims.w - 60, keepoutLeft + keepoutSize + 52);
-
-    return {
-      cpuKeepout: {
-        size: { w: keepoutSize, h: 1.5, d: keepoutSize },
-        fromLeft: keepoutLeft,
-        fromTop: keepoutTop,
-        color: "#111827",
-        opacity: 0.35,
-      },
-      cpuSocket: {
-        size: cpuSocketSize,
-        fromLeft: cpuSocketLeft,
-        fromTop: cpuSocketTop,
+        size: { w: 159, h: 47, d: 19 },
+        fromLeft: 13.56,
+        fromTop: -1.14,
         color: "#475569",
-      },
-      ramSlots: {
-        count: 4,
-        size: { w: 6.2, h: 4, d: ramLength },
-        fromRight: 18,
-        fromTop: keepoutTop,
-        pitch: 9.5,
-        anchor: "right",
-        colors: ["#e2e8f0", "#cbd5f5"],
-      },
-      powerConnectors: [
-        {
-          key: "eps8",
-          size: { w: 15, h: 7, d: 14 },
-          fromLeft: keepoutLeft - 12,
-          fromTop: keepoutTop - 10,
-          color: "#1e293b",
-        },
-        {
-          key: "atx24",
-          size: { w: 24, h: 8, d: 16 },
-          fromRight: 10,
-          fromTop: keepoutTop + 10,
-          color: "#334155",
-        },
-      ],
-      pcieSlots: [
-        {
-          key: "pcie16",
-          size: { w: 89, h: 4, d: 6 },
-          fromLeft: 28,
-          fromBottom: 24,
-          color: "#1e293b",
-        },
-      ],
-      chipset: {
-        size: { w: 36, h: 4, d: 36 },
-        fromLeft: chipsetLeft,
-        fromBottom: 46,
-        color: "#64748b",
-      },
-    };
-  },
-  atx: (dims) => {
-    const keepoutSize = 95;
-    const keepoutLeft = 52;
-    const keepoutTop = 26;
-    const cpuSocketSize = { w: 45, h: 4.5, d: 37.5 };
-    const cpuSocketLeft = keepoutLeft + (keepoutSize - cpuSocketSize.w) / 2;
-    const cpuSocketTop = keepoutTop + (keepoutSize - cpuSocketSize.d) / 2;
-    const ramLength = Math.min(140, dims.d - keepoutTop - 42);
-    const chipsetLeft = Math.min(dims.w - 72, keepoutLeft + keepoutSize + 64);
-
-    return {
-      cpuKeepout: {
-        size: { w: keepoutSize, h: 1.5, d: keepoutSize },
-        fromLeft: keepoutLeft,
-        fromTop: keepoutTop,
-        color: "#111827",
-        opacity: 0.35,
-      },
-      cpuSocket: {
-        size: cpuSocketSize,
-        fromLeft: cpuSocketLeft,
-        fromTop: cpuSocketTop,
-        color: "#475569",
-      },
-      ramSlots: {
-        count: 4,
-        size: { w: 6.2, h: 4, d: ramLength },
-        fromRight: 18,
-        fromTop: keepoutTop,
-        pitch: 9.5,
-        anchor: "right",
-        colors: ["#e2e8f0", "#cbd5f5"],
-      },
-      powerConnectors: [
-        {
-          key: "eps8",
-          size: { w: 15, h: 7, d: 14 },
-          fromLeft: keepoutLeft - 16,
-          fromTop: keepoutTop - 12,
-          color: "#1e293b",
-        },
-        {
-          key: "atx24",
-          size: { w: 24, h: 8, d: 16 },
-          fromRight: 12,
-          fromTop: keepoutTop + 14,
-          color: "#334155",
-        },
-      ],
-      pcieSlots: [
-        {
-          key: "pcie16",
-          size: { w: 89, h: 4, d: 6 },
-          fromLeft: 32,
-          fromBottom: 26,
-          color: "#1e293b",
-        },
-      ],
-      chipset: {
-        size: { w: 40, h: 4, d: 40 },
-        fromLeft: chipsetLeft,
-        fromBottom: 50,
-        color: "#64748b",
-      },
+        offsetY: -5,
+      }
     };
   },
 };
@@ -299,11 +200,15 @@ const createFeatureMesh = (feature, dims, key) => {
   if (!feature?.size) return null;
   const [x, z] = computeCenterFromEdges(dims, feature.size, feature);
   const offsetY = feature.offsetY ?? 0;
-  const position = [x, feature.size.h / 2 + offsetY, z];
+  const extrudeBelow = Math.max(0, feature.extrudeBelow ?? 0);
+  const extrudeAbove = Math.max(0, feature.extrudeAbove ?? 0);
+  const height = feature.size.h + extrudeAbove + extrudeBelow;
+  const centerY = (feature.size.h + extrudeAbove - extrudeBelow) / 2 + offsetY;
+  const position = [x, centerY, z];
 
   return (
     <mesh key={key} position={position}>
-      <boxGeometry args={[feature.size.w, feature.size.h, feature.size.d]} />
+      <boxGeometry args={[feature.size.w, height, feature.size.d]} />
       <meshStandardMaterial
         color={feature.color || "#475569"}
         roughness={feature.roughness ?? 0.55}
@@ -349,32 +254,50 @@ export function MotherboardMesh({ obj, selected }) {
 
           {layout.ramSlots &&
             Array.from({ length: layout.ramSlots.count }, (_, index) => {
-              const { size, pitch = 8, anchor = "left", colors = [] } = layout.ramSlots;
+              const { size, anchor = "left", colors = [] } = layout.ramSlots;
               if (!size) return null;
 
-              let baseX;
+              const isRowAlongZ = size.w >= size.d;
+              const slotThickness = isRowAlongZ ? size.d : size.w;
+              const spacing = slotThickness + 3;
+
+              let x = 0;
               if (anchor === "right") {
-                baseX = dims.w / 2 - (layout.ramSlots.fromRight ?? 0) - size.w / 2;
-                baseX -= index * (size.w + pitch);
+                const rightBase =
+                  dims.w / 2 - (layout.ramSlots.fromRight ?? 0) - size.w / 2;
+                x = isRowAlongZ ? rightBase : rightBase - index * spacing;
               } else {
-                baseX = -dims.w / 2 + (layout.ramSlots.fromLeft ?? 0) + size.w / 2;
-                baseX += index * (size.w + pitch);
+                const leftBase =
+                  -dims.w / 2 + (layout.ramSlots.fromLeft ?? 0) + size.w / 2;
+                x = isRowAlongZ ? leftBase : leftBase + index * spacing;
               }
 
               let z = 0;
               if (typeof layout.ramSlots.fromTop === "number") {
-                z = -dims.d / 2 + layout.ramSlots.fromTop + size.d / 2;
+                const topBase =
+                  -dims.d / 2 + layout.ramSlots.fromTop + size.d / 2;
+                z = isRowAlongZ
+                  ? topBase + index * spacing
+                  : topBase;
               } else if (typeof layout.ramSlots.fromBottom === "number") {
-                z = dims.d / 2 - layout.ramSlots.fromBottom - size.d / 2;
+                const bottomBase =
+                  dims.d / 2 - layout.ramSlots.fromBottom - size.d / 2;
+                z = isRowAlongZ
+                  ? bottomBase - index * spacing
+                  : bottomBase;
               }
 
               const y = size.h / 2 + (layout.ramSlots.offsetY ?? 0);
               const colorAlt = colors[index % colors.length] || "#cbd5f5";
 
               return (
-                <mesh key={`ram-${index}`} position={[baseX, y, z]}>
+                <mesh key={`ram-${index}`} position={[x, y, z]}>
                   <boxGeometry args={[size.w, size.h, size.d]} />
-                  <meshStandardMaterial color={colorAlt} roughness={0.4} metalness={0.07} />
+                  <meshStandardMaterial
+                    color={colorAlt}
+                    roughness={0.4}
+                    metalness={0.07}
+                  />
                 </mesh>
               );
             })}
@@ -400,48 +323,74 @@ export function GPUMesh({ obj, selected }) {
 
   const coolerColor = selected ? "#ef4444" : color || "#475569";
 
-  const bracketThickness = layout.bracket.thickness;
-  const bracketHeight = Math.min(layout.bracket.height, dims.d + 10);
-  const bracketSpanY = Math.max(dims.h + 6, layout.bracket.width);
-  const bracketX = -dims.w / 2 - bracketThickness / 2 + 1;
+  const axisSizes = useMemo(() => {
+    return {
+      thickness: dims.d ?? 0,
+      height: dims.h ?? 0,
+      length: dims.w ?? 0,
+    };
+  }, [dims.w, dims.h, dims.d]);
 
-  const pcbThickness = layout.pcb.thickness;
+  const bracketThickness = layout.bracket.thickness ?? 1.6;
+  const bracketPosition = [
+    -dims.d/2,
+    -dims.h/2 + layout.bracket.width/2,
+    dims.w/2,
+  ];
+
+  const bracketGeometry = useMemo(
+    () => buildPcieBracketGeometry(layout.bracket),
+    [layout.bracket],
+  );
+
+  useEffect(() => {
+    return () => {
+      bracketGeometry?.dispose();
+    };
+  }, [bracketGeometry]);
+
+  const pcbBoardThickness = layout.pcb.thickness;
   const pcbInsetBottom = layout.pcb.insetFromBottom;
   const pcbClearanceAbove = layout.pcb.clearanceAbove;
-  const pcbDepth = Math.max(20, dims.d - pcbInsetBottom - pcbClearanceAbove);
-  const pcbWidth = Math.max(40, dims.w - bracketThickness - 6);
-  const pcbLeft = -dims.w / 2 + bracketThickness + 3;
-  const pcbX = pcbLeft + pcbWidth / 2;
-  const pcbY = -dims.h / 2 + pcbThickness / 2 + 0.6;
-  const pcbZ = -dims.d / 2 + pcbInsetBottom + pcbDepth / 2;
+  const pcbDepth = Math.max(20, axisSizes.length - pcbInsetBottom - pcbClearanceAbove);
+  const pcbWidth = Math.max(40, axisSizes.thickness - bracketThickness - 6);
+  const pcbLeft = -axisSizes.thickness / 2 + bracketThickness + 3;
+  const pcbPosition = [
+    pcbLeft + pcbWidth / 2,
+    -axisSizes.height / 2 + pcbBoardThickness / 2 + 0.6,
+    -axisSizes.length / 2 + pcbInsetBottom + pcbDepth / 2,
+  ];
 
   const fingerLength = layout.pcie.fingerLength;
   const fingerThickness = layout.pcie.fingerThickness;
   const fingerDepth = layout.pcie.fingerDepth;
-  const fingerStart = pcbLeft + layout.pcie.fingerOffsetFromBracket;
-  const fingerX = fingerStart + fingerLength / 2;
-  const fingerY = -dims.h / 2 - fingerThickness / 2 - layout.pcie.fingerDrop;
-  const fingerZ = -dims.d / 2 - fingerDepth / 2 + 0.8;
+  const fingerPosition = [
+    dims.d/2 + fingerDepth / 2,
+    -dims.h/2 + fingerThickness/2,
+    dims.w/2 - fingerLength / 2 - 30
+  ];
 
   return (
     <group>
       <mesh userData={{ objectId: obj.id }}>
-        <boxGeometry args={[dims.w, dims.h, dims.d]} />
+        <boxGeometry args={[axisSizes.thickness, axisSizes.height, axisSizes.length]} />
         <meshStandardMaterial color={coolerColor} metalness={0.25} roughness={0.5} />
       </mesh>
 
-      <mesh position={[bracketX, 0, 0]}>
-        <boxGeometry args={[bracketThickness, bracketSpanY, bracketHeight]} />
-        <meshStandardMaterial color="#9ca3af" metalness={0.5} roughness={0.3} />
-      </mesh>
+      {bracketGeometry && (
+        //<mesh geometry={bracketGeometry} position={bracketPosition}>
+        <mesh geometry={bracketGeometry} position={bracketPosition} rotation={[0 , 0, -Math.PI/2]}>
+          <meshStandardMaterial color="#9ca3af" metalness={0.55} roughness={0.32} />
+        </mesh>
+      )}
 
-      <mesh position={[pcbX, pcbY, pcbZ]}>
-        <boxGeometry args={[pcbWidth, pcbThickness, pcbDepth]} />
+      <mesh position={pcbPosition}>
+        <boxGeometry args={[pcbWidth, pcbBoardThickness, pcbDepth]} />
         <meshStandardMaterial color="#0f172a" metalness={0.1} roughness={0.55} />
       </mesh>
 
-      <mesh position={[fingerX, fingerY, fingerZ]}>
-        <boxGeometry args={[fingerLength, fingerThickness, fingerDepth]} />
+      <mesh position={fingerPosition}>
+        <boxGeometry args={[fingerDepth, fingerThickness, fingerLength]} />
         <meshStandardMaterial color="#d4a017" metalness={0.8} roughness={0.3} />
       </mesh>
     </group>

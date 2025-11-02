@@ -4,70 +4,26 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 const approxEqual = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
-const GPU_BASE_META = {
-  bracket: {
-    width: 36.84,
-    height: 120.65,
-    thickness: 1.6,
-    topTabHeight: 11.1,
-    topTabOut: 6.35,
-    bottomFootHeight: 12.7,
-    bottomFootOut: 3.2,
-    screwSlotHeight: 6.6,
-    screwSlotWidth: 4.5,
-    screwSlotOffsetFromTop: 2.5,
-    screwSlotInset: 2.6,
-    ioCutouts: [],
-  },
-  pcie: {
-    fingerLength: 89,
-    fingerThickness: 1.6,
-    fingerDepth: 5,
-    fingerOffsetFromBracket: 11,
-    fingerDrop: 1.2,
-    fingerFrontInset: 8,
-  },
-  pcb: { thickness: 1.6, clearanceAbove: 10, insetFromBottom: 7 },
-};
-
-const mergeGpuMeta = (obj) => {
-  return {
-    bracket: {
-      ...GPU_BASE_META.bracket,
-      ...(obj?.meta?.bracket || {}),
-    },
-    pcie: {
-      ...GPU_BASE_META.pcie,
-      ...(obj?.meta?.pcie || {}),
-    },
-    pcb: {
-      ...GPU_BASE_META.pcb,
-      ...(obj?.meta?.pcb || {}),
-    },
-  };
-};
-
-const buildPcieBracketGeometry = (userSpec = {}) => {
+const buildPcieBracketGeometry = (width, height) => {
   const spec = {
     thickness: 1.6,
-    width: 36.84,
-    height: 120.02,
-    ...userSpec,
+    width: width,
+    height: height,
   };
 
-  const zFront = -spec.width / 2;
-  const zBack = spec.width / 2;
+  const x0 = -spec.width / 2;
+  const x1 = spec.width / 2;
   const yBottom = 0;
   const yTop = spec.height;
 
   const shape = new THREE.Shape();
-  shape.moveTo(zFront, yBottom);
-  shape.lineTo(zBack, yBottom);
-  shape.lineTo(zBack, yTop);
-  shape.lineTo(zFront, yTop);
+  shape.moveTo(x0, yBottom);
+  shape.lineTo(x1, yBottom);
+  shape.lineTo(x1, yTop);
+  shape.lineTo(x0, yTop);
   shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: spec.thickness,
+    depth: spec.thickness, // 沿 Z 轴拉伸
     bevelEnabled: false,
     curveSegments: 16,
   });
@@ -79,7 +35,7 @@ const buildPcieBracketGeometry = (userSpec = {}) => {
   geo.computeBoundingBox();
   const b = geo.boundingBox;
   const cx = (b.min.x + b.max.x) / 2;
-  const cz = (b.min.z + b.max.z) / 2;
+  const cz = (b.min.z + b.max.z) / 2; // Z 轴居中
 
   // X 再次精确居中（基本为 0），Y 落到 0，Z 居中
   geo.translate(-cx, -b.min.y, -cz);
@@ -88,7 +44,7 @@ const buildPcieBracketGeometry = (userSpec = {}) => {
   return geo;
 };
 
-const MOTHERBOARD_LAYOUT_BUILDERS = {
+const MOTHERBOARD_LAYOUT_BUILDERS = { // ATX 2.2 https://cdn.instructables.com/ORIG/FS8/5ILB/GU59Z1AT/FS85ILBGU59Z1AT.pdf
   itx: (dims) => {
     const keepoutSize = 77.5;
     const keepoutLeft = 61.3;
@@ -146,7 +102,7 @@ const MOTHERBOARD_LAYOUT_BUILDERS = {
         },
       ],
       chipset: {
-        size: { w: 159, h: 47, d: 19 },
+        size: { w: 158.75, h: 44.45, d: 19 }, // h is including keepout 2.53mm
         fromLeft: 13.56,
         fromTop: -1.14,
         color: "#475569",
@@ -318,29 +274,37 @@ export function MotherboardMesh({ obj, selected }) {
 }
 
 export function GPUMesh({ obj, selected }) {
-  const layout = useMemo(() => mergeGpuMeta(obj), [obj]);
   const { dims, color } = obj;
 
   const coolerColor = selected ? "#ef4444" : color || "#475569";
 
-  const axisSizes = useMemo(() => {
-    return {
-      thickness: dims.d ?? 0,
-      height: dims.h ?? 0,
-      length: dims.w ?? 0,
-    };
-  }, [dims.w, dims.h, dims.d]);
+  const { bracketWidth, bracketHeight, pcbLayout, pcieFingerLayout } = useMemo(() => {
+    const SLOT_WIDTH = 20.32; // 标准 PCIe 槽宽度
+    const BRACKET_WIDTH_PER_SLOT = 18.42; // 每个槽挡板的宽度
+    const numSlots = Math.round(dims.h / SLOT_WIDTH);
+    const bracketWidth = numSlots * BRACKET_WIDTH_PER_SLOT;
+    const bracketHeight = 120.65;
 
-  const bracketThickness = layout.bracket.thickness ?? 1.6;
-  const bracketPosition = [
-    -dims.d/2,
-    -dims.h/2 + layout.bracket.width/2,
-    dims.w/2,
-  ];
+    const pcbLayout = {
+      thickness: 1.6,
+      depth: Math.max(20, dims.w - 7 - 10),
+      width: Math.max(40, dims.d - 1.6 - 6),
+    };
+
+    const pcieFingerLayout = {
+      length: 89,
+      thickness: 1.6,
+      depth: 5,
+    };
+
+    return { bracketWidth, bracketHeight, pcbLayout, pcieFingerLayout };
+  }, [dims.h, dims.w, dims.d]);
+
+  const bracketPosition = [-dims.d / 2 + 10.16, 0, dims.w / 2  + 1.2];
 
   const bracketGeometry = useMemo(
-    () => buildPcieBracketGeometry(layout.bracket),
-    [layout.bracket],
+    () => buildPcieBracketGeometry(bracketWidth, bracketHeight),
+    [bracketWidth, bracketHeight],
   );
 
   useEffect(() => {
@@ -349,31 +313,23 @@ export function GPUMesh({ obj, selected }) {
     };
   }, [bracketGeometry]);
 
-  const pcbBoardThickness = layout.pcb.thickness;
-  const pcbInsetBottom = layout.pcb.insetFromBottom;
-  const pcbClearanceAbove = layout.pcb.clearanceAbove;
-  const pcbDepth = Math.max(20, axisSizes.length - pcbInsetBottom - pcbClearanceAbove);
-  const pcbWidth = Math.max(40, axisSizes.thickness - bracketThickness - 6);
-  const pcbLeft = -axisSizes.thickness / 2 + bracketThickness + 3;
+  const pcbLeft = -dims.d / 2 + 1.6 + 3;
   const pcbPosition = [
-    pcbLeft + pcbWidth / 2,
-    -axisSizes.height / 2 + pcbBoardThickness / 2 + 0.6,
-    -axisSizes.length / 2 + pcbInsetBottom + pcbDepth / 2,
+    pcbLeft + pcbLayout.width / 2,
+    -dims.h / 2 + pcbLayout.thickness / 2 + 0.6,
+    -dims.w / 2 + 7 + pcbLayout.depth / 2,
   ];
 
-  const fingerLength = layout.pcie.fingerLength;
-  const fingerThickness = layout.pcie.fingerThickness;
-  const fingerDepth = layout.pcie.fingerDepth;
   const fingerPosition = [
-    dims.d/2 + fingerDepth / 2,
-    -dims.h/2 + fingerThickness/2,
-    dims.w/2 - fingerLength / 2 - 30
+    dims.d / 2 + pcieFingerLayout.depth / 2,
+    -dims.h / 2 + pcieFingerLayout.thickness / 2,
+    dims.w / 2 - pcieFingerLayout.length / 2 - 30,
   ];
 
   return (
     <group>
       <mesh userData={{ objectId: obj.id }}>
-        <boxGeometry args={[axisSizes.thickness, axisSizes.height, axisSizes.length]} />
+        <boxGeometry args={[dims.d, dims.h, dims.w]} />
         <meshStandardMaterial color={coolerColor} metalness={0.25} roughness={0.5} />
       </mesh>
 
@@ -385,12 +341,12 @@ export function GPUMesh({ obj, selected }) {
       )}
 
       <mesh position={pcbPosition}>
-        <boxGeometry args={[pcbWidth, pcbBoardThickness, pcbDepth]} />
+        <boxGeometry args={[pcbLayout.width, pcbLayout.thickness, pcbLayout.depth]} />
         <meshStandardMaterial color="#0f172a" metalness={0.1} roughness={0.55} />
       </mesh>
 
       <mesh position={fingerPosition}>
-        <boxGeometry args={[fingerDepth, fingerThickness, fingerLength]} />
+        <boxGeometry args={[pcieFingerLayout.depth, pcieFingerLayout.thickness, pcieFingerLayout.length]} />
         <meshStandardMaterial color="#d4a017" metalness={0.8} roughness={0.3} />
       </mesh>
     </group>

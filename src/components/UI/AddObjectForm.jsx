@@ -1,4 +1,3 @@
-// components/UI/AddObjectForm.jsx — 添加物体表单
 import React, { useState, useEffect } from "react";
 import { PRESETS } from "../../utils/presets";
 
@@ -42,12 +41,32 @@ const Btn = ({ children, onClick, variant = "primary" }) => {
   );
 };
 
+const buildDefaultConnectors = (type, preset) => {
+  if (!preset?.dims) return [];
+
+  if (type === "motherboard") {
+    const holeMap = Array.isArray(preset.meta?.holeMap)
+      ? preset.meta.holeMap
+      : [];
+    const { w, h, d } = preset.dims;
+    return holeMap.map(([x, z], index) => ({
+      id: `${preset.key}-hole-${index}`,
+      label: `MB Hole ${index + 1}`,
+      type: "screw-m3",
+      size: 3,
+      pos: [x - w / 2, -h / 2, z - d / 2],
+      normal: [0, -1, 0],
+    }));
+  }
+
+  return [];
+};
+
 export default function AddObjectForm({ onAdd }) {
   const [type, setType] = useState("motherboard");
   const [presetKey, setPresetKey] = useState("itx");
   const [name, setName] = useState("");
 
-  // 切换类型时更新状态
   useEffect(() => {
     const firstPreset = (PRESETS[type] || [])[0];
     if (firstPreset) {
@@ -64,15 +83,16 @@ export default function AddObjectForm({ onAdd }) {
 
     const obj = {
       id,
-      type: type,
+      type,
       name: name || preset.label,
       dims: { ...preset.dims },
-      pos: [0, preset.dims.h / 2, 0], // 默认放在地面上
+      pos: [0, preset.dims.h / 2, 0], // place on the ground plane by default
       rot: [0, 0, 0],
       color: undefined,
       visible: true,
       includeInExport: true,
       meta: preset.meta ? JSON.parse(JSON.stringify(preset.meta)) : {},
+      connectors: buildDefaultConnectors(type, preset),
     };
     onAdd(obj);
     setName("");
@@ -106,7 +126,12 @@ export default function AddObjectForm({ onAdd }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center", marginTop: 8 }}>
         <label style={labelSm}>名称</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="可选：自定义名称" style={input} />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="可选：自定义名称"
+          style={input}
+        />
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>

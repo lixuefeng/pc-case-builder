@@ -14,105 +14,257 @@ const cloneScene = (value) => {
   return JSON.parse(JSON.stringify(value));
 };
 
-const saveObjectsToStorage = (objects) => {
+const saveSceneToStorage = (scene) => {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(objects));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(scene));
   } catch (e) {
     console.error("Failed to save to localStorage", e);
   }
 };
 
-const getInitialObjects = () => {
+const getInitialScene = () => {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return { objects: parsed, connections: [] };
+      }
+      if (parsed && Array.isArray(parsed.objects)) {
+        return {
+          objects: parsed.objects,
+          connections: Array.isArray(parsed.connections)
+            ? parsed.connections
+            : [],
+        };
       }
     }
   } catch (e) {
     console.error("Failed to load from localStorage", e);
   }
-  return [];
+  return { objects: [], connections: [] };
 };
 
-export const useStore = create((set) => ({
-  objects: getInitialObjects(),
-  selectedIds: [],
-  past: [],
-  future: [],
+const sanitizeConnections = (connections, objects) => {
+  if (!Array.isArray(connections) || connections.length === 0) {
+    return [];
+  }
 
-  setObjects: (newObjects, options = {}) =>
-    set((state) => {
-      const workingCopy = cloneScene(state.objects);
-      const nextObjects =
-        typeof newObjects === "function" ? newObjects(workingCopy) : newObjects;
+  const connectorMap = new Map();
+  for (const obj of objects) {
+    if (!obj || !obj.id) continue;
+    const connectors = Array.isArray(obj.connectors) ? obj.connectors : [];
+    connectorMap.set(
+      obj.id,
+      new Set(connectors.map((connector) => connector?.id).filter(Boolean))
+    );
+  }
 
-      if (!Array.isArray(nextObjects)) {
-        console.warn("setObjects expects an array of objects");
-        return {};
-      }
+  return connections.filter((connection) => {
+    if (!connection?.from || !connection?.to) {
+      return false;
+    }
 
-      const nextSnapshot = cloneScene(nextObjects);
-      const shouldRecordHistory = options.recordHistory ?? true;
+    const fromSet = connectorMap.get(connection.from.partId);
+    const toSet = connectorMap.get(connection.to.partId);
 
-      if (shouldRecordHistory) {
-        const previousSnapshot = cloneScene(state.objects);
-        saveObjectsToStorage(nextSnapshot);
-        return {
-          objects: nextSnapshot,
-          past: [...state.past, previousSnapshot],
-          future: [],
+    if (!fromSet || !toSet) {
+      return false;
+    }
+
+    if (
+      connection.from.connectorId &&
+      fromSet.size > 0 &&
+      !fromSet.has(connection.from.connectorId)
+    ) {
+      return false;
+    }
+
+    if (
+      connection.to.connectorId &&
+      toSet.size > 0 &&
+      !toSet.has(connection.to.connectorId)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
+export const useStore = create((set) => {
+  const initialScene = getInitialScene();
+
+  return {
+    objects: initialScene.objects,
+    connections: initialScene.connections,
+    selectedIds: [],
+    past: [],
+    future: [],
+
+    setObjects: (newObjects, options = {}) =>
+      set((state) => {
+        const workingObjects = cloneScene(state.objects);
+        const nextObjects =
+          typeof newObjects === "function"
+            ? newObjects(workingObjects)
+            : newObjects;
+
+        if (!Array.isArray(nextObjects)) {
+          console.warn("setObjects expects an array of objects");
+          return {};
+        }
+
+        const sanitizedConnections = sanitizeConnections(
+          state.connections,
+          nextObjects
+        );
+
+        const nextObjectsClone = cloneScene(nextObjects);
+        const nextConnectionsClone = cloneScene(sanitizedConnections);
+
+        const nextSnapshot = {
+          objects: nextObjectsClone,
+          connections: nextConnectionsClone,
         };
-      }
 
-      saveObjectsToStorage(nextSnapshot);
-      return {
-        objects: nextSnapshot,
-      };
-    }),
+        const shouldRecordHistory = options.recordHistory ?? true;
 
-  undo: () =>
-    set((state) => {
-      if (state.past.length === 0) {
-        return {};
-      }
+        if (shouldRecordHistory) {
+          const previousSnapshot = {
+            objects: cloneScene(state.objects),
+            connections: cloneScene(state.connections),
+          };
 
-      const previousSnapshot = state.past[state.past.length - 1];
-      const currentSnapshot = cloneScene(state.objects);
-      const nextObjects = cloneScene(previousSnapshot);
+          saveSceneToStorage(nextSnapshot);
 
-      saveObjectsToStorage(nextObjects);
+          return {
+            objects: nextObjectsClone,
+            connections: nextConnectionsClone,
+            past: [...state.past, previousSnapshot],
+            future: [],
+          };
+        }
 
-      return {
-        objects: nextObjects,
-        past: state.past.slice(0, -1),
-        future: [currentSnapshot, ...state.future],
-      };
-    }),
+        saveSceneToStorage(nextSnapshot);
 
-  redo: () =>
-    set((state) => {
-      if (state.future.length === 0) {
-        return {};
-      }
+        return {
+          objects: nextObjectsClone,
+          connections: nextConnectionsClone,
+        };
+      }),
 
-      const nextSnapshot = state.future[0];
-      const currentSnapshot = cloneScene(state.objects);
-      const nextObjects = cloneScene(nextSnapshot);
+    setConnections: (updater, options = {}) =>
+      set((state) => {
+        const workingConnections = cloneScene(state.connections);
+        const updatedConnections =
+          typeof updater === "function"
+            ? updater(workingConnections)
+            : updater;
 
-      saveObjectsToStorage(nextObjects);
+        if (!Array.isArray(updatedConnections)) {
+          console.warn("setConnections expects an array of connections");
+          return {};
+        }
 
-      return {
-        objects: nextObjects,
-        past: [...state.past, currentSnapshot],
-        future: state.future.slice(1),
-      };
-    }),
+        const sanitizedConnections = sanitizeConnections(
+          updatedConnections,
+          state.objects
+        );
 
-  setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
-}));
+        const nextObjectsClone = cloneScene(state.objects);
+        const nextConnectionsClone = cloneScene(sanitizedConnections);
+
+        const nextSnapshot = {
+          objects: nextObjectsClone,
+          connections: nextConnectionsClone,
+        };
+
+        const shouldRecordHistory = options.recordHistory ?? true;
+
+        if (shouldRecordHistory) {
+          const previousSnapshot = {
+            objects: cloneScene(state.objects),
+            connections: cloneScene(state.connections),
+          };
+
+          saveSceneToStorage(nextSnapshot);
+
+          return {
+            objects: nextObjectsClone,
+            connections: nextConnectionsClone,
+            past: [...state.past, previousSnapshot],
+            future: [],
+          };
+        }
+
+        saveSceneToStorage(nextSnapshot);
+
+        return {
+          connections: nextConnectionsClone,
+        };
+      }),
+
+    undo: () =>
+      set((state) => {
+        if (state.past.length === 0) {
+          return {};
+        }
+
+        const previousSnapshot =
+          state.past[state.past.length - 1] ?? initialScene;
+        const currentSnapshot = {
+          objects: cloneScene(state.objects),
+          connections: cloneScene(state.connections),
+        };
+
+        const nextObjects = cloneScene(previousSnapshot.objects ?? []);
+        const nextConnections = cloneScene(previousSnapshot.connections ?? []);
+
+        saveSceneToStorage({
+          objects: nextObjects,
+          connections: nextConnections,
+        });
+
+        return {
+          objects: nextObjects,
+          connections: nextConnections,
+          past: state.past.slice(0, -1),
+          future: [currentSnapshot, ...state.future],
+        };
+      }),
+
+    redo: () =>
+      set((state) => {
+        if (state.future.length === 0) {
+          return {};
+        }
+
+        const nextSnapshot = state.future[0];
+        const currentSnapshot = {
+          objects: cloneScene(state.objects),
+          connections: cloneScene(state.connections),
+        };
+
+        const nextObjects = cloneScene(nextSnapshot.objects ?? []);
+        const nextConnections = cloneScene(nextSnapshot.connections ?? []);
+
+        saveSceneToStorage({
+          objects: nextObjects,
+          connections: nextConnections,
+        });
+
+        return {
+          objects: nextObjects,
+          connections: nextConnections,
+          past: [...state.past, currentSnapshot],
+          future: state.future.slice(1),
+        };
+      }),
+
+    setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
+  };
+});
 
 export const useTemporalStore = (selector = (state) => state) => {
   const undo = useStore((state) => state.undo);

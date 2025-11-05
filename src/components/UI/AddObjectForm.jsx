@@ -41,14 +41,27 @@ const Btn = ({ children, onClick, variant = "primary" }) => {
   );
 };
 
-const buildDefaultConnectors = (type, preset) => {
-  if (!preset?.dims) return [];
+const instantiateConnectors = (type, preset) => {
+  if (!preset) return [];
+
+  if (Array.isArray(preset.connectors)) {
+    return preset.connectors.map((connector) =>
+      JSON.parse(JSON.stringify(connector))
+    );
+  }
+
+  if (typeof preset.buildConnectors === "function") {
+    return preset.buildConnectors();
+  }
 
   if (type === "motherboard") {
     const holeMap = Array.isArray(preset.meta?.holeMap)
       ? preset.meta.holeMap
       : [];
-    const { w, h, d } = preset.dims;
+    const { w, h, d } = preset.dims || {};
+    if (!holeMap.length || !w || !h || !d) {
+      return [];
+    }
     return holeMap.map(([x, z], index) => ({
       id: `${preset.key}-hole-${index}`,
       label: `MB Hole ${index + 1}`,
@@ -92,7 +105,7 @@ export default function AddObjectForm({ onAdd }) {
       visible: true,
       includeInExport: true,
       meta: preset.meta ? JSON.parse(JSON.stringify(preset.meta)) : {},
-      connectors: buildDefaultConnectors(type, preset),
+      connectors: instantiateConnectors(type, preset),
     };
     onAdd(obj);
     setName("");

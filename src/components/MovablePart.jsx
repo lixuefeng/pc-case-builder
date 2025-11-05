@@ -9,6 +9,150 @@ import { MotherboardMesh, GPUMesh, PartBox, GroupMesh, ImportedMesh } from "./Me
 const DEBUG_ALIGN = false; // 控制调试日志；需要时改为 false 关闭
 const dlog = (...args) => { if (DEBUG_ALIGN) console.log("[align]", ...args); };
 
+const CONNECTOR_TYPE_COLORS = {
+  "screw-m3": "#38bdf8",
+  "screw-m4": "#f97316",
+  "pcie-slot": "#f87171",
+  "pcie-fingers": "#22d3ee",
+  "dimm-slot": "#facc15",
+  "dimm-edge": "#fbbf24",
+  "bracket-tab": "#a855f7",
+};
+
+const getConnectorBaseColor = (connector) => {
+  if (!connector?.type) return "#facc15";
+  return CONNECTOR_TYPE_COLORS[connector.type] || "#facc15";
+};
+
+const buildConnectorQuaternion = (connector) => {
+  const normal = Array.isArray(connector?.normal)
+    ? new THREE.Vector3(connector.normal[0], connector.normal[1], connector.normal[2])
+    : new THREE.Vector3(0, 1, 0);
+
+  if (normal.lengthSq() === 0) {
+    normal.set(0, 1, 0);
+  }
+  normal.normalize();
+
+  let up = Array.isArray(connector?.up)
+    ? new THREE.Vector3(connector.up[0], connector.up[1], connector.up[2])
+    : new THREE.Vector3(0, 0, 1);
+
+  if (up.lengthSq() === 0 || Math.abs(up.dot(normal)) > 0.999) {
+    up = Math.abs(normal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+  }
+
+  const projected = normal.clone().multiplyScalar(up.dot(normal));
+  up.sub(projected);
+  if (up.lengthSq() === 0) {
+    up = Math.abs(normal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    up.sub(normal.clone().multiplyScalar(up.dot(normal)));
+  }
+  up.normalize();
+
+  const xAxis = new THREE.Vector3().crossVectors(up, normal);
+  if (xAxis.lengthSq() === 0) {
+    xAxis.set(1, 0, 0).cross(normal).normalize();
+  } else {
+    xAxis.normalize();
+  }
+
+  const rotation = new THREE.Matrix4().makeBasis(xAxis, up, normal);
+  return new THREE.Quaternion().setFromRotationMatrix(rotation);
+};
+
+const ConnectorMarker = ({ connector, isSelected, isUsed, onToggle }) => {
+  const [hovered, setHovered] = useState(false);
+
+  const quaternion = useMemo(() => buildConnectorQuaternion(connector), [connector]);
+  const position = Array.isArray(connector?.pos) && connector.pos.length === 3
+    ? connector.pos
+    : [0, 0, 0];
+
+  const radius = connector.visualRadius ?? 4;
+  const stemLength = connector.visualStem ?? 10;
+
+  const baseColor = getConnectorBaseColor(connector);
+  const color = isSelected ? "#22c55e" : hovered ? "#60a5fa" : baseColor;
+  const opacity = isUsed ? 0.35 : hovered ? 1 : 0.85;
+
+  const handlePointerDown = (event) => {
+    event.stopPropagation();
+    onToggle?.();
+  };
+
+  const handlePointerEnter = (event) => {
+    event.stopPropagation();
+    setHovered(true);
+  };
+
+  const handlePointerLeave = (event) => {
+    event.stopPropagation();
+    setHovered(false);
+  };
+
+  return (
+    <group position={position} quaternion={quaternion} frustumCulled={false}>
+      <mesh
+        position={[0, 0, stemLength / 2]}
+        onPointerDown={handlePointerDown}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        renderOrder={1000}
+        frustumCulled={false}
+      >
+        <cylinderGeometry args={[radius * 0.25, radius * 0.25, stemLength, 10]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={opacity}
+          depthTest={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh
+        position={[0, 0, stemLength]}
+        onPointerDown={handlePointerDown}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        renderOrder={1001}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[radius, 16, 16]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={Math.min(1, opacity + 0.25)}
+          depthTest={false}
+          toneMapped={false}
+        />
+      </mesh>
+      {hovered && connector?.label && (
+        <Html
+          center
+          distanceFactor={14}
+          position={[0, stemLength + radius * 1.6, 0]}
+          zIndexRange={[1000, 2000]}
+        >
+          <div
+            style={{
+              padding: "2px 6px",
+              borderRadius: 6,
+              background: "rgba(15, 23, 42, 0.85)",
+              color: "#e2e8f0",
+              fontSize: 11,
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {connector.label}
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+};
+
 export default function MovablePart({
   obj,
   selected,
@@ -17,6 +161,9 @@ export default function MovablePart({
   palette,
   allObjects = [], // 用于面检测
   setDragging, // 告知父组件控制 OrbitControls
+  connections = [],
+  connectorSelection = [],
+  onConnectorToggle,
 }) {
   const t = palette;
   const groupRef = useRef();
@@ -25,6 +172,29 @@ export default function MovablePart({
 
   // ✅ UI 锁：当在 HUD 上交互时，禁用 TransformControls + OrbitControls
   const [uiLock, setUiLock] = useState(false);
+
+  const connectedConnectorIds = useMemo(() => {
+    if (!Array.isArray(connections)) return new Set();
+    const set = new Set();
+    connections.forEach((connection) => {
+      if (connection?.from?.partId === obj.id && connection.from.connectorId) {
+        set.add(connection.from.connectorId);
+      }
+      if (connection?.to?.partId === obj.id && connection.to.connectorId) {
+        set.add(connection.to.connectorId);
+      }
+    });
+    return set;
+  }, [connections, obj.id]);
+
+  const selectedConnectorIds = useMemo(() => {
+    if (!Array.isArray(connectorSelection)) return new Set();
+    return new Set(
+      connectorSelection
+        .filter((entry) => entry?.partId === obj.id && entry.connectorId)
+        .map((entry) => entry.connectorId)
+    );
+  }, [connectorSelection, obj.id]);
 
   const handleDimChange = (axis, value) => {
     const newDimValue = Number(value) || 0;
@@ -547,6 +717,24 @@ export default function MovablePart({
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}
+        {Array.isArray(obj.connectors) && obj.connectors
+          .filter((connector) => connector && connector.id)
+          .map((connector) => {
+            const isSelected = selectedConnectorIds.has(connector.id);
+            const isUsed = connectedConnectorIds.has(connector.id);
+            return (
+              <ConnectorMarker
+                key={connector.id}
+                connector={connector}
+                isSelected={isSelected}
+                isUsed={isUsed}
+                onToggle={() => {
+                  onSelect?.(obj.id, false);
+                  onConnectorToggle?.(obj.id, connector.id);
+                }}
+              />
+            );
+          })}
       </group>
 
       {selected && (

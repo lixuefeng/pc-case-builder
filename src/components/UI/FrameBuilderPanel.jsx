@@ -53,6 +53,7 @@ export default function FrameBuilderPanel({ onAdd }) {
       visible: true,
       includeInExport: true,
       meta: {},
+      connectors: [],
     };
     onAdd(obj);
   };

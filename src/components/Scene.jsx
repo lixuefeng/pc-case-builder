@@ -4,7 +4,16 @@ import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
 
-export default function Scene({ objects, setObjects, selectedIds, onSelect, snap }) {
+export default function Scene({
+  objects,
+  setObjects,
+  selectedIds,
+  onSelect,
+  snap,
+  connections = [],
+  connectorSelection = [],
+  onConnectorToggle,
+}) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -63,6 +72,9 @@ export default function Scene({ objects, setObjects, selectedIds, onSelect, snap
             allObjects={objects}
             onAlign={handleAlign}
             setDragging={setIsDragging}
+            connections={connections}
+            connectorSelection={connectorSelection}
+            onConnectorToggle={onConnectorToggle}
           />
         ))}
       </group>

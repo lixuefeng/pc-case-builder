@@ -1,17 +1,38 @@
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import * as THREE from "three";
 import Scene from "./components/Scene";
 import AddObjectForm from "./components/UI/AddObjectForm";
-import ObjectsList from "./components/UI/ObjectsList"; // 假设 ControlsPanel 的 group/ungroup 按钮移到这里或别处
+import ObjectsList from "./components/UI/ObjectsList"; // group/ungroup buttons relocated from ControlsPanel
 import FrameBuilderPanel from "./components/UI/FrameBuilderPanel";
+import ConnectorEditor from "./components/UI/ConnectorEditor";
 import ProjectPanel from "./components/UI/ProjectPanel";
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
+import { alignObjectsByConnectors, ensureSceneConnectors } from "./utils/connectors";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 export default function PCEditor() {
-  const { objects, setObjects, selectedIds, setSelectedIds } = useStore();
+  const {
+    objects,
+    setObjects,
+    selectedIds,
+    setSelectedIds,
+    connections,
+    setConnections,
+    connectorSelection,
+    setConnectorSelection,
+  } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
+  const [connectorToast, setConnectorToast] = useState(null);
+  const [activeConnectorId, setActiveConnectorId] = useState(null);
+
+  useEffect(() => {
+    if (!connectorToast) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setConnectorToast(null), connectorToast.ttl ?? 2600);
+    return () => clearTimeout(timer);
+  }, [connectorToast]);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(objects, null, 2);
@@ -48,14 +69,18 @@ export default function PCEditor() {
         try {
           const importedObjects = JSON.parse(e.target.result);
           if (Array.isArray(importedObjects)) {
-            setObjects(importedObjects);
+            const normalizedObjects = importedObjects.map((obj) => ({
+              ...obj,
+              connectors: Array.isArray(obj?.connectors) ? obj.connectors : [],
+            }));
+            setObjects(normalizedObjects);
             setSelectedIds([]);
-            alert(`成功导入 ${importedObjects.length} 个物体！`);
+            alert(`Successfully imported ${importedObjects.length} objects!`);
           } else {
             throw new Error("Invalid file format: not an array.");
           }
         } catch (error) {
-          alert(`导入失败: ${error.message}`);
+          alert(`Import failed: ${error.message}`);
         }
       };
       reader.readAsText(file);
@@ -74,7 +99,7 @@ export default function PCEditor() {
             id: `imported_${Date.now()}`,
             type: "imported",
             name: file.name.replace(/\.stl$/i, ""),
-            pos: [0, 0, size.y / 2], // 把它放在地面上
+            pos: [0, 0, size.y / 2], // place on the ground plane
             rot: [0, 0, 0],
             dims: { w: size.x, h: size.y, d: size.z },
             visible: true,
@@ -84,12 +109,12 @@ export default function PCEditor() {
           setObjects((prev) => [...prev, newObject]);
           setSelectedIds([newObject.id]);
         } catch (error) {
-          alert(`STL 文件导入失败: ${error.message}`);
+          alert(`Failed to import STL file: ${error.message}`);
         }
       };
       reader.readAsArrayBuffer(file);
     } else {
-      alert("不支持的文件类型。请选择 .json 或 .stl 文件。");
+      alert("Unsupported file type. Please choose a .json or .stl file.");
     }
   };
 
@@ -100,12 +125,12 @@ export default function PCEditor() {
           // 如果已选中，则从选择集中移除
           return prev.filter((i) => i !== id);
         } else {
-          // 如果未选中，则添加到选择集
+          // 如果未选中，则添加到选择�?
           return [...prev, id];
         }
       });
     } else {
-      // 单选
+      // 单�?
       setSelectedIds([id]);
     }
   };
@@ -117,7 +142,7 @@ export default function PCEditor() {
 
     const selectedObjects = objects.filter((o) => selectedIds.includes(o.id));
 
-    // 1. 计算包围盒和中心点
+    // 1. 计算包围盒和中心�?
     const box = new THREE.Box3();
     selectedObjects.forEach((obj) => {
       const { w, d, h } = obj.dims;
@@ -145,7 +170,7 @@ export default function PCEditor() {
       dims: { w: size.x, h: size.y, d: size.z },
       children: selectedObjects.map((obj) => ({
         ...obj,
-        // 存储相对于组中心的原始位置
+        // 存储相对于组中心的原始位�?
         pos: [obj.pos[0] - center.x, obj.pos[1] - center.y, obj.pos[2] - center.z],
       })),
       visible: true,
@@ -171,6 +196,186 @@ export default function PCEditor() {
     setSelectedIds(children.map((c) => c.id));
   };
 
+  const formatPartName = useCallback((part) => {
+    if (!part) return "Unknown part";
+    if (part.name) return part.name;
+    if (part.type) return part.type.toUpperCase();
+    return part.id;
+  }, []);
+
+  const getConnectorLabel = useCallback((part, connectorId) => {
+    if (!part || !connectorId) return connectorId || "Unknown connector";
+    const connector = (part.connectors || []).find((item) => item?.id === connectorId);
+    if (connector?.label) return connector.label;
+    return connectorId;
+  }, []);
+
+  const handleConnectorToggle = useCallback(
+    (partId, connectorId) => {
+      if (!partId || !connectorId) return;
+
+      const existingIndex = connectorSelection.findIndex(
+        (entry) => entry.partId === partId && entry.connectorId === connectorId
+      );
+
+      if (existingIndex >= 0) {
+        const removedEntry = connectorSelection[existingIndex];
+        const removedPart = objects.find((obj) => obj.id === removedEntry.partId);
+        const nextSelection = connectorSelection.filter((_, idx) => idx !== existingIndex);
+        setConnectorSelection(nextSelection);
+        setConnectorToast({
+          type: "info",
+          text: `Cleared ${formatPartName(removedPart)} · ${getConnectorLabel(
+            removedPart,
+            removedEntry.connectorId
+          )}`,
+        });
+        return;
+      }
+
+      const currentPart = objects.find((obj) => obj.id === partId);
+
+      if (
+        connectorSelection.length === 1 &&
+        connectorSelection[0]?.partId === partId
+      ) {
+        setConnectorSelection([{ partId, connectorId }]);
+        setConnectorToast({
+          type: "warning",
+          text: `Pick a connector on a different part. Anchor switched to ${formatPartName(
+            currentPart
+          )} · ${getConnectorLabel(currentPart, connectorId)}`,
+        });
+        return;
+      }
+
+      let nextSelection;
+      if (connectorSelection.length === 1) {
+        nextSelection = [...connectorSelection, { partId, connectorId }];
+      } else {
+        nextSelection = [{ partId, connectorId }];
+      }
+
+      if (nextSelection.length < 2) {
+        setConnectorSelection(nextSelection);
+        setConnectorToast({
+          type: "info",
+          text: `Selected ${formatPartName(currentPart)} · ${getConnectorLabel(
+            currentPart,
+            connectorId
+          )}. Choose a connector on another part.`,
+        });
+        return;
+      }
+
+      const anchorSelection = nextSelection[0];
+      const movingSelection = nextSelection[1];
+      const anchorPart = objects.find((obj) => obj.id === anchorSelection.partId);
+      const movingPart = objects.find((obj) => obj.id === movingSelection.partId);
+
+      const connectionAlreadyExists = connections.some((connection) => {
+        const from = connection.from || {};
+        const to = connection.to || {};
+        const sameDirection =
+          from.partId === anchorSelection.partId &&
+          from.connectorId === anchorSelection.connectorId &&
+          to.partId === movingSelection.partId &&
+          to.connectorId === movingSelection.connectorId;
+        const oppositeDirection =
+          from.partId === movingSelection.partId &&
+          from.connectorId === movingSelection.connectorId &&
+          to.partId === anchorSelection.partId &&
+          to.connectorId === anchorSelection.connectorId;
+        return sameDirection || oppositeDirection;
+      });
+
+      const alignment = alignObjectsByConnectors(objects, nextSelection);
+
+      if (alignment) {
+        setObjects(alignment.objects);
+        setConnections((prev) => {
+          if (connectionAlreadyExists) {
+            return prev;
+          }
+          return [...prev, alignment.connection];
+        });
+
+        if (alignment.movedPartId) {
+          setSelectedIds([alignment.movedPartId]);
+        }
+        setConnectorSelection([]);
+        setConnectorToast({
+          type: connectionAlreadyExists ? "info" : "success",
+          text: connectionAlreadyExists
+            ? `Connection already exists. Repositioned ${formatPartName(movingPart)}.`
+            : `Snapped ${formatPartName(movingPart)} · ${getConnectorLabel(
+                movingPart,
+                movingSelection.connectorId
+              )} to ${formatPartName(anchorPart)} · ${getConnectorLabel(
+                anchorPart,
+                anchorSelection.connectorId
+              )}`,
+        });
+      } else {
+        setConnectorSelection([{ partId, connectorId }]);
+        setConnectorToast({
+          type: "warning",
+          text: "Unable to snap: pick two connectors from different parts.",
+        });
+      }
+    },
+    [
+      connections,
+      connectorSelection,
+      formatPartName,
+      getConnectorLabel,
+      objects,
+      setConnectorSelection,
+      setConnectorToast,
+      setConnections,
+      setObjects,
+      setSelectedIds,
+    ]
+  );
+
+  const handleApplyConnectorOrientation = useCallback(
+    (connectorId, normal, up) => {
+      if (!selectedObject) {
+        return;
+      }
+      setObjects((prev) =>
+        prev.map((obj) => {
+          if (obj.id !== selectedObject.id) {
+            return obj;
+          }
+          const nextConnectors = (obj.connectors || []).map((connector) =>
+            connector?.id === connectorId ? { ...connector, normal, up } : connector
+          );
+          return { ...obj, connectors: nextConnectors };
+        })
+      );
+      setConnectorToast({
+        type: "info",
+        text: `Updated ${getConnectorLabel(selectedObject, connectorId)} orientation.`,
+        ttl: 2000,
+      });
+    },
+    [getConnectorLabel, selectedObject, setConnectorToast, setObjects]
+  );
+
+  useEffect(() => {
+    const { objects: hydratedObjects, changed } = ensureSceneConnectors(objects);
+    if (changed) {
+      setObjects(hydratedObjects, { recordHistory: false });
+    }
+  }, [objects, setObjects]);
+
+  useEffect(() => {
+    if (!selectedObject) {
+      setActiveConnectorId(null);
+    }
+  }, [selectedObject]);
+
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
       {/* Left Panel */}
@@ -178,6 +383,44 @@ export default function PCEditor() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <AddObjectForm onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
+          {selectedObject && (
+            <ConnectorEditor
+              object={selectedObject}
+              activeConnectorId={activeConnectorId}
+              onSelectConnector={setActiveConnectorId}
+              onApplyOrientation={handleApplyConnectorOrientation}
+            />
+          )}
+          {connectorToast && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                border:
+                  connectorToast.type === "success"
+                    ? "1px solid #34d399"
+                    : connectorToast.type === "warning"
+                    ? "1px solid #fbbf24"
+                    : "1px solid #60a5fa",
+                background:
+                  connectorToast.type === "success"
+                    ? "rgba(52, 211, 153, 0.16)"
+                    : connectorToast.type === "warning"
+                    ? "rgba(251, 191, 36, 0.18)"
+                    : "rgba(96, 165, 250, 0.16)",
+                color:
+                  connectorToast.type === "success"
+                    ? "#064e3b"
+                    : connectorToast.type === "warning"
+                    ? "#78350f"
+                    : "#1e3a8a",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {connectorToast.text}
+            </div>
+          )}
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={undo} disabled={past.length === 0} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", disabled: { opacity: 0.5 } }}>
@@ -194,8 +437,19 @@ export default function PCEditor() {
 
       {/* Right 3D Area */}
       <div style={{ flex: 1, position: "relative" }}>
-        <Scene objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} />
+        <Scene
+          objects={objects}
+          setObjects={setObjects}
+          selectedIds={selectedIds}
+          onSelect={handleSelect}
+          connections={connections}
+          connectorSelection={connectorSelection}
+          onConnectorToggle={handleConnectorToggle}
+        />
       </div>
     </div>
   );
 }
+
+
+

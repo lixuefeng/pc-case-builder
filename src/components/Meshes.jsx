@@ -307,6 +307,32 @@ export function GPUMesh({ obj, selected }) {
     [bracketWidth, bracketHeight],
   );
 
+  const fingerPosition = [
+    dims.d / 2 + pcieFingerLayout.depth / 2,
+    -dims.h / 2 + pcieFingerLayout.thickness / 2,
+    dims.w / 2 - pcieFingerLayout.length / 2 - 42,
+  ];
+
+  useEffect(() => {
+    // Ensure this component is the single source of truth for the PCIe connector.
+    // First, remove any existing PCIe card connectors to avoid duplicates.
+    const otherConnectors = (obj.connectors || []).filter(
+      (c) => c.type !== "pcie-x16-card"
+    );
+
+    // Then, add the definitive PCIe connector with the correct position.
+    const pcieConnector = {
+      id: "gpu_pcie_x16",
+      label: "PCIe x16",
+      type: "pcie-x16-card",
+      pos: fingerPosition,
+      normal: [1, 0, 0], // Points down, away from the card
+      up: [0, 0, -1], // Points along the card's depth axis
+    };
+
+    obj.connectors = [...otherConnectors, pcieConnector];
+  }, [obj, fingerPosition]);
+
   useEffect(() => {
     return () => {
       bracketGeometry?.dispose();
@@ -316,14 +342,9 @@ export function GPUMesh({ obj, selected }) {
   const pcbLeft = -dims.d / 2 + 1.6 + 3;
   const pcbPosition = [
     pcbLeft + pcbLayout.width / 2,
+    -dims.d / 2 + 1.6 + 3 + pcbLayout.width / 2,
     -dims.h / 2 + pcbLayout.thickness / 2 + 0.6,
     -dims.w / 2 + 7 + pcbLayout.depth / 2,
-  ];
-
-  const fingerPosition = [
-    dims.d / 2 + pcieFingerLayout.depth / 2,
-    -dims.h / 2 + pcieFingerLayout.thickness / 2,
-    dims.w / 2 - pcieFingerLayout.length / 2 - 30,
   ];
 
   return (

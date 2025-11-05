@@ -3,7 +3,11 @@ import React, { useMemo } from "react";
 import * as THREE from "three";
 import { Text } from "@react-three/drei";
 
-export default function GridPlane({ size = 10000, divisions = 100 }) {
+export default function GridPlane({
+  size = 10000,
+  divisions = 100,
+  showHorizontalGrid = true,
+}) {
   const halfSize = size / 2;
   const step = size / divisions; // e.g., 10000 / 100 = 100mm per step
 
@@ -101,7 +105,7 @@ export default function GridPlane({ size = 10000, divisions = 100 }) {
 
   return (
     <group>
-      <gridHelper args={[size, divisions, "#888", "#ddd"]} />
+      {showHorizontalGrid && <gridHelper args={[size, divisions, "#888", "#ddd"]} />}
       <primitive object={axesHelper} position={[0, 0.05, 0]} />
       {axisLabels}
       {labels}

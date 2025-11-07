@@ -6,6 +6,8 @@ import ObjectsList from "./components/UI/ObjectsList"; // group/ungroup buttons 
 import FrameBuilderPanel from "./components/UI/FrameBuilderPanel";
 import ConnectorEditor from "./components/UI/ConnectorEditor";
 import ProjectPanel from "./components/UI/ProjectPanel";
+import SceneSettingsPanel from "./components/UI/SceneSettingsPanel";
+import { buildPartGraph, solvePartPoses, generateFrameSegments } from "./utils/frameGeneration";
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
 import { alignObjectsByConnectors, ensureSceneConnectors } from "./utils/connectors";
@@ -21,10 +23,15 @@ export default function PCEditor() {
     setConnections,
     connectorSelection,
     setConnectorSelection,
+    frames,
+    setFrames,
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const [connectorToast, setConnectorToast] = useState(null);
   const [activeConnectorId, setActiveConnectorId] = useState(null);
+  const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
+  const [layoutGraphStats, setLayoutGraphStats] = useState(null);
+  const [showFrames, setShowFrames] = useState(true);
 
   useEffect(() => {
     if (!connectorToast) {
@@ -376,6 +383,38 @@ export default function PCEditor() {
     }
   }, [selectedObject]);
 
+  const handleGenerateFrames = useCallback(() => {
+    const graph = buildPartGraph(objects, connections);
+    const poses = solvePartPoses(graph);
+    const { segments, warnings: frameWarnings } = generateFrameSegments(graph, poses);
+    console.groupCollapsed("[FrameGeneration] Draft run");
+    console.log("Graph nodes", graph?.nodes);
+    console.log("Graph edges", graph?.edges);
+    console.log("Root id", graph?.rootId);
+    if (graph?.warnings?.length) {
+      console.warn("Frame graph warnings", graph.warnings);
+    }
+    console.log("Solved poses", poses);
+    if (poses?.debug?.warnings?.length) {
+      console.warn("Pose solver warnings", poses.debug.warnings);
+    }
+    console.log("Segments preview", segments);
+    if (frameWarnings?.length) {
+      console.warn("Frame segment warnings", frameWarnings);
+    }
+    console.groupEnd();
+    setFrames(segments);
+    setLayoutGraphStats({
+      nodeCount: graph?.nodes?.size ?? 0,
+      edgeCount: Array.isArray(graph?.edges) ? graph.edges.length : 0,
+      warningCount: Array.isArray(graph?.warnings) ? graph.warnings.length : 0,
+      poseWarningCount: Array.isArray(poses?.debug?.warnings)
+        ? poses.debug.warnings.length
+        : 0,
+      frameWarningCount: Array.isArray(frameWarnings) ? frameWarnings.length : 0,
+    });
+  }, [objects, connections, setFrames]);
+
   return (
     <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
       {/* Left Panel */}
@@ -421,6 +460,35 @@ export default function PCEditor() {
               {connectorToast.text}
             </div>
           )}
+          <button
+            onClick={handleGenerateFrames}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: "#0ea5e9",
+              color: "#fff",
+              fontWeight: 600,
+              border: "1px solid transparent",
+              cursor: "pointer",
+            }}
+          >
+            生成骨架 (占位)
+          </button>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
+            <input
+              type="checkbox"
+              checked={showFrames}
+              onChange={() => setShowFrames((prev) => !prev)}
+            />
+            显示骨架
+          </label>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+            框架段数量：{frames.length} / 图节点：
+            {layoutGraphStats ? `${layoutGraphStats.nodeCount} 个` : "尚未生成"} / 图警告：
+            {layoutGraphStats ? layoutGraphStats.warningCount : 0} / 姿态警告：
+            {layoutGraphStats ? layoutGraphStats.poseWarningCount : 0} / 段警告：
+            {layoutGraphStats ? layoutGraphStats.frameWarningCount : 0}
+          </div>
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={undo} disabled={past.length === 0} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", disabled: { opacity: 0.5 } }}>
@@ -437,6 +505,10 @@ export default function PCEditor() {
 
       {/* Right 3D Area */}
       <div style={{ flex: 1, position: "relative" }}>
+        <SceneSettingsPanel
+          showHorizontalGrid={showHorizontalGrid}
+          onToggleHorizontalGrid={() => setShowHorizontalGrid((prev) => !prev)}
+        />
         <Scene
           objects={objects}
           setObjects={setObjects}
@@ -445,6 +517,9 @@ export default function PCEditor() {
           connections={connections}
           connectorSelection={connectorSelection}
           onConnectorToggle={handleConnectorToggle}
+          showHorizontalGrid={showHorizontalGrid}
+          frames={frames}
+          showFrames={showFrames}
         />
       </div>
     </div>

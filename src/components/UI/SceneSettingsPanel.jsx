@@ -13,7 +13,7 @@ export default function SceneSettingsPanel({
   onToggleHorizontalGrid,
 }) {
   return (
-    <div style={{ position: 'absolute', top: 16, right: 16 }}>
+    <div style={{ position: "absolute", top: 16, right: 16, zIndex: 2 }}>
       <div style={cardStyle}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
           场景设置

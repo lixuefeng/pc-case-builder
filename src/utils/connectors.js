@@ -29,7 +29,7 @@ const pickPerpendicular = (normal) => {
   return choice.clone();
 };
 
-const buildConnectorLocalMatrix = (connector) => {
+export const buildConnectorLocalMatrix = (connector) => {
   if (!connector) return null;
 
   const pos = Array.isArray(connector.pos) && connector.pos.length === 3
@@ -70,7 +70,7 @@ const buildConnectorLocalMatrix = (connector) => {
   return new THREE.Matrix4().multiplyMatrices(translation, rotation);
 };
 
-const buildObjectMatrix = (obj) => {
+export const buildObjectMatrix = (obj) => {
   const position = Array.isArray(obj?.pos) && obj.pos.length === 3
     ? new THREE.Vector3(obj.pos[0], obj.pos[1], obj.pos[2])
     : new THREE.Vector3();
@@ -132,6 +132,27 @@ const buildTargetFacingMatrix = (anchorWorldMatrix) => {
   const basisMatrix = new THREE.Matrix4().makeBasis(targetX, correctedUp, targetNormal);
   basisMatrix.setPosition(position);
   return basisMatrix;
+};
+
+const classifyConnectionRelation = (anchorConnector, movingConnector) => {
+  const slotTypes = new Set(
+    [anchorConnector?.slotType, movingConnector?.slotType].filter(Boolean)
+  );
+  if (
+    slotTypes.has("mb-mount") ||
+    slotTypes.has("frame-anchor") ||
+    slotTypes.has("structural")
+  ) {
+    return "frame";
+  }
+  if (
+    slotTypes.has("pcie-slot") ||
+    slotTypes.has("pcie-fingers") ||
+    slotTypes.has("dimm-slot")
+  ) {
+    return "slot";
+  }
+  return "attached";
 };
 
 export const alignObjectsByConnectors = (objects, pair) => {
@@ -235,6 +256,7 @@ export const alignObjectsByConnectors = (objects, pair) => {
     id: `conn_${Date.now()}`,
     from: { partId: anchorObj.id, connectorId: anchorConnector.id },
     to: { partId: movingObj.id, connectorId: movingConnector.id },
+    relation: classifyConnectionRelation(anchorConnector, movingConnector),
   };
 
   return {

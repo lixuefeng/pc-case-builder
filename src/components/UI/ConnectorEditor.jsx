@@ -8,7 +8,6 @@ const cardStyle = {
   boxShadow: "0 10px 25px rgba(0,0,0,.08)",
   padding: 16,
 };
-const sceneSettingsContainerStyle = { position: 'absolute', top: 16, right: 16, zIndex: 1 };
 
 const labelStyle = { color: "#64748b", fontSize: 12, marginBottom: 6 };
 const inputStyle = {
@@ -89,8 +88,6 @@ export default function ConnectorEditor({
   activeConnectorId,
   onSelectConnector,
   onApplyOrientation,
-  showHorizontalGrid,
-  onToggleHorizontalGrid,
 }) {
   const connectors = useMemo(
     () => (object?.connectors || []).filter((connector) => connector && connector.id),
@@ -149,23 +146,6 @@ export default function ConnectorEditor({
 
   return (
     <>
-      <div style={sceneSettingsContainerStyle}>
-        <div style={cardStyle}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
-            场景设置
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', fontSize: 13, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={showHorizontalGrid}
-              onChange={onToggleHorizontalGrid}
-              style={{ marginRight: 8 }}
-            />
-            显示水平网格
-          </label>
-        </div>
-      </div>
-
       {object && ( // ConnectorEditor panel only shows when an object is selected
         <div style={cardStyle}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>

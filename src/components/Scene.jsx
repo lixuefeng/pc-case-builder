@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
+import Frames from "./Frames";
 
 export default function Scene({
   objects,
@@ -13,6 +14,9 @@ export default function Scene({
   connections = [],
   connectorSelection = [],
   onConnectorToggle,
+  showHorizontalGrid = true,
+  frames = [],
+  showFrames = true,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -60,7 +64,7 @@ export default function Scene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[1, 2, 1]} intensity={1} />
       <group ref={(ref) => (window.__lastThreeRoot = ref)}>
-        <GridPlane size={1000} divisions={100} />
+        <GridPlane size={1000} divisions={100} showHorizontalGrid={showHorizontalGrid} />
         {objects.map((obj) => obj.visible && (
           <MovablePart
             key={obj.id}
@@ -77,6 +81,7 @@ export default function Scene({
             onConnectorToggle={onConnectorToggle}
           />
         ))}
+        {showFrames && <Frames segments={frames} />}
       </group>
       <OrbitControls
         ref={orbitRef}

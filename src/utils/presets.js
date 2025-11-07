@@ -13,6 +13,7 @@ const createMotherboardConnectors = (preset) => {
       id: `${key}-mount-${index + 1}`,
       label: `Mount Hole ${index + 1}`,
       type: "screw-m3",
+      slotType: "mb-mount",
       size: 3,
       pos: [x - dims.w / 2, -dims.h / 2, z - dims.d / 2],
       normal: [0, -1, 0],
@@ -32,6 +33,7 @@ const createMotherboardConnectors = (preset) => {
       id,
       label,
       type,
+      slotType: type,
       pos: [x, dims.h / 2, z],
       normal: [0, 1, 0],
       up: [0, 0, 1],
@@ -369,6 +371,5 @@ PRESETS.psu.forEach((preset) => {
     preset.connectors = deepClone(preset.connectors);
   }
 });
-
 
 

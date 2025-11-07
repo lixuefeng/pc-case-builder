@@ -98,6 +98,7 @@ export const useStore = create((set) => {
   return {
     objects: initialScene.objects,
     connections: initialScene.connections,
+    frames: [],
     selectedIds: [],
     connectorSelection: [],
     past: [],
@@ -263,6 +264,16 @@ export const useStore = create((set) => {
         };
       }),
 
+    setFrames: (nextFrames) =>
+      set((state) => {
+        const resolved =
+          typeof nextFrames === "function" ? nextFrames(state.frames) : nextFrames;
+        if (!Array.isArray(resolved)) {
+          console.warn("setFrames expects an array of frame descriptors");
+          return {};
+        }
+        return { frames: cloneScene(resolved) };
+      }),
     setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
     setConnectorSelection: (updater) =>
       set((state) => {

@@ -45,9 +45,13 @@ const instantiateConnectors = (type, preset) => {
   if (!preset) return [];
 
   if (Array.isArray(preset.connectors)) {
-    return preset.connectors.map((connector) =>
-      JSON.parse(JSON.stringify(connector))
-    );
+    return preset.connectors.map((connector) => {
+      const clone = JSON.parse(JSON.stringify(connector));
+      if (!clone.slotType) {
+        clone.slotType = clone.type || "generic-slot";
+      }
+      return clone;
+    });
   }
 
   if (typeof preset.buildConnectors === "function") {
@@ -79,6 +83,7 @@ export default function AddObjectForm({ onAdd }) {
   const [type, setType] = useState("motherboard");
   const [presetKey, setPresetKey] = useState("itx");
   const [name, setName] = useState("");
+  const [orientation, setOrientation] = useState("horizontal");
 
   useEffect(() => {
     const firstPreset = (PRESETS[type] || [])[0];
@@ -94,6 +99,11 @@ export default function AddObjectForm({ onAdd }) {
     const preset = presets.find((p) => p.key === presetKey);
     if (!preset) return;
 
+    const meta = preset.meta ? JSON.parse(JSON.stringify(preset.meta)) : {};
+    if (type === "motherboard") {
+      meta.orientation = orientation;
+    }
+
     const obj = {
       id,
       type,
@@ -104,7 +114,7 @@ export default function AddObjectForm({ onAdd }) {
       color: undefined,
       visible: true,
       includeInExport: true,
-      meta: preset.meta ? JSON.parse(JSON.stringify(preset.meta)) : {},
+      meta,
       connectors: instantiateConnectors(type, preset),
     };
     onAdd(obj);
@@ -135,6 +145,16 @@ export default function AddObjectForm({ onAdd }) {
             </option>
           ))}
         </select>
+
+        {type === "motherboard" && (
+          <>
+            <label style={labelSm}>摆放方式</label>
+            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={input}>
+              <option value="horizontal">水平</option>
+              <option value="vertical">竖直</option>
+            </select>
+          </>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center", marginTop: 8 }}>

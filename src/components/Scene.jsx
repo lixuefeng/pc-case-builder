@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
@@ -50,6 +50,30 @@ export default function Scene({
     // 这里可以添加对齐完成后的处理逻辑
   };
 
+  const gridOffset = useMemo(() => {
+    const objectMinY = objects.reduce((min, obj) => {
+      if (!obj?.dims || !Array.isArray(obj.pos)) return min;
+      const height = Number(obj.dims.h) || 0;
+      const posY = Number(obj.pos[1]) || 0;
+      return Math.min(min, posY - height / 2);
+    }, 0);
+
+    const frameMinY = frames.reduce((min, segment) => {
+      const { start, end } = segment || {};
+      if (!Array.isArray(start) || !Array.isArray(end)) {
+        return min;
+      }
+      const thickness =
+        Number.isFinite(segment?.metadata?.size) && segment.metadata.size > 0
+          ? segment.metadata.size
+          : 0;
+      const minY = Math.min(start[1] ?? 0, end[1] ?? 0) - thickness / 2;
+      return Math.min(min, minY);
+    }, 0);
+
+    return Math.min(0, objectMinY, frameMinY);
+  }, [objects, frames]);
+
   return (
     <Canvas 
       style={{ width: "100%", height: "100%" }} 
@@ -64,7 +88,12 @@ export default function Scene({
       <ambientLight intensity={0.6} />
       <directionalLight position={[1, 2, 1]} intensity={1} />
       <group ref={(ref) => (window.__lastThreeRoot = ref)}>
-        <GridPlane size={1000} divisions={100} showHorizontalGrid={showHorizontalGrid} />
+        <GridPlane
+          size={1000}
+          divisions={100}
+          showHorizontalGrid={showHorizontalGrid}
+          offsetY={gridOffset}
+        />
         {objects.map((obj) => obj.visible && (
           <MovablePart
             key={obj.id}

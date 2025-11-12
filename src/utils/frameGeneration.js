@@ -508,10 +508,28 @@ const generateRootBaseFrame = (graph, poseMap, warnings) => {
   if (!rootNode || rootNode.type !== "motherboard") {
     return [];
   }
-  const dims = rootNode.metadata?.dims || {};
-  const width = dims.w || dims.width || 200;
-  const depth = dims.d || dims.depth || 200;
-  const height = dims.h || dims.height || 20;
+  const dims = rootNode.metadata?.dims;
+  if (!dims) {
+    warnings.push("Motherboard dims missing; cannot generate frame.");
+    return [];
+  }
+
+  const width = Number(dims.w);
+  const depth = Number(dims.d);
+  const height = Number(dims.h);
+
+  if (!Number.isFinite(width) || width <= 0) {
+    warnings.push(`Motherboard width invalid or missing: ${width}`);
+    return [];
+  }
+  if (!Number.isFinite(depth) || depth <= 0) {
+    warnings.push(`Motherboard depth invalid or missing: ${depth}`);
+    return [];
+  }
+  if (!Number.isFinite(height) || height <= 0) {
+    warnings.push(`Motherboard height invalid or missing: ${height}`);
+    return [];
+  }
 
   const baseMatrix = poseMap.get(rootNode.id)?.matrix;
   if (!baseMatrix) {

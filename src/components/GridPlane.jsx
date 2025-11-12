@@ -7,6 +7,7 @@ export default function GridPlane({
   size = 10000,
   divisions = 100,
   showHorizontalGrid = true,
+  offsetY = 0,
 }) {
   const halfSize = size / 2;
   const step = size / divisions; // e.g., 10000 / 100 = 100mm per step
@@ -104,7 +105,7 @@ export default function GridPlane({
   );
 
   return (
-    <group>
+    <group position={[0, offsetY, 0]}>
       {showHorizontalGrid && <gridHelper args={[size, divisions, "#888", "#ddd"]} />}
       <primitive object={axesHelper} position={[0, 0.05, 0]} />
       {axisLabels}

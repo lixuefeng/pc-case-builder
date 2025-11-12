@@ -498,7 +498,16 @@ export default function PCEditor() {
               重做 (Redo)
             </button>
           </div>
-          <ObjectsList objects={objects} setObjects={setObjects} selectedIds={selectedIds} onSelect={handleSelect} onGroup={handleGroup} onUngroup={handleUngroup} />
+          <ObjectsList
+            objects={objects}
+            setObjects={setObjects}
+            selectedIds={selectedIds}
+            onSelect={handleSelect}
+            onGroup={handleGroup}
+            onUngroup={handleUngroup}
+            frames={frames}
+            setFrames={setFrames}
+          />
           <button onClick={() => exportSTLFrom(window.__lastThreeRoot)} style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white", fontWeight: 600 }}>导出 STL</button>
         </div>
       </div>

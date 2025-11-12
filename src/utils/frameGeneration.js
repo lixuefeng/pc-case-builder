@@ -13,9 +13,10 @@ import {
 export const DEFAULT_FRAME_ROOT_HINT = "motherboard";
 const FRAME_BAR_SIZE = 10;
 const FRAME_BASE_CLEARANCE = 2;
-const FRAME_IO_CLEARANCE = 15;
+const FRAME_IO_CLEARANCE = 0;
 
 const EPS = 1e-6;
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const ensureVec3Array = (value, fallback = [0, 0, 0]) => {
   if (
@@ -90,6 +91,20 @@ const getConnectorWorldPosition = (nodeId, connector, poseMap) => {
     return null;
   }
   return computeWorldPositionFromMatrices(pose.matrix, connectorMatrix);
+};
+
+const deriveOrientationFromPose = (matrix) => {
+  if (!matrix) {
+    return "horizontal";
+  }
+  const elements = matrix.elements;
+  const axisY = new THREE.Vector3(elements[4], elements[5], elements[6]);
+  if (axisY.lengthSq() < EPS) {
+    return "horizontal";
+  }
+  axisY.normalize();
+  const alignment = Math.abs(axisY.dot(WORLD_UP));
+  return alignment >= 0.5 ? "horizontal" : "vertical";
 };
 
 const inferPartRole = (object = {}) => {
@@ -493,11 +508,6 @@ const generateRootBaseFrame = (graph, poseMap, warnings) => {
   if (!rootNode || rootNode.type !== "motherboard") {
     return [];
   }
-  const orientation =
-    rootNode.metadata?.hints?.orientation === "vertical"
-      ? "vertical"
-      : "horizontal";
-
   const dims = rootNode.metadata?.dims || {};
   const width = dims.w || dims.width || 200;
   const depth = dims.d || dims.depth || 200;
@@ -509,22 +519,31 @@ const generateRootBaseFrame = (graph, poseMap, warnings) => {
     return [];
   }
 
-  const halfWidth = width / 2 + FRAME_IO_CLEARANCE;
-  const halfDepth = depth / 2 + FRAME_IO_CLEARANCE;
-  const halfHeight = height / 2;
+  const hintedOrientation = rootNode.metadata?.hints?.orientation;
+  const orientation =
+    hintedOrientation === "vertical" || hintedOrientation === "horizontal"
+      ? hintedOrientation
+      : deriveOrientationFromPose(baseMatrix);
 
+  const insetBy = Math.max(FRAME_BAR_SIZE / 2, 0);
+  const halfWidth = Math.max(width / 2 - insetBy, 0);
+  const halfDepth = Math.max(depth / 2 - insetBy, 0);
+  const halfHeight = Math.max(height / 2, 0);
+  const halfHeightInset = Math.max(halfHeight - insetBy, 0);
+
+  const additionalVerticalOffset = 2; // extra clearance to avoid IO cutout interference
   const basePlaneValue =
     orientation === "vertical"
       ? -depth / 2 - FRAME_BAR_SIZE / 2 - FRAME_IO_CLEARANCE
-      : -halfHeight - FRAME_BAR_SIZE / 2 - FRAME_BASE_CLEARANCE;
+      : -halfHeight - FRAME_BAR_SIZE / 2 - FRAME_BASE_CLEARANCE - additionalVerticalOffset;
 
   const localCorners =
     orientation === "vertical"
       ? [
-          [-halfWidth, -halfHeight, basePlaneValue],
-          [halfWidth, -halfHeight, basePlaneValue],
-          [halfWidth, halfHeight, basePlaneValue],
-          [-halfWidth, halfHeight, basePlaneValue],
+          [-halfWidth, -halfHeightInset, basePlaneValue],
+          [halfWidth, -halfHeightInset, basePlaneValue],
+          [halfWidth, halfHeightInset, basePlaneValue],
+          [-halfWidth, halfHeightInset, basePlaneValue],
         ]
       : [
           [-halfWidth, basePlaneValue, -halfDepth],
@@ -535,14 +554,35 @@ const generateRootBaseFrame = (graph, poseMap, warnings) => {
 
   const worldCorners = localCorners.map((corner) => applyMatrixToPoint(baseMatrix, corner));
 
+  const extendSegmentForThickness = (start, end, size = FRAME_BAR_SIZE) => {
+    const offset = Math.max(size / 2, 0);
+    const dir = [
+      end[0] - start[0],
+      end[1] - start[1],
+      end[2] - start[2],
+    ];
+    const length = Math.hypot(dir[0], dir[1], dir[2]);
+    if (length < EPS || offset === 0) {
+      return { start, end };
+    }
+    const nx = (dir[0] / length) * offset;
+    const ny = (dir[1] / length) * offset;
+    const nz = (dir[2] / length) * offset;
+    return {
+      start: [start[0] - nx, start[1] - ny, start[2] - nz],
+      end: [end[0] + nx, end[1] + ny, end[2] + nz],
+    };
+  };
+
   const baseSegments = [];
   for (let i = 0; i < worldCorners.length; i += 1) {
     const start = worldCorners[i];
     const end = worldCorners[(i + 1) % worldCorners.length];
+    const extended = extendSegmentForThickness(start, end, FRAME_BAR_SIZE);
     baseSegments.push({
       id: `base_${rootNode.id}_${i}`,
-      start,
-      end,
+      start: extended.start,
+      end: extended.end,
       kind: "motherboard-base",
       relation: "frame",
       meta: {

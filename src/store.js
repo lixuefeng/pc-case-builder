@@ -23,12 +23,13 @@ const saveSceneToStorage = (scene) => {
 };
 
 const getInitialScene = () => {
+  const emptyScene = { objects: [], connections: [], frames: [] };
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return { objects: parsed, connections: [] };
+        return { ...emptyScene, objects: parsed };
       }
       if (parsed && Array.isArray(parsed.objects)) {
         return {
@@ -36,13 +37,14 @@ const getInitialScene = () => {
           connections: Array.isArray(parsed.connections)
             ? parsed.connections
             : [],
+          frames: Array.isArray(parsed.frames) ? parsed.frames : [],
         };
       }
     }
   } catch (e) {
     console.error("Failed to load from localStorage", e);
   }
-  return { objects: [], connections: [] };
+  return emptyScene;
 };
 
 const sanitizeConnections = (connections, objects) => {
@@ -98,7 +100,7 @@ export const useStore = create((set) => {
   return {
     objects: initialScene.objects,
     connections: initialScene.connections,
-    frames: [],
+    frames: initialScene.frames || [],
     selectedIds: [],
     connectorSelection: [],
     past: [],
@@ -128,6 +130,7 @@ export const useStore = create((set) => {
         const nextSnapshot = {
           objects: nextObjectsClone,
           connections: nextConnectionsClone,
+          frames: cloneScene(state.frames),
         };
 
         const shouldRecordHistory = options.recordHistory ?? true;
@@ -136,6 +139,7 @@ export const useStore = create((set) => {
           const previousSnapshot = {
             objects: cloneScene(state.objects),
             connections: cloneScene(state.connections),
+            frames: cloneScene(state.frames),
           };
 
           saveSceneToStorage(nextSnapshot);
@@ -218,19 +222,23 @@ export const useStore = create((set) => {
         const currentSnapshot = {
           objects: cloneScene(state.objects),
           connections: cloneScene(state.connections),
+          frames: cloneScene(state.frames),
         };
 
         const nextObjects = cloneScene(previousSnapshot.objects ?? []);
         const nextConnections = cloneScene(previousSnapshot.connections ?? []);
+        const nextFrames = cloneScene(previousSnapshot.frames ?? []);
 
         saveSceneToStorage({
           objects: nextObjects,
           connections: nextConnections,
+          frames: nextFrames,
         });
 
         return {
           objects: nextObjects,
           connections: nextConnections,
+          frames: nextFrames,
           past: state.past.slice(0, -1),
           future: [currentSnapshot, ...state.future],
         };
@@ -246,19 +254,23 @@ export const useStore = create((set) => {
         const currentSnapshot = {
           objects: cloneScene(state.objects),
           connections: cloneScene(state.connections),
+          frames: cloneScene(state.frames),
         };
 
         const nextObjects = cloneScene(nextSnapshot.objects ?? []);
         const nextConnections = cloneScene(nextSnapshot.connections ?? []);
+        const nextFrames = cloneScene(nextSnapshot.frames ?? []);
 
         saveSceneToStorage({
           objects: nextObjects,
           connections: nextConnections,
+          frames: nextFrames,
         });
 
         return {
           objects: nextObjects,
           connections: nextConnections,
+          frames: nextFrames,
           past: [...state.past, currentSnapshot],
           future: state.future.slice(1),
         };
@@ -272,7 +284,13 @@ export const useStore = create((set) => {
           console.warn("setFrames expects an array of frame descriptors");
           return {};
         }
-        return { frames: cloneScene(resolved) };
+        const nextFramesClone = cloneScene(resolved);
+        saveSceneToStorage({
+          objects: cloneScene(state.objects),
+          connections: cloneScene(state.connections),
+          frames: nextFramesClone,
+        });
+        return { frames: nextFramesClone };
       }),
     setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
     setConnectorSelection: (updater) =>

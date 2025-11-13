@@ -491,10 +491,36 @@ export default function PCEditor() {
           </div>
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={undo} disabled={past.length === 0} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", disabled: { opacity: 0.5 } }}>
+            <button
+              onClick={undo}
+              disabled={past.length === 0}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: past.length === 0 ? "#e5e7eb" : "#2563eb",
+                color: past.length === 0 ? "#9ca3af" : "#fff",
+                border: "1px solid #1d4ed8",
+                cursor: past.length === 0 ? "not-allowed" : "pointer",
+                fontWeight: 600,
+              }}
+            >
               撤销 (Undo)
             </button>
-            <button onClick={redo} disabled={future.length === 0} style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: "#f3f4f6", border: "1px solid #d1d5db", cursor: "pointer", disabled: { opacity: 0.5 } }}>
+            <button
+              onClick={redo}
+              disabled={future.length === 0}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: future.length === 0 ? "#e5e7eb" : "#2563eb",
+                color: future.length === 0 ? "#9ca3af" : "#fff",
+                border: "1px solid #1d4ed8",
+                cursor: future.length === 0 ? "not-allowed" : "pointer",
+                fontWeight: 600,
+              }}
+            >
               重做 (Redo)
             </button>
           </div>

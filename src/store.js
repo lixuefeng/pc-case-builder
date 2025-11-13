@@ -184,6 +184,7 @@ export const useStore = create((set) => {
         const nextSnapshot = {
           objects: nextObjectsClone,
           connections: nextConnectionsClone,
+          frames: cloneScene(state.frames),
         };
 
         const shouldRecordHistory = options.recordHistory ?? true;
@@ -192,6 +193,7 @@ export const useStore = create((set) => {
           const previousSnapshot = {
             objects: cloneScene(state.objects),
             connections: cloneScene(state.connections),
+            frames: cloneScene(state.frames),
           };
 
           saveSceneToStorage(nextSnapshot);
@@ -276,20 +278,36 @@ export const useStore = create((set) => {
         };
       }),
 
-    setFrames: (nextFrames) =>
+    setFrames: (nextFrames, options = {}) =>
       set((state) => {
+        const workingFrames = cloneScene(state.frames);
         const resolved =
-          typeof nextFrames === "function" ? nextFrames(state.frames) : nextFrames;
+          typeof nextFrames === "function" ? nextFrames(workingFrames) : nextFrames;
         if (!Array.isArray(resolved)) {
           console.warn("setFrames expects an array of frame descriptors");
           return {};
         }
         const nextFramesClone = cloneScene(resolved);
-        saveSceneToStorage({
+        const nextSnapshot = {
           objects: cloneScene(state.objects),
           connections: cloneScene(state.connections),
           frames: nextFramesClone,
-        });
+        };
+        const shouldRecordHistory = options.recordHistory ?? true;
+        if (shouldRecordHistory) {
+          const previousSnapshot = {
+            objects: cloneScene(state.objects),
+            connections: cloneScene(state.connections),
+            frames: cloneScene(state.frames),
+          };
+          saveSceneToStorage(nextSnapshot);
+          return {
+            frames: nextFramesClone,
+            past: [...state.past, previousSnapshot],
+            future: [],
+          };
+        }
+        saveSceneToStorage(nextSnapshot);
         return { frames: nextFramesClone };
       }),
     setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),

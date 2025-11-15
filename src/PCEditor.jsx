@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import Scene from "./components/Scene";
 import AddObjectForm from "./components/UI/AddObjectForm";
@@ -9,7 +9,7 @@ import ProjectPanel from "./components/UI/ProjectPanel";
 import SceneSettingsPanel from "./components/UI/SceneSettingsPanel";
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
-import { alignObjectsByConnectors, ensureSceneConnectors } from "./utils/connectors";
+import { ensureSceneConnectors } from "./utils/connectors";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 export default function PCEditor() {
@@ -19,14 +19,13 @@ export default function PCEditor() {
     selectedIds,
     setSelectedIds,
     connections,
-    setConnections,
-    connectorSelection,
-    setConnectorSelection,
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const [connectorToast, setConnectorToast] = useState(null);
   const [activeConnectorId, setActiveConnectorId] = useState(null);
   const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
+  const [transformMode, setTransformMode] = useState("translate");
+  const [pendingAlignFace, setPendingAlignFace] = useState(null);
 
   useEffect(() => {
     if (!connectorToast) {
@@ -35,6 +34,14 @@ export default function PCEditor() {
     const timer = setTimeout(() => setConnectorToast(null), connectorToast.ttl ?? 2600);
     return () => clearTimeout(timer);
   }, [connectorToast]);
+
+  const alignEnabled = transformMode === "translate" && selectedIds.length > 0;
+
+  useEffect(() => {
+    if (!alignEnabled) {
+      setPendingAlignFace(null);
+    }
+  }, [alignEnabled]);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(objects, null, 2);
@@ -199,10 +206,59 @@ export default function PCEditor() {
   };
 
   const formatPartName = useCallback((part) => {
-    if (!part) return "Unknown part";
+    if (!part) return "对象";
     if (part.name) return part.name;
     if (part.type) return part.type.toUpperCase();
     return part.id;
+  }, []);
+
+  const computeFaceTransform = useCallback((obj, faceName) => {
+    if (!obj || !faceName) return null;
+    const pos = Array.isArray(obj.pos) ? obj.pos : [0, 0, 0];
+    const rot = Array.isArray(obj.rot) ? obj.rot : [0, 0, 0];
+    const dims = obj.dims || {};
+    const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+    const height = dims.h ?? 0;
+    const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+    const position = new THREE.Vector3(pos[0], pos[1], pos[2]);
+    const quaternion = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(rot[0], rot[1], rot[2], "XYZ")
+    );
+
+    let localOffset;
+    let localNormal;
+    switch (faceName) {
+      case "+X":
+        localOffset = new THREE.Vector3(width / 2, 0, 0);
+        localNormal = new THREE.Vector3(1, 0, 0);
+        break;
+      case "-X":
+        localOffset = new THREE.Vector3(-width / 2, 0, 0);
+        localNormal = new THREE.Vector3(-1, 0, 0);
+        break;
+      case "+Y":
+        localOffset = new THREE.Vector3(0, height / 2, 0);
+        localNormal = new THREE.Vector3(0, 1, 0);
+        break;
+      case "-Y":
+        localOffset = new THREE.Vector3(0, -height / 2, 0);
+        localNormal = new THREE.Vector3(0, -1, 0);
+        break;
+      case "+Z":
+        localOffset = new THREE.Vector3(0, 0, depth / 2);
+        localNormal = new THREE.Vector3(0, 0, 1);
+        break;
+      case "-Z":
+        localOffset = new THREE.Vector3(0, 0, -depth / 2);
+        localNormal = new THREE.Vector3(0, 0, -1);
+        break;
+      default:
+        return null;
+    }
+
+    const worldCenter = position.clone().add(localOffset.applyQuaternion(quaternion));
+    const worldNormal = localNormal.applyQuaternion(quaternion).normalize();
+    return { center: worldCenter, normal: worldNormal };
   }, []);
 
   const getConnectorLabel = useCallback((part, connectorId) => {
@@ -212,131 +268,84 @@ export default function PCEditor() {
     return connectorId;
   }, []);
 
-  const handleConnectorToggle = useCallback(
-    (partId, connectorId) => {
-      if (!partId || !connectorId) return;
+  const handleFacePick = useCallback(
+    (faceInfo) => {
+      if (!alignEnabled || !faceInfo) {
+        return;
+      }
+      if (!pendingAlignFace) {
+        setPendingAlignFace(faceInfo);
+        setConnectorToast({
+          type: "info",
+          text: "已选中目标面。再选择另一个面即可完成对齐。",
+        });
+        return;
+      }
 
-      const existingIndex = connectorSelection.findIndex(
-        (entry) => entry.partId === partId && entry.connectorId === connectorId
+      if (pendingAlignFace.partId === faceInfo.partId) {
+        setConnectorToast({
+          type: "warning",
+          text: "请选择不同零件的面进行对齐。",
+        });
+        setPendingAlignFace(null);
+        return;
+      }
+
+      const anchorObj = objects.find((obj) => obj.id === pendingAlignFace.partId);
+      const movingObj = objects.find((obj) => obj.id === faceInfo.partId);
+      if (!anchorObj || !movingObj) {
+        setPendingAlignFace(null);
+        return;
+      }
+
+      const anchorTransform = computeFaceTransform(anchorObj, pendingAlignFace.face);
+      const movingTransform = computeFaceTransform(movingObj, faceInfo.face);
+      if (!anchorTransform || !movingTransform) {
+        setPendingAlignFace(null);
+        return;
+      }
+
+      const parallel = Math.abs(anchorTransform.normal.dot(movingTransform.normal));
+      if (parallel < 0.999) {
+        setConnectorToast({
+          type: "warning",
+          text: "两个面的法线不平行，无法对齐。",
+        });
+        setPendingAlignFace(null);
+        return;
+      }
+
+      const direction = anchorTransform.normal.clone();
+      const delta = direction.dot(
+        anchorTransform.center.clone().sub(movingTransform.center)
       );
+      const newPos = new THREE.Vector3(
+        movingObj.pos?.[0] ?? 0,
+        movingObj.pos?.[1] ?? 0,
+        movingObj.pos?.[2] ?? 0
+      ).add(direction.multiplyScalar(delta));
 
-      if (existingIndex >= 0) {
-        const removedEntry = connectorSelection[existingIndex];
-        const removedPart = objects.find((obj) => obj.id === removedEntry.partId);
-        const nextSelection = connectorSelection.filter((_, idx) => idx !== existingIndex);
-        setConnectorSelection(nextSelection);
-        setConnectorToast({
-          type: "info",
-          text: `Cleared ${formatPartName(removedPart)} · ${getConnectorLabel(
-            removedPart,
-            removedEntry.connectorId
-          )}`,
-        });
-        return;
-      }
-
-      const currentPart = objects.find((obj) => obj.id === partId);
-
-      if (
-        connectorSelection.length === 1 &&
-        connectorSelection[0]?.partId === partId
-      ) {
-        setConnectorSelection([{ partId, connectorId }]);
-        setConnectorToast({
-          type: "warning",
-          text: `Pick a connector on a different part. Anchor switched to ${formatPartName(
-            currentPart
-          )} · ${getConnectorLabel(currentPart, connectorId)}`,
-        });
-        return;
-      }
-
-      let nextSelection;
-      if (connectorSelection.length === 1) {
-        nextSelection = [...connectorSelection, { partId, connectorId }];
-      } else {
-        nextSelection = [{ partId, connectorId }];
-      }
-
-      if (nextSelection.length < 2) {
-        setConnectorSelection(nextSelection);
-        setConnectorToast({
-          type: "info",
-          text: `Selected ${formatPartName(currentPart)} · ${getConnectorLabel(
-            currentPart,
-            connectorId
-          )}. Choose a connector on another part.`,
-        });
-        return;
-      }
-
-      const anchorSelection = nextSelection[0];
-      const movingSelection = nextSelection[1];
-      const anchorPart = objects.find((obj) => obj.id === anchorSelection.partId);
-      const movingPart = objects.find((obj) => obj.id === movingSelection.partId);
-
-      const connectionAlreadyExists = connections.some((connection) => {
-        const from = connection.from || {};
-        const to = connection.to || {};
-        const sameDirection =
-          from.partId === anchorSelection.partId &&
-          from.connectorId === anchorSelection.connectorId &&
-          to.partId === movingSelection.partId &&
-          to.connectorId === movingSelection.connectorId;
-        const oppositeDirection =
-          from.partId === movingSelection.partId &&
-          from.connectorId === movingSelection.connectorId &&
-          to.partId === anchorSelection.partId &&
-          to.connectorId === anchorSelection.connectorId;
-        return sameDirection || oppositeDirection;
+      setObjects((prev) =>
+        prev.map((obj) =>
+          obj.id === movingObj.id ? { ...obj, pos: [newPos.x, newPos.y, newPos.z] } : obj
+        )
+      );
+      setSelectedIds([movingObj.id]);
+      setPendingAlignFace(null);
+      setConnectorToast({
+        type: "success",
+        text: `已将 ${formatPartName(movingObj)} 对齐到 ${formatPartName(anchorObj)}`,
       });
-
-      const alignment = alignObjectsByConnectors(objects, nextSelection);
-
-      if (alignment) {
-        setObjects(alignment.objects);
-        setConnections((prev) => {
-          if (connectionAlreadyExists) {
-            return prev;
-          }
-          return [...prev, alignment.connection];
-        });
-
-        if (alignment.movedPartId) {
-          setSelectedIds([alignment.movedPartId]);
-        }
-        setConnectorSelection([]);
-        setConnectorToast({
-          type: connectionAlreadyExists ? "info" : "success",
-          text: connectionAlreadyExists
-            ? `Connection already exists. Repositioned ${formatPartName(movingPart)}.`
-            : `Snapped ${formatPartName(movingPart)} · ${getConnectorLabel(
-                movingPart,
-                movingSelection.connectorId
-              )} to ${formatPartName(anchorPart)} · ${getConnectorLabel(
-                anchorPart,
-                anchorSelection.connectorId
-              )}`,
-        });
-      } else {
-        setConnectorSelection([{ partId, connectorId }]);
-        setConnectorToast({
-          type: "warning",
-          text: "Unable to snap: pick two connectors from different parts.",
-        });
-      }
     },
     [
-      connections,
-      connectorSelection,
-      formatPartName,
-      getConnectorLabel,
+      alignEnabled,
+      pendingAlignFace,
       objects,
-      setConnectorSelection,
-      setConnectorToast,
-      setConnections,
       setObjects,
       setSelectedIds,
+      formatPartName,
+      setConnectorToast,
+      computeFaceTransform,
     ]
   );
 
@@ -423,6 +432,11 @@ export default function PCEditor() {
               {connectorToast.text}
             </div>
           )}
+          {alignEnabled && pendingAlignFace && (
+            <div style={{ fontSize: 12, color: "#475569" }}>
+              目标面：{pendingAlignFace.face} · {pendingAlignFace.partId}
+            </div>
+          )}
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -482,9 +496,12 @@ export default function PCEditor() {
           selectedIds={selectedIds}
           onSelect={handleSelect}
           connections={connections}
-          connectorSelection={connectorSelection}
-          onConnectorToggle={handleConnectorToggle}
           showHorizontalGrid={showHorizontalGrid}
+          alignMode={alignEnabled}
+          onFacePick={handleFacePick}
+          activeAlignFace={pendingAlignFace}
+          transformMode={transformMode}
+          onChangeTransformMode={setTransformMode}
         />
       </div>
     </div>

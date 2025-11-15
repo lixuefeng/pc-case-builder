@@ -100,7 +100,6 @@ export const useStore = create((set) => {
     objects: initialScene.objects,
     connections: initialScene.connections,
     selectedIds: [],
-    connectorSelection: [],
     past: [],
     future: [],
 
@@ -265,20 +264,6 @@ export const useStore = create((set) => {
       }),
 
     setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
-    setConnectorSelection: (updater) =>
-      set((state) => {
-        const nextSelection =
-          typeof updater === "function"
-            ? updater(state.connectorSelection)
-            : updater;
-        if (!Array.isArray(nextSelection)) {
-          return {};
-        }
-        if (nextSelection.length > 2) {
-          return { connectorSelection: nextSelection.slice(-2) };
-        }
-        return { connectorSelection: nextSelection };
-      }),
   };
 });
 

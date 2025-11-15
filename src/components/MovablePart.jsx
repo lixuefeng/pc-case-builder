@@ -1,5 +1,5 @@
 // components/MovablePart.jsx — 选中/移动/旋转 + HUD（旋转安全的高亮/吸附 + 调试日志）
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
@@ -61,7 +61,7 @@ const buildConnectorQuaternion = (connector) => {
   return new THREE.Quaternion().setFromRotationMatrix(rotation);
 };
 
-const ConnectorMarker = ({ connector, isSelected, isUsed, onToggle }) => {
+const ConnectorMarker = ({ connector, isUsed }) => {
   const [hovered, setHovered] = useState(false);
 
   const quaternion = useMemo(() => buildConnectorQuaternion(connector), [connector]);
@@ -73,13 +73,8 @@ const ConnectorMarker = ({ connector, isSelected, isUsed, onToggle }) => {
   const stemLength = connector.visualStem ?? 10;
 
   const baseColor = getConnectorBaseColor(connector);
-  const color = isSelected ? "#22c55e" : hovered ? "#60a5fa" : baseColor;
+  const color = hovered ? "#60a5fa" : baseColor;
   const opacity = isUsed ? 0.35 : hovered ? 1 : 0.85;
-
-  const handlePointerDown = (event) => {
-    event.stopPropagation();
-    onToggle?.();
-  };
 
   const handlePointerEnter = (event) => {
     event.stopPropagation();
@@ -95,7 +90,6 @@ const ConnectorMarker = ({ connector, isSelected, isUsed, onToggle }) => {
     <group position={position} quaternion={quaternion} frustumCulled={false}>
       <mesh
         position={[0, 0, stemLength / 2]}
-        onPointerDown={handlePointerDown}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         renderOrder={1000}
@@ -112,7 +106,6 @@ const ConnectorMarker = ({ connector, isSelected, isUsed, onToggle }) => {
       </mesh>
       <mesh
         position={[0, 0, stemLength]}
-        onPointerDown={handlePointerDown}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         renderOrder={1001}
@@ -162,13 +155,15 @@ export default function MovablePart({
   allObjects = [], // 用于面检测
   setDragging, // 告知父组件控制 OrbitControls
   connections = [],
-  connectorSelection = [],
-  onConnectorToggle,
+  alignMode = false,
+  onFacePick,
+  activeAlignFace,
+  mode = "translate",
+  onModeChange,
 }) {
   const t = palette;
   const groupRef = useRef();
   const controlsRef = useRef();
-  const [mode, setMode] = useState("translate");
 
   // ✅ UI 锁：当在 HUD 上交互时，禁用 TransformControls + OrbitControls
   const [uiLock, setUiLock] = useState(false);
@@ -186,15 +181,6 @@ export default function MovablePart({
     });
     return set;
   }, [connections, obj.id]);
-
-  const selectedConnectorIds = useMemo(() => {
-    if (!Array.isArray(connectorSelection)) return new Set();
-    return new Set(
-      connectorSelection
-        .filter((entry) => entry?.partId === obj.id && entry.connectorId)
-        .map((entry) => entry.connectorId)
-    );
-  }, [connectorSelection, obj.id]);
 
   const handleDimChange = (axis, value) => {
     const newDimValue = Number(value) || 0;
@@ -510,31 +496,48 @@ export default function MovablePart({
   // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
   const getFaceDetails = ({ obj, ref, faceName }) => {
     const { p, q } = getWorldTransform({ ref, obj });
-    const { w, h, d } = obj.dims;
+    const dims = obj?.dims || {};
+    const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+    const height = dims.h ?? 0;
+    const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
     const sign = faceName[0] === '+' ? 1 : -1;
     const thickness = 0.2;
     const offset = thickness / 2 + 0.1; // 防止 Z-fighting
 
-    let localOffset, size;
+    let localOffset;
+    let size;
+    let localNormal;
     switch (faceName) {
-      case '+X': case '-X':
-        localOffset = new THREE.Vector3(sign * (w / 2 + offset), 0, 0);
-        size = [thickness, h, d];
+      case '+X':
+      case '-X':
+        localOffset = new THREE.Vector3(sign * (width / 2 + offset), 0, 0);
+        size = [thickness, height, depth];
+        localNormal = new THREE.Vector3(sign, 0, 0);
         break;
-      case '+Y': case '-Y':
-        localOffset = new THREE.Vector3(0, sign * (h / 2 + offset), 0);
-        size = [w, thickness, d];
+      case '+Y':
+      case '-Y':
+        localOffset = new THREE.Vector3(0, sign * (height / 2 + offset), 0);
+        size = [width, thickness, depth];
+        localNormal = new THREE.Vector3(0, sign, 0);
         break;
-      case '+Z': case '-Z':
-        localOffset = new THREE.Vector3(0, 0, sign * (d / 2 + offset));
-        size = [w, h, thickness];
+      case '+Z':
+      case '-Z':
+        localOffset = new THREE.Vector3(0, 0, sign * (depth / 2 + offset));
+        size = [width, height, thickness];
+        localNormal = new THREE.Vector3(0, 0, sign);
         break;
       default:
         return null;
     }
     const worldOffset = localOffset.applyQuaternion(q);
     const center = new THREE.Vector3().copy(p).add(worldOffset);
-    return { center: center.toArray(), size, quaternion: q };
+    const worldNormal = localNormal.applyQuaternion(q).normalize();
+    return {
+      center: center.toArray(),
+      size,
+      quaternion: q.clone(),
+      normal: worldNormal.toArray(),
+    };
   };
 
   const startDrag = () => {
@@ -639,7 +642,7 @@ export default function MovablePart({
     }
   };
 
-  const hudInputStyle = {
+const hudInputStyle = {
     width: 50,
     padding: "4px 6px",
     border: `1px solid ${t?.border || "#e5e7eb"}`,
@@ -686,12 +689,73 @@ export default function MovablePart({
     return { center: center.toArray(), size, quaternion: q };
   }, [bestAlignCandidate]);
 
+  const [hoveredFace, setHoveredFace] = useState(null);
+
+  useEffect(() => {
+    if (!alignMode) {
+      setHoveredFace(null);
+    }
+  }, [alignMode]);
+
   const selfHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
     const axis = bestAlignCandidate.axisLabel;
     const face = bestAlignCandidate.selfFace[0] + axis; // '+X' / '-Y' / ...
     return getFaceDetails({ obj, ref: groupRef, faceName: face });
   }, [bestAlignCandidate, obj]);
+
+  const hoveredFaceDetails = useMemo(() => {
+    if (!hoveredFace) return null;
+    return getFaceDetails({ obj, ref: groupRef, faceName: hoveredFace });
+  }, [hoveredFace, obj]);
+
+  const activeFaceDetails = useMemo(() => {
+    if (!activeAlignFace || activeAlignFace.partId !== obj.id) return null;
+    return getFaceDetails({ obj, ref: groupRef, faceName: activeAlignFace.face });
+  }, [activeAlignFace, obj]);
+
+  const resolveHoveredFace = useCallback(
+    (event) => {
+      if (!alignMode || !groupRef.current) return;
+      const dims = obj.dims || {};
+      const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+      const height = dims.h ?? 0;
+      const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+      if (width === 0 || height === 0 || depth === 0) {
+        setHoveredFace(null);
+        return;
+      }
+
+      const worldPos = new THREE.Vector3();
+      const worldQuat = new THREE.Quaternion();
+      groupRef.current.getWorldPosition(worldPos);
+      groupRef.current.getWorldQuaternion(worldQuat);
+
+      const localPoint = event.point
+        .clone()
+        .sub(worldPos)
+        .applyQuaternion(worldQuat.clone().invert());
+
+      const halfW = width / 2;
+      const halfH = height / 2;
+      const halfD = depth / 2;
+
+      const candidates = [
+        { face: "+X", value: Math.abs(localPoint.x - halfW) },
+        { face: "-X", value: Math.abs(localPoint.x + halfW) },
+        { face: "+Y", value: Math.abs(localPoint.y - halfH) },
+        { face: "-Y", value: Math.abs(localPoint.y + halfH) },
+        { face: "+Z", value: Math.abs(localPoint.z - halfD) },
+        { face: "-Z", value: Math.abs(localPoint.z + halfD) },
+      ];
+
+      const best = candidates.reduce((prev, cur) =>
+        cur.value < prev.value ? cur : prev
+      );
+      setHoveredFace(best.face);
+    },
+    [alignMode, obj]
+  );
 
   return (
     <>
@@ -700,8 +764,23 @@ export default function MovablePart({
         position={obj.pos}
         rotation={obj.rot}
         userData={{ objectId: obj.id }}
+        onPointerMove={(e) => {
+          if (alignMode) {
+            resolveHoveredFace(e);
+          }
+        }}
+        onPointerLeave={() => {
+          if (alignMode) {
+            setHoveredFace(null);
+          }
+        }}
         onPointerDown={(e) => {
           e.stopPropagation();
+          if (alignMode && hoveredFace) {
+            onFacePick?.({ partId: obj.id, face: hoveredFace });
+            onSelect?.(obj.id, false);
+            return;
+          }
           const multi = e.ctrlKey || e.metaKey;
           onSelect?.(obj.id, multi);
         }}
@@ -720,21 +799,47 @@ export default function MovablePart({
         {Array.isArray(obj.connectors) && obj.connectors
           .filter((connector) => connector && connector.id)
           .map((connector) => {
-            const isSelected = selectedConnectorIds.has(connector.id);
             const isUsed = connectedConnectorIds.has(connector.id);
             return (
               <ConnectorMarker
                 key={connector.id}
                 connector={connector}
-                isSelected={isSelected}
                 isUsed={isUsed}
-                onToggle={() => {
-                  onSelect?.(obj.id, false);
-                  onConnectorToggle?.(obj.id, connector.id);
-                }}
               />
             );
           })}
+        {alignMode && hoveredFaceDetails && (
+          <mesh
+            position={hoveredFaceDetails.center}
+            quaternion={hoveredFaceDetails.quaternion}
+            frustumCulled={false}
+          >
+            <boxGeometry args={hoveredFaceDetails.size} />
+            <meshStandardMaterial
+              color="#67e8f9"
+              transparent
+              opacity={0.3}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        )}
+        {alignMode && activeFaceDetails && (
+          <mesh
+            position={activeFaceDetails.center}
+            quaternion={activeFaceDetails.quaternion}
+            frustumCulled={false}
+          >
+            <boxGeometry args={activeFaceDetails.size} />
+            <meshStandardMaterial
+              color="#facc15"
+              transparent
+              opacity={0.35}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        )}
       </group>
 
       {selected && (
@@ -879,7 +984,10 @@ export default function MovablePart({
               <span style={{ color: t?.muted || "#64748b" }}>Mode:</span>
               <select
                 value={mode}
-                onChange={(e) => { e.stopPropagation(); setMode(e.target.value); }}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onModeChange?.(e.target.value);
+                }}
                 style={{
                   width: 110,
                   padding: "6px 10px",

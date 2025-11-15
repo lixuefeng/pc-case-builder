@@ -8,11 +8,13 @@ export default function Scene({
   setObjects,
   selectedIds,
   onSelect,
-  snap,
   connections = [],
-  connectorSelection = [],
-  onConnectorToggle,
   showHorizontalGrid = true,
+  alignMode = false,
+  onFacePick,
+  activeAlignFace = null,
+  transformMode = "translate",
+  onChangeTransformMode,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -39,12 +41,6 @@ export default function Scene({
       window.removeEventListener("keyup", up);
     };
   }, []);
-
-  // 对齐回调函数
-  const handleAlign = (alignData) => {
-    console.log('对齐完成:', alignData);
-    // 这里可以添加对齐完成后的处理逻辑
-  };
 
   const gridOffset = useMemo(() => {
     const objectMinY = objects.reduce((min, obj) => {
@@ -84,13 +80,14 @@ export default function Scene({
             selected={selectedIds.includes(obj.id)}
             setObj={(updater) => setObjects((prev) => prev.map((o) => (o.id === obj.id ? (typeof updater === "function" ? updater(o) : updater) : o)))}
             onSelect={onSelect}
-            snap={snap}
             allObjects={objects}
-            onAlign={handleAlign}
             setDragging={setIsDragging}
             connections={connections}
-            connectorSelection={connectorSelection}
-            onConnectorToggle={onConnectorToggle}
+            alignMode={alignMode}
+            onFacePick={onFacePick}
+            activeAlignFace={activeAlignFace}
+            mode={transformMode}
+            onModeChange={onChangeTransformMode}
           />
         ))}
       </group>

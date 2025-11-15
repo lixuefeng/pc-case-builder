@@ -1,8 +1,12 @@
-import React, { useMemo, useEffect } from "react";
+﻿import React, { useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-
-const approxEqual = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
+import { buildMotherboardLayout } from "../config/motherboardPresets";
+import {
+  GPU_BRACKET_SPEC,
+  GPU_PCB_SPEC,
+  GPU_PCIE_FINGER_SPEC,
+} from "../config/gpuSpecs";
 
 const buildPcieBracketGeometry = (width, height) => {
   const spec = {
@@ -23,111 +27,25 @@ const buildPcieBracketGeometry = (width, height) => {
   shape.lineTo(x0, yTop);
   shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: spec.thickness, // 沿 Z 轴拉伸
+    depth: spec.thickness, // 娌?Z 杞存媺浼?
     bevelEnabled: false,
     curveSegments: 16,
   });
 
-  // 厚度居中到 X=0
+  // 鍘氬害灞呬腑鍒?X=0
   geo.translate(-spec.thickness / 2, 0, 0);
 
-  // 重新计算包围盒，做底边落地 & Z 居中
+  // 閲嶆柊璁＄畻鍖呭洿鐩掞紝鍋氬簳杈硅惤鍦?& Z 灞呬腑
   geo.computeBoundingBox();
   const b = geo.boundingBox;
   const cx = (b.min.x + b.max.x) / 2;
-  const cz = (b.min.z + b.max.z) / 2; // Z 轴居中
+  const cz = (b.min.z + b.max.z) / 2; // Z 杞村眳涓?
 
-  // X 再次精确居中（基本为 0），Y 落到 0，Z 居中
+  // X 鍐嶆绮剧‘灞呬腑锛堝熀鏈负 0锛夛紝Y 钀藉埌 0锛孼 灞呬腑
   geo.translate(-cx, -b.min.y, -cz);
 
   geo.computeVertexNormals();
   return geo;
-};
-
-const MOTHERBOARD_LAYOUT_BUILDERS = { // ATX 2.2 https://cdn.instructables.com/ORIG/FS8/5ILB/GU59Z1AT/FS85ILBGU59Z1AT.pdf
-  itx: (dims) => {
-    const keepoutSize = 77.5;
-    const keepoutLeft = 61.3;
-    const keepoutTop = 51.3;
-    const cpuSocketSize = { w: 45, h: 4.5, d: 37.5 };
-    const cpuSocketLeft = keepoutLeft + (keepoutSize - cpuSocketSize.w) / 2;
-    const cpuSocketTop = keepoutTop + (keepoutSize - cpuSocketSize.d) / 2;
-
-    return {
-      cpuKeepout: {
-        size: { w: keepoutSize, h: 1.5, d: keepoutSize },
-        fromLeft: keepoutLeft,
-        fromTop: keepoutTop,
-        color: "#111827",
-        opacity: 0.35,
-      },
-      cpuSocket: {
-        size: cpuSocketSize,
-        fromLeft: cpuSocketLeft,
-        fromTop: cpuSocketTop,
-        color: "#475569",
-      },
-      ramSlots: {
-        count: 2,
-        size: { w: 127, h: 4, d: 6 },
-        fromRight: 14,
-        fromTop: 139,
-        pitch: 9.5,
-        anchor: "right",
-        colors: ["#e2e8f0", "#cbd5f5"],
-      },
-      powerConnectors: [
-        {
-          key: "eps8",
-          size: { w: 10, h: 5, d: 18.75 },
-          fromRight: 0,
-          fromTop: 42,
-          color: "#1e293b",
-        },
-        {
-          key: "atx24",
-          size: { w: 52, h: 5, d: 10 },
-          fromRight: 11.5,
-          fromBottom: 1,
-          color: "#334155",
-        },
-      ],
-      pcieSlots: [
-        {
-          key: "pcie16",
-          size: { w: 6, h: 4, d: 89.5 },
-          fromLeft: 2.5,
-          fromTop: 42,
-          color: "#1e293b",
-        },
-      ],
-      chipset: {
-        size: { w: 158.75, h: 44.45, d: 19 }, // h is including keepout 2.53mm
-        fromLeft: 13.56,
-        fromTop: -1.14,
-        color: "#475569",
-        offsetY: -5,
-      }
-    };
-  },
-};
-
-const resolveMotherboardPresetKey = (obj) => {
-  if (obj?.meta?.presetKey) return obj.meta.presetKey;
-  const { w, d } = obj?.dims || {};
-  if (!w || !d) return null;
-  if (approxEqual(w, 170) && approxEqual(d, 170)) return "itx";
-  if (approxEqual(w, 244) && approxEqual(d, 244)) return "matx";
-  if (approxEqual(w, 305) && approxEqual(d, 244)) return "atx";
-  return null;
-};
-
-const buildMotherboardLayout = (obj) => {
-  if (!obj?.dims) return null;
-  if (obj.meta?.layout) return obj.meta.layout;
-  const presetKey = resolveMotherboardPresetKey(obj);
-  const builder = presetKey ? MOTHERBOARD_LAYOUT_BUILDERS[presetKey] : null;
-  return builder ? builder(obj.dims) : null;
 };
 
 const computeCenterFromEdges = (dims, size, feature) => {
@@ -279,39 +197,46 @@ export function GPUMesh({ obj, selected }) {
   const coolerColor = selected ? "#ef4444" : color || "#475569";
 
   const { bracketWidth, bracketHeight, pcbLayout, pcieFingerLayout } = useMemo(() => {
-    const SLOT_WIDTH = 20.32; // 标准 PCIe 槽宽度
-    const BRACKET_WIDTH_PER_SLOT = 18.42; // 每个槽挡板的宽度
-    const numSlots = Math.round(dims.h / SLOT_WIDTH);
-    const bracketWidth = numSlots * BRACKET_WIDTH_PER_SLOT;
-    const bracketHeight = 120.65;
+    const numSlots = Math.max(1, Math.round(dims.h / GPU_BRACKET_SPEC.slotWidth));
+    const bracketWidth = numSlots * GPU_BRACKET_SPEC.widthPerSlot;
+    const bracketHeight = GPU_BRACKET_SPEC.height;
 
     const pcbLayout = {
-      thickness: 1.6,
-      depth: Math.max(20, dims.w - 7 - 10),
-      width: Math.max(40, dims.d - 1.6 - 6),
+      thickness: GPU_PCB_SPEC.thickness,
+      depth: Math.max(
+        GPU_PCB_SPEC.minDepth,
+        dims.w - GPU_PCB_SPEC.depthOffsets.front - GPU_PCB_SPEC.depthOffsets.rear
+      ),
+      width: Math.max(
+        GPU_PCB_SPEC.minWidth,
+        dims.d - GPU_PCB_SPEC.widthClearance.inner - GPU_PCB_SPEC.widthClearance.shroud
+      ),
     };
 
-    const pcieFingerLayout = {
-      length: 89,
-      thickness: 1.6,
-      depth: 5,
-    };
+    const pcieFingerLayout = { ...GPU_PCIE_FINGER_SPEC };
 
     return { bracketWidth, bracketHeight, pcbLayout, pcieFingerLayout };
   }, [dims.h, dims.w, dims.d]);
 
-  const bracketPosition = [-dims.d / 2 + 10.16, 0, dims.w / 2  + 1.2];
+  const bracketPosition = [
+    -dims.d / 2 + GPU_BRACKET_SPEC.offsetX,
+    0,
+    dims.w / 2 + GPU_BRACKET_SPEC.offsetZ,
+  ];
 
   const bracketGeometry = useMemo(
     () => buildPcieBracketGeometry(bracketWidth, bracketHeight),
     [bracketWidth, bracketHeight],
   );
 
-  const fingerPosition = [
-    dims.d / 2 + pcieFingerLayout.depth / 2,
-    -dims.h / 2 + pcieFingerLayout.thickness / 2,
-    dims.w / 2 - pcieFingerLayout.length / 2 - 42,
-  ];
+  const fingerPosition = useMemo(
+    () => [
+      dims.d / 2 + pcieFingerLayout.depth / 2,
+      -dims.h / 2 + pcieFingerLayout.thickness / 2,
+      dims.w / 2 - pcieFingerLayout.length / 2 - GPU_PCIE_FINGER_SPEC.topInset,
+    ],
+    [dims.d, dims.h, dims.w, pcieFingerLayout.depth, pcieFingerLayout.length, pcieFingerLayout.thickness],
+  );
 
   useEffect(() => {
     // Ensure this component is the single source of truth for the PCIe connector.
@@ -339,12 +264,18 @@ export function GPUMesh({ obj, selected }) {
     };
   }, [bracketGeometry]);
 
-  const pcbLeft = -dims.d / 2 + 1.6 + 3;
+  const pcbLeft =
+    -dims.d / 2 +
+    GPU_PCB_SPEC.widthClearance.inner +
+    GPU_PCB_SPEC.sideInset;
   const pcbPosition = [
     pcbLeft + pcbLayout.width / 2,
-    -dims.d / 2 + 1.6 + 3 + pcbLayout.width / 2,
-    -dims.h / 2 + pcbLayout.thickness / 2 + 0.6,
-    -dims.w / 2 + 7 + pcbLayout.depth / 2,
+    -dims.d / 2 +
+      GPU_PCB_SPEC.widthClearance.inner +
+      GPU_PCB_SPEC.sideInset +
+      pcbLayout.width / 2,
+    -dims.h / 2 + pcbLayout.thickness / 2 + GPU_PCB_SPEC.heightLift,
+    -dims.w / 2 + GPU_PCB_SPEC.depthOffsets.front + pcbLayout.depth / 2,
   ];
 
   return (
@@ -467,3 +398,6 @@ export function ImportedMesh({ obj, selected }) {
     </mesh>
   );
 }
+
+
+

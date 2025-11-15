@@ -3,8 +3,6 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
-import Frames from "./Frames";
-
 export default function Scene({
   objects,
   setObjects,
@@ -15,8 +13,6 @@ export default function Scene({
   connectorSelection = [],
   onConnectorToggle,
   showHorizontalGrid = true,
-  frames = [],
-  showFrames = true,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -58,21 +54,8 @@ export default function Scene({
       return Math.min(min, posY - height / 2);
     }, 0);
 
-    const frameMinY = frames.reduce((min, segment) => {
-      const { start, end } = segment || {};
-      if (!Array.isArray(start) || !Array.isArray(end)) {
-        return min;
-      }
-      const thickness =
-        Number.isFinite(segment?.metadata?.size) && segment.metadata.size > 0
-          ? segment.metadata.size
-          : 0;
-      const minY = Math.min(start[1] ?? 0, end[1] ?? 0) - thickness / 2;
-      return Math.min(min, minY);
-    }, 0);
-
-    return Math.min(0, objectMinY, frameMinY);
-  }, [objects, frames]);
+    return Math.min(0, objectMinY);
+  }, [objects]);
 
   return (
     <Canvas 
@@ -110,7 +93,6 @@ export default function Scene({
             onConnectorToggle={onConnectorToggle}
           />
         ))}
-        {showFrames && <Frames segments={frames} />}
       </group>
       <OrbitControls
         ref={orbitRef}

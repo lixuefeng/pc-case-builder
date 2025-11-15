@@ -23,7 +23,7 @@ const saveSceneToStorage = (scene) => {
 };
 
 const getInitialScene = () => {
-  const emptyScene = { objects: [], connections: [], frames: [] };
+  const emptyScene = { objects: [], connections: [] };
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) {
@@ -37,7 +37,6 @@ const getInitialScene = () => {
           connections: Array.isArray(parsed.connections)
             ? parsed.connections
             : [],
-          frames: Array.isArray(parsed.frames) ? parsed.frames : [],
         };
       }
     }
@@ -100,7 +99,6 @@ export const useStore = create((set) => {
   return {
     objects: initialScene.objects,
     connections: initialScene.connections,
-    frames: initialScene.frames || [],
     selectedIds: [],
     connectorSelection: [],
     past: [],
@@ -130,7 +128,6 @@ export const useStore = create((set) => {
         const nextSnapshot = {
           objects: nextObjectsClone,
           connections: nextConnectionsClone,
-          frames: cloneScene(state.frames),
         };
 
         const shouldRecordHistory = options.recordHistory ?? true;
@@ -139,7 +136,6 @@ export const useStore = create((set) => {
           const previousSnapshot = {
             objects: cloneScene(state.objects),
             connections: cloneScene(state.connections),
-            frames: cloneScene(state.frames),
           };
 
           saveSceneToStorage(nextSnapshot);
@@ -184,7 +180,6 @@ export const useStore = create((set) => {
         const nextSnapshot = {
           objects: nextObjectsClone,
           connections: nextConnectionsClone,
-          frames: cloneScene(state.frames),
         };
 
         const shouldRecordHistory = options.recordHistory ?? true;
@@ -193,7 +188,6 @@ export const useStore = create((set) => {
           const previousSnapshot = {
             objects: cloneScene(state.objects),
             connections: cloneScene(state.connections),
-            frames: cloneScene(state.frames),
           };
 
           saveSceneToStorage(nextSnapshot);
@@ -224,23 +218,19 @@ export const useStore = create((set) => {
         const currentSnapshot = {
           objects: cloneScene(state.objects),
           connections: cloneScene(state.connections),
-          frames: cloneScene(state.frames),
         };
 
         const nextObjects = cloneScene(previousSnapshot.objects ?? []);
         const nextConnections = cloneScene(previousSnapshot.connections ?? []);
-        const nextFrames = cloneScene(previousSnapshot.frames ?? []);
 
         saveSceneToStorage({
           objects: nextObjects,
           connections: nextConnections,
-          frames: nextFrames,
         });
 
         return {
           objects: nextObjects,
           connections: nextConnections,
-          frames: nextFrames,
           past: state.past.slice(0, -1),
           future: [currentSnapshot, ...state.future],
         };
@@ -256,60 +246,24 @@ export const useStore = create((set) => {
         const currentSnapshot = {
           objects: cloneScene(state.objects),
           connections: cloneScene(state.connections),
-          frames: cloneScene(state.frames),
         };
 
         const nextObjects = cloneScene(nextSnapshot.objects ?? []);
         const nextConnections = cloneScene(nextSnapshot.connections ?? []);
-        const nextFrames = cloneScene(nextSnapshot.frames ?? []);
 
         saveSceneToStorage({
           objects: nextObjects,
           connections: nextConnections,
-          frames: nextFrames,
         });
 
         return {
           objects: nextObjects,
           connections: nextConnections,
-          frames: nextFrames,
           past: [...state.past, currentSnapshot],
           future: state.future.slice(1),
         };
       }),
 
-    setFrames: (nextFrames, options = {}) =>
-      set((state) => {
-        const workingFrames = cloneScene(state.frames);
-        const resolved =
-          typeof nextFrames === "function" ? nextFrames(workingFrames) : nextFrames;
-        if (!Array.isArray(resolved)) {
-          console.warn("setFrames expects an array of frame descriptors");
-          return {};
-        }
-        const nextFramesClone = cloneScene(resolved);
-        const nextSnapshot = {
-          objects: cloneScene(state.objects),
-          connections: cloneScene(state.connections),
-          frames: nextFramesClone,
-        };
-        const shouldRecordHistory = options.recordHistory ?? true;
-        if (shouldRecordHistory) {
-          const previousSnapshot = {
-            objects: cloneScene(state.objects),
-            connections: cloneScene(state.connections),
-            frames: cloneScene(state.frames),
-          };
-          saveSceneToStorage(nextSnapshot);
-          return {
-            frames: nextFramesClone,
-            past: [...state.past, previousSnapshot],
-            future: [],
-          };
-        }
-        saveSceneToStorage(nextSnapshot);
-        return { frames: nextFramesClone };
-      }),
     setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
     setConnectorSelection: (updater) =>
       set((state) => {

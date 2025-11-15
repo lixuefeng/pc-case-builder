@@ -43,20 +43,12 @@ export default function ObjectsList({
   onSelect,
   onGroup,
   onUngroup,
-  frames = [],
-  setFrames,
 }) {
   const toggleVisible = (id) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)));
   const remove = (id) => setObjects((prev) => prev.filter((o) => o.id !== id));
   const rename = (id, name) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, name } : o)));
-
-  const removeFrame = (id) => {
-    if (typeof setFrames === "function") {
-      setFrames((prev) => prev.filter((segment) => segment.id !== id));
-    }
-  };
 
   return (
     <div style={card}>
@@ -117,34 +109,6 @@ export default function ObjectsList({
           </div>
         ))}
 
-        {frames.length > 0 && (
-          <>
-            <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4 }}>骨架段</div>
-            {frames.map((segment, index) => (
-              <div
-                key={segment.id || `frame-${index}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  border: "1px dashed #cbd5f5",
-                  background: "#f8fafc",
-                  fontSize: 13,
-                  color: "#475569",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600 }}>Frame #{index + 1}</div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>{segment.kind || "frame"}</div>
-                </div>
-                <BtnGhost onClick={() => removeFrame(segment.id)}>删除</BtnGhost>
-              </div>
-            ))}
-          </>
-        )}
       </div>
     </div>
   );

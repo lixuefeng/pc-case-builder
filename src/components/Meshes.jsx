@@ -403,15 +403,18 @@ export function GroupMesh({ obj, selected }) {
 export function PartBox({ obj, selected }) {
   const { dims, color, type } = obj;
   const defaultColor = type === "structure" ? "#d1d5db" : "#ffaa44";
+
   return (
-    <mesh userData={{ objectId: obj.id }}>
-      <boxGeometry args={[dims.w, dims.h, dims.d]} />
-      <meshStandardMaterial
-        color={selected ? "#ef4444" : color || defaultColor}
-        opacity={1}
-        transparent={false}
-      />
-    </mesh>
+    <group userData={{ objectId: obj.id }}>
+      <mesh>
+        <boxGeometry args={[dims.w, dims.h, dims.d]} />
+        <meshStandardMaterial
+          color={selected ? "#ef4444" : color || defaultColor}
+          opacity={1}
+          transparent={false}
+        />
+      </mesh>
+    </group>
   );
 }
 

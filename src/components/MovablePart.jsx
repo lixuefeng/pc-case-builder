@@ -63,6 +63,8 @@ const buildConnectorQuaternion = (connector) => {
 };
 
 const IO_CUTOUT_FACE = "io-cutout";
+const ROTATION_SNAP_DEG = 45;
+const ROTATION_SNAP_TOL_DEG = 3;
 
 const pointInsideIoCutout = (obj, localPoint, tolerance = 1) => {
   if (obj?.type !== "motherboard") return false;
@@ -240,16 +242,50 @@ export default function MovablePart({
     });
   };
 
-  const handleRotChange = (axisIndex, value) => {
-    if (isEmbedded) return;
-    const newRotValueDeg = Number(value) || 0;
-    const newRotValueRad = THREE.MathUtils.degToRad(newRotValueDeg);
-    setObj((prev) => {
+const handleRotChange = (axisIndex, value) => {
+  if (isEmbedded) return;
+  const newRotValueDeg = Number(value) || 0;
+  const newRotValueRad = THREE.MathUtils.degToRad(newRotValueDeg);
+  setObj((prev) => {
       const newRot = [...prev.rot];
       newRot[axisIndex] = newRotValueRad;
       return { ...prev, rot: newRot };
-    });
-  };
+  });
+};
+
+  const applyRotationSnap = useCallback(
+    (rotationArray) => {
+      if (mode !== "rotate" || !controlsRef.current || !groupRef.current) {
+        return rotationArray;
+      }
+      const activeAxis = controlsRef.current.axis;
+      if (!activeAxis) {
+        return rotationArray;
+      }
+      const axisLetters = ["X", "Y", "Z"].filter((letter) =>
+        activeAxis.includes(letter)
+      );
+      if (!axisLetters.length) {
+        return rotationArray;
+      }
+      const snapped = [...rotationArray];
+      let didSnap = false;
+      axisLetters.forEach((letter) => {
+        const index = letter === "X" ? 0 : letter === "Y" ? 1 : 2;
+        const prop = letter.toLowerCase();
+        const deg = THREE.MathUtils.radToDeg(snapped[index]);
+        const nearest = Math.round(deg / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG;
+        if (Math.abs(deg - nearest) <= ROTATION_SNAP_TOL_DEG) {
+          const rad = THREE.MathUtils.degToRad(nearest);
+          snapped[index] = rad;
+          groupRef.current.rotation[prop] = rad;
+          didSnap = true;
+        }
+      });
+      return didSnap ? snapped : rotationArray;
+    },
+    [mode]
+  );
 
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
   const prevPosRef = useRef(null); // 上一帧世界位置，用来推断真实拖拽轴
@@ -1022,13 +1058,15 @@ const hudInputStyle = {
           space="local"
           enabled={!uiLock}
           onObjectChange={() => {
-            updateDuringDrag();
+            if (!groupRef.current) return;
             const p = groupRef.current.position.clone().toArray();
-            const r = [
+            let r = [
               groupRef.current.rotation.x,
               groupRef.current.rotation.y,
               groupRef.current.rotation.z,
             ];
+            r = applyRotationSnap(r);
+            updateDuringDrag();
             setObj((prev) => ({ ...prev, pos: p, rot: r }));
           }}
           onMouseDown={() => {

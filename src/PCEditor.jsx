@@ -10,6 +10,7 @@ import SceneSettingsPanel from "./components/UI/SceneSettingsPanel";
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
 import { ensureSceneConnectors } from "./utils/connectors";
+import { getMotherboardIoCutoutBounds } from "./config/motherboardPresets";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 export default function PCEditor() {
@@ -26,6 +27,7 @@ export default function PCEditor() {
   const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
   const [transformMode, setTransformMode] = useState("translate");
   const [pendingAlignFace, setPendingAlignFace] = useState(null);
+  const [showGizmos, setShowGizmos] = useState(true);
 
   useEffect(() => {
     if (!connectorToast) {
@@ -224,6 +226,16 @@ export default function PCEditor() {
     const quaternion = new THREE.Quaternion().setFromEuler(
       new THREE.Euler(rot[0], rot[1], rot[2], "XYZ")
     );
+
+    if (faceName === "io-cutout" && obj.type === "motherboard") {
+      const spec = getMotherboardIoCutoutBounds(dims);
+      if (!spec) return null;
+      const localCenter = new THREE.Vector3(...spec.center);
+      const localNormal = new THREE.Vector3(...spec.normal);
+      const worldCenter = position.clone().add(localCenter.applyQuaternion(quaternion.clone()));
+      const worldNormal = localNormal.applyQuaternion(quaternion.clone()).normalize();
+      return { center: worldCenter, normal: worldNormal };
+    }
 
     let localOffset;
     let localNormal;
@@ -437,6 +449,20 @@ export default function PCEditor() {
               目标面：{pendingAlignFace.face} · {pendingAlignFace.partId}
             </div>
           )}
+          <button
+            onClick={() => setShowGizmos((prev) => !prev)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: showGizmos ? "#0ea5e9" : "#94a3b8",
+              color: "#fff",
+              fontWeight: 600,
+              border: "1px solid transparent",
+              cursor: "pointer",
+            }}
+          >
+            {showGizmos ? "关闭变换控件" : "开启变换控件"}
+          </button>
           <ProjectPanel onExport={handleExport} onImport={handleImport} />
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -502,6 +528,7 @@ export default function PCEditor() {
           activeAlignFace={pendingAlignFace}
           transformMode={transformMode}
           onChangeTransformMode={setTransformMode}
+          showTransformControls={showGizmos}
         />
       </div>
     </div>

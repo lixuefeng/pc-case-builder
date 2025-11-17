@@ -4,9 +4,10 @@ import * as THREE from "three";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { MotherboardMesh, GPUMesh, PartBox, GroupMesh, ImportedMesh } from "./Meshes.jsx";
+import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 
 // === Debug helpers ===
-const DEBUG_ALIGN = false; // 控制调试日志；需要时改为 false 关闭
+const DEBUG_ALIGN = true; // 控制调试日志；需要时改为 false 关闭
 const dlog = (...args) => { if (DEBUG_ALIGN) console.log("[align]", ...args); };
 
 const CONNECTOR_TYPE_COLORS = {
@@ -59,6 +60,21 @@ const buildConnectorQuaternion = (connector) => {
 
   const rotation = new THREE.Matrix4().makeBasis(xAxis, up, normal);
   return new THREE.Quaternion().setFromRotationMatrix(rotation);
+};
+
+const IO_CUTOUT_FACE = "io-cutout";
+
+const pointInsideIoCutout = (obj, localPoint, tolerance = 1) => {
+  if (obj?.type !== "motherboard") return false;
+  const spec = getMotherboardIoCutoutBounds(obj.dims);
+  if (!spec) return false;
+  const [cx, cy, cz] = spec.center;
+  const [w, h, d] = spec.size;
+  return (
+    Math.abs(localPoint.x - cx) <= w / 2 + tolerance &&
+    Math.abs(localPoint.y - cy) <= h / 2 + tolerance &&
+    Math.abs(localPoint.z - cz) <= d / 2 + tolerance
+  );
 };
 
 const ConnectorMarker = ({ connector, isUsed }) => {
@@ -160,10 +176,22 @@ export default function MovablePart({
   activeAlignFace,
   mode = "translate",
   onModeChange,
+  showTransformControls = false,
 }) {
   const t = palette;
   const groupRef = useRef();
   const controlsRef = useRef();
+  const hoverFaceMeshRef = useRef(null);
+
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    controlsRef.current.traverse?.((child) => {
+      if (!child) return;
+      if (child.name === 'XYZ' || child.name === 'XYZE') {
+        child.visible = false;
+      }
+    });
+  }, [showTransformControls, selected]);
 
   // ✅ UI 锁：当在 HUD 上交互时，禁用 TransformControls + OrbitControls
   const [uiLock, setUiLock] = useState(false);
@@ -221,6 +249,7 @@ export default function MovablePart({
   const isDraggingRef = useRef(false);
   const noHitFramesRef = useRef(0); // 连续无候选的帧数（用于宽限）
   const upListenerRef = useRef(null); // 全局 pointerup 兜底监听
+  const lastHoverSampleRef = useRef({ local: null, world: null });
 
   // ⌨️ 仅处理 Shift
   useEffect(() => {
@@ -500,40 +529,43 @@ export default function MovablePart({
     const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
     const height = dims.h ?? 0;
     const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
-    const sign = faceName[0] === '+' ? 1 : -1;
+    const sign = faceName[0] === "+" ? 1 : -1;
     const thickness = 0.2;
-    const offset = thickness / 2 + 0.1; // 防止 Z-fighting
+    const surfacePadding = 0.02; // 沿面法线轻微外移，避免闪烁
 
     let localOffset;
     let size;
     let localNormal;
     switch (faceName) {
-      case '+X':
-      case '-X':
-        localOffset = new THREE.Vector3(sign * (width / 2 + offset), 0, 0);
+      case "+X":
+      case "-X":
+        localOffset = new THREE.Vector3(sign * (width / 2 + surfacePadding), 0, 0);
         size = [thickness, height, depth];
         localNormal = new THREE.Vector3(sign, 0, 0);
         break;
-      case '+Y':
-      case '-Y':
-        localOffset = new THREE.Vector3(0, sign * (height / 2 + offset), 0);
+      case "+Y":
+      case "-Y":
+        localOffset = new THREE.Vector3(0, sign * (height / 2 + surfacePadding), 0);
         size = [width, thickness, depth];
         localNormal = new THREE.Vector3(0, sign, 0);
         break;
-      case '+Z':
-      case '-Z':
-        localOffset = new THREE.Vector3(0, 0, sign * (depth / 2 + offset));
+      case "+Z":
+      case "-Z":
+        localOffset = new THREE.Vector3(0, 0, sign * (depth / 2 + surfacePadding));
         size = [width, height, thickness];
         localNormal = new THREE.Vector3(0, 0, sign);
         break;
       default:
         return null;
     }
-    const worldOffset = localOffset.applyQuaternion(q);
+
+    const localCenter = localOffset.clone();
+    const worldOffset = localOffset.clone().applyQuaternion(q);
     const center = new THREE.Vector3().copy(p).add(worldOffset);
     const worldNormal = localNormal.applyQuaternion(q).normalize();
     return {
       center: center.toArray(),
+      localCenter: localCenter.toArray(),
       size,
       quaternion: q.clone(),
       normal: worldNormal.toArray(),
@@ -709,6 +741,63 @@ const hudInputStyle = {
     return getFaceDetails({ obj, ref: groupRef, faceName: hoveredFace });
   }, [hoveredFace, obj]);
 
+  useEffect(() => {
+    if (!hoveredFace || !hoveredFaceDetails) return;
+    const sample = lastHoverSampleRef.current;
+    const worldCenter = (() => {
+      if (!groupRef.current) return null;
+      const v = new THREE.Vector3();
+      groupRef.current.getWorldPosition(v);
+      return v.toArray();
+    })();
+    const rotDeg = (() => {
+      if (!groupRef.current) return null;
+      const e = new THREE.Euler().setFromQuaternion(groupRef.current.quaternion, "XYZ");
+      return [
+        THREE.MathUtils.radToDeg(e.x).toFixed(2),
+        THREE.MathUtils.radToDeg(e.y).toFixed(2),
+        THREE.MathUtils.radToDeg(e.z).toFixed(2),
+      ];
+    })();
+    const localFaceCenter = hoveredFaceDetails?.localCenter || (() => {
+      if (!hoveredFaceDetails?.center || !groupRef.current) return null;
+      const worldV = new THREE.Vector3(...hoveredFaceDetails.center);
+      const invQuat = groupRef.current.quaternion.clone().invert();
+      return worldV
+        .sub(groupRef.current.position.clone())
+        .applyQuaternion(invQuat)
+        .toArray();
+    })();
+    console.log("[face-hover]", {
+      part: obj?.name || obj.id,
+      face: hoveredFace,
+      hoverLocal: sample.local ? sample.local.toArray() : null,
+      objectWorldCenter: worldCenter,
+      objectRotationDeg: rotDeg,
+      hoverWorldBase: sample.world ? sample.world.toArray() : null,
+      faceCenterLocal: localFaceCenter,
+      faceCenter: hoveredFaceDetails.center,
+      faceSize: hoveredFaceDetails.size,
+    });
+    if (hoverFaceMeshRef.current) {
+      const meshPos = new THREE.Vector3();
+      const meshQuat = new THREE.Quaternion();
+      hoverFaceMeshRef.current.getWorldPosition(meshPos);
+      hoverFaceMeshRef.current.getWorldQuaternion(meshQuat);
+      const meshEuler = new THREE.Euler().setFromQuaternion(meshQuat, "XYZ");
+      console.log("[face-mesh]", {
+        part: obj?.name || obj.id,
+        face: hoveredFace,
+        meshWorldCenter: meshPos.toArray(),
+        meshRotationDeg: [
+          THREE.MathUtils.radToDeg(meshEuler.x).toFixed(2),
+          THREE.MathUtils.radToDeg(meshEuler.y).toFixed(2),
+          THREE.MathUtils.radToDeg(meshEuler.z).toFixed(2),
+        ],
+      });
+    }
+  }, [hoveredFace, hoveredFaceDetails, obj]);
+
   const activeFaceDetails = useMemo(() => {
     if (!activeAlignFace || activeAlignFace.partId !== obj.id) return null;
     return getFaceDetails({ obj, ref: groupRef, faceName: activeAlignFace.face });
@@ -731,28 +820,68 @@ const hudInputStyle = {
       groupRef.current.getWorldPosition(worldPos);
       groupRef.current.getWorldQuaternion(worldQuat);
 
-      const localPoint = event.point
-        .clone()
-        .sub(worldPos)
-        .applyQuaternion(worldQuat.clone().invert());
-
       const halfW = width / 2;
       const halfH = height / 2;
       const halfD = depth / 2;
 
+      const invQuat = worldQuat.clone().invert();
+      const localOrigin = event.ray.origin
+        .clone()
+        .sub(worldPos)
+        .applyQuaternion(invQuat);
+      const localDir = event.ray.direction.clone().applyQuaternion(invQuat).normalize();
+      const localRay = new THREE.Ray(localOrigin, localDir);
+      const hitPoint = new THREE.Vector3();
+      const localBox = new THREE.Box3(
+        new THREE.Vector3(-halfW, -halfH, -halfD),
+        new THREE.Vector3(halfW, halfH, halfD)
+      );
+      const localPoint =
+        localRay.intersectBox(localBox, hitPoint) ||
+        event.point.clone().sub(worldPos).applyQuaternion(invQuat);
+      lastHoverSampleRef.current = {
+        local: localPoint.clone(),
+        world: worldPos.clone(),
+      };
+
+      const clamped = {
+        x: THREE.MathUtils.clamp(localPoint.x, -halfW, halfW),
+        y: THREE.MathUtils.clamp(localPoint.y, -halfH, halfH),
+        z: THREE.MathUtils.clamp(localPoint.z, -halfD, halfD),
+      };
+
       const candidates = [
-        { face: "+X", value: Math.abs(localPoint.x - halfW) },
-        { face: "-X", value: Math.abs(localPoint.x + halfW) },
-        { face: "+Y", value: Math.abs(localPoint.y - halfH) },
-        { face: "-Y", value: Math.abs(localPoint.y + halfH) },
-        { face: "+Z", value: Math.abs(localPoint.z - halfD) },
-        { face: "-Z", value: Math.abs(localPoint.z + halfD) },
+        { face: "+X", value: Math.abs(clamped.x - halfW) },
+        { face: "-X", value: Math.abs(clamped.x + halfW) },
+        { face: "+Y", value: Math.abs(clamped.y - halfH) },
+        { face: "-Y", value: Math.abs(clamped.y + halfH) },
+        { face: "+Z", value: Math.abs(clamped.z - halfD) },
+        { face: "-Z", value: Math.abs(clamped.z + halfD) },
       ];
 
-      const best = candidates.reduce((prev, cur) =>
+      let resolvedFace = candidates.reduce((prev, cur) =>
         cur.value < prev.value ? cur : prev
-      );
-      setHoveredFace(best.face);
+      ).face;
+
+      if (pointInsideIoCutout(obj, localPoint)) {
+        resolvedFace = IO_CUTOUT_FACE;
+      }
+
+      console.log("[face-hover:raw]", {
+        part: obj?.name || obj.id,
+        face: resolvedFace,
+        hoverLocal: localPoint.toArray(),
+        clamped,
+        dims: { width, height, depth },
+        worldOrigin: worldPos.toArray(),
+        invQuat: invQuat.toArray?.() ?? null,
+        rayOrigin: event.ray.origin.toArray?.() ?? null,
+        rayDir: event.ray.direction.toArray?.() ?? null,
+        objectPos: Array.isArray(obj.pos) ? obj.pos : null,
+        objectRot: Array.isArray(obj.rot) ? obj.rot : null,
+      });
+
+      setHoveredFace(resolvedFace);
     },
     [alignMode, obj]
   );
@@ -765,8 +894,10 @@ const hudInputStyle = {
         rotation={obj.rot}
         userData={{ objectId: obj.id }}
         onPointerMove={(e) => {
-          if (alignMode) {
+          if (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
             resolveHoveredFace(e);
+          } else if (hoveredFace) {
+            setHoveredFace(null);
           }
         }}
         onPointerLeave={() => {
@@ -776,7 +907,7 @@ const hudInputStyle = {
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
-          if (alignMode && hoveredFace) {
+          if (alignMode && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
             onFacePick?.({ partId: obj.id, face: hoveredFace });
             onSelect?.(obj.id, false);
             return;
@@ -810,8 +941,8 @@ const hudInputStyle = {
           })}
         {alignMode && hoveredFaceDetails && (
           <mesh
-            position={hoveredFaceDetails.center}
-            quaternion={hoveredFaceDetails.quaternion}
+            ref={hoverFaceMeshRef}
+            position={hoveredFaceDetails.localCenter || hoveredFaceDetails.center}
             frustumCulled={false}
           >
             <boxGeometry args={hoveredFaceDetails.size} />
@@ -826,8 +957,7 @@ const hudInputStyle = {
         )}
         {alignMode && activeFaceDetails && (
           <mesh
-            position={activeFaceDetails.center}
-            quaternion={activeFaceDetails.quaternion}
+            position={activeFaceDetails.localCenter || activeFaceDetails.center}
             frustumCulled={false}
           >
             <boxGeometry args={activeFaceDetails.size} />
@@ -842,7 +972,7 @@ const hudInputStyle = {
         )}
       </group>
 
-      {selected && (
+      {selected && showTransformControls && (
         <TransformControls
           ref={controlsRef}
           object={groupRef.current}

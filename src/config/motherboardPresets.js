@@ -1,5 +1,22 @@
 const approxEqual = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
+export const getMotherboardIoCutoutBounds = (dims = {}) => {
+  if (!dims?.w || !dims?.d) {
+    return null;
+  }
+  const width = Math.min(45, Math.max(30, dims.w * 0.28));
+  const height = Math.max(8, dims.h * 0.85 || 8);
+  const depth = Math.max(3, dims.d * 0.05 || 3);
+  const centerX = dims.w / 2 - width / 2;
+  const centerY = 0;
+  const centerZ = dims.d / 2 - depth / 2;
+  return {
+    size: [width, height, depth],
+    center: [centerX, centerY, centerZ],
+    normal: [0, 0, 1],
+  };
+};
+
 export const MOTHERBOARD_DIMENSIONS = {
   itx: { w: 170, d: 170 },
   matx: { w: 244, d: 244 },

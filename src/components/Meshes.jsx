@@ -1,7 +1,7 @@
 ﻿import React, { useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-import { buildMotherboardLayout } from "../config/motherboardPresets";
+import { buildMotherboardLayout, getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 import {
   GPU_BRACKET_SPEC,
   GPU_PCB_SPEC,
@@ -98,6 +98,7 @@ export function MotherboardMesh({ obj, selected }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
   const layout = useMemo(() => buildMotherboardLayout(obj), [obj]);
+  const ioCutout = getMotherboardIoCutoutBounds(dims);
 
   return (
     <group>
@@ -186,6 +187,12 @@ export function MotherboardMesh({ obj, selected }) {
 
           {layout.chipset && createFeatureMesh(layout.chipset, dims, "chipset")}
         </group>
+      )}
+      {ioCutout && (
+        <mesh position={ioCutout.center}>
+          <boxGeometry args={ioCutout.size} />
+          <meshStandardMaterial color="#fb923c" opacity={0.35} transparent />
+        </mesh>
       )}
     </group>
   );

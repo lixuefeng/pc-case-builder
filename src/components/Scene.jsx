@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
+import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
+
 export default function Scene({
   objects,
   setObjects,
@@ -15,6 +17,7 @@ export default function Scene({
   activeAlignFace = null,
   transformMode = "translate",
   onChangeTransformMode,
+  showTransformControls = false,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -88,6 +91,7 @@ export default function Scene({
             activeAlignFace={activeAlignFace}
             mode={transformMode}
             onModeChange={onChangeTransformMode}
+            showTransformControls={showTransformControls}
           />
         ))}
       </group>

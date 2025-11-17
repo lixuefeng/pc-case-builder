@@ -131,6 +131,7 @@ export const buildMotherboardEmbeddedParts = (obj) => {
 
 export const expandObjectsWithEmbedded = (objects) => {
   const expanded = [];
+  const embedCounters = new Map();
   objects.forEach((obj) => {
     expanded.push(obj);
     if (obj?.type !== "motherboard" || !obj?.dims) return;
@@ -145,12 +146,16 @@ export const expandObjectsWithEmbedded = (objects) => {
     );
     const parentQuat = new THREE.Quaternion().setFromEuler(parentEuler);
 
-    embeds.forEach((embed, index) => {
+    embeds.forEach((embed) => {
       const localCenter = new THREE.Vector3(...embed.localCenter);
       const worldCenter = parentPos.clone().add(localCenter.clone().applyQuaternion(parentQuat));
 
+      const baseKey = `${obj.id}__embed_${embed.key}`;
+      const embedIndex = embedCounters.get(baseKey) ?? 0;
+      embedCounters.set(baseKey, embedIndex + 1);
+
       expanded.push({
-        id: `${obj.id}__embed_${embed.key}_${index}`,
+        id: `${baseKey}_${embedIndex}`,
         name: embed.name,
         type: "embedded",
         embeddedParentId: obj.id,

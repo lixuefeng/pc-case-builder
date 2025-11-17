@@ -77,7 +77,7 @@ const pointInsideIoCutout = (obj, localPoint, tolerance = 1) => {
   );
 };
 
-const ConnectorMarker = ({ connector, isUsed }) => {
+const ConnectorMarker = ({ connector, isUsed, onPick }) => {
   const [hovered, setHovered] = useState(false);
 
   const quaternion = useMemo(() => buildConnectorQuaternion(connector), [connector]);
@@ -102,12 +102,20 @@ const ConnectorMarker = ({ connector, isUsed }) => {
     setHovered(false);
   };
 
+  const handlePointerDown = (event) => {
+    event.stopPropagation();
+    if (typeof onPick === "function") {
+      onPick(connector);
+    }
+  };
+
   return (
     <group position={position} quaternion={quaternion} frustumCulled={false}>
       <mesh
         position={[0, 0, stemLength / 2]}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
+        onPointerDown={handlePointerDown}
         renderOrder={1000}
         frustumCulled={false}
       >
@@ -124,6 +132,7 @@ const ConnectorMarker = ({ connector, isUsed }) => {
         position={[0, 0, stemLength]}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
+        onPointerDown={handlePointerDown}
         renderOrder={1001}
         frustumCulled={false}
       >
@@ -173,6 +182,7 @@ export default function MovablePart({
   connections = [],
   alignMode = false,
   onFacePick,
+  onConnectorPick,
   activeAlignFace,
   mode = "translate",
   onModeChange,
@@ -965,6 +975,9 @@ const hudInputStyle = {
                 key={connector.id}
                 connector={connector}
                 isUsed={isUsed}
+                onPick={(picked) => {
+                  onConnectorPick?.({ partId: obj.id, connectorId: picked?.id });
+                }}
               />
             );
           })}

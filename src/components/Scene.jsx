@@ -14,6 +14,7 @@ export default function Scene({
   showHorizontalGrid = true,
   alignMode = false,
   onFacePick,
+  onConnectorPick,
   activeAlignFace = null,
   transformMode = "translate",
   onChangeTransformMode,
@@ -101,6 +102,7 @@ export default function Scene({
             connections={connections}
             alignMode={alignMode}
             onFacePick={onFacePick}
+            onConnectorPick={onConnectorPick}
             activeAlignFace={activeAlignFace}
             mode={transformMode}
             onModeChange={onChangeTransformMode}

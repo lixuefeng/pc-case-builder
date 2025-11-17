@@ -132,6 +132,7 @@ export const buildMotherboardEmbeddedParts = (obj) => {
 export const expandObjectsWithEmbedded = (objects) => {
   const expanded = [];
   const embedCounters = new Map();
+  const existingIds = new Set(objects.map((obj) => obj?.id).filter(Boolean));
   objects.forEach((obj) => {
     expanded.push(obj);
     if (obj?.type !== "motherboard" || !obj?.dims) return;
@@ -154,8 +155,14 @@ export const expandObjectsWithEmbedded = (objects) => {
       const embedIndex = embedCounters.get(baseKey) ?? 0;
       embedCounters.set(baseKey, embedIndex + 1);
 
+      const embedId = `${baseKey}_${embedIndex}`;
+      if (existingIds.has(embedId)) {
+        return;
+      }
+      existingIds.add(embedId);
+
       expanded.push({
-        id: `${baseKey}_${embedIndex}`,
+        id: embedId,
         name: embed.name,
         type: "embedded",
         embeddedParentId: obj.id,

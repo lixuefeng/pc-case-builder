@@ -25,10 +25,11 @@ export default function PCEditor() {
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const [connectorToast, setConnectorToast] = useState(null);
   const [activeConnectorId, setActiveConnectorId] = useState(null);
-  const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
-  const [transformMode, setTransformMode] = useState("translate");
-  const [pendingAlignFace, setPendingAlignFace] = useState(null);
-  const [showGizmos, setShowGizmos] = useState(true);
+const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
+const [transformMode, setTransformMode] = useState("translate");
+const [pendingAlignFace, setPendingAlignFace] = useState(null);
+const [showGizmos, setShowGizmos] = useState(true);
+const [pendingConnector, setPendingConnector] = useState(null);
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
 
@@ -284,6 +285,40 @@ export default function PCEditor() {
     return connectorId;
   }, []);
 
+  const computeConnectorTransform = useCallback((obj, connectorId) => {
+    if (!obj || !connectorId) return null;
+    const connector = (obj.connectors || []).find((item) => item?.id === connectorId);
+    if (!connector) return null;
+    const localPos = new THREE.Vector3(
+      ...(Array.isArray(connector.pos) ? connector.pos : [0, 0, 0])
+    );
+    const localNormal = new THREE.Vector3(
+      ...(Array.isArray(connector.normal) ? connector.normal : [0, 1, 0])
+    ).normalize();
+    const localUp = new THREE.Vector3(
+      ...(Array.isArray(connector.up) ? connector.up : [0, 0, 1])
+    ).normalize();
+    const position = new THREE.Vector3(
+      ...(Array.isArray(obj.pos) ? obj.pos : [0, 0, 0])
+    );
+    const quaternion = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(
+        ...(Array.isArray(obj.rot) ? obj.rot : [0, 0, 0]),
+        "XYZ"
+      )
+    );
+    return {
+      connector,
+      localPos,
+      localNormal,
+      localUp,
+      worldCenter: position.clone().add(localPos.clone().applyQuaternion(quaternion)),
+      worldNormal: localNormal.clone().applyQuaternion(quaternion).normalize(),
+      worldUp: localUp.clone().applyQuaternion(quaternion).normalize(),
+      quaternion,
+    };
+  }, []);
+
   const handleFacePick = useCallback(
     (faceInfo) => {
       if (!alignEnabled || !faceInfo) {
@@ -375,6 +410,131 @@ export default function PCEditor() {
       formatPartName,
       setConnectorToast,
       computeFaceTransform,
+    ]
+  );
+
+  const handleConnectorPick = useCallback(
+    ({ partId, connectorId }) => {
+      if (!partId || !connectorId) {
+        return;
+      }
+      const currentObj = objects.find((obj) => obj.id === partId);
+      if (!currentObj) {
+        return;
+      }
+
+      if (!pendingConnector) {
+        setPendingConnector({ partId, connectorId });
+        setSelectedIds([partId]);
+        setConnectorToast({
+          type: "info",
+          text: `已选中 ${formatPartName(currentObj)} · ${getConnectorLabel(
+            currentObj,
+            connectorId
+          )}`,
+          ttl: 2000,
+        });
+        return;
+      }
+
+      if (
+        pendingConnector.partId === partId &&
+        pendingConnector.connectorId === connectorId
+      ) {
+        setPendingConnector(null);
+        return;
+      }
+
+      const anchorObj = objects.find((obj) => obj.id === pendingConnector.partId);
+      const movingObj = objects.find((obj) => obj.id === partId);
+      if (!anchorObj || !movingObj) {
+        setPendingConnector(null);
+        return;
+      }
+      if (anchorObj.id === movingObj.id) {
+        setConnectorToast({
+          type: "warning",
+          text: "请选择不同零件的连接点。",
+          ttl: 2000,
+        });
+        setPendingConnector(null);
+        return;
+      }
+
+      const anchorTransform = computeConnectorTransform(
+        anchorObj,
+        pendingConnector.connectorId
+      );
+      const movingTransform = computeConnectorTransform(movingObj, connectorId);
+      if (!anchorTransform || !movingTransform) {
+        setPendingConnector(null);
+        return;
+      }
+
+      const targetNormal = anchorTransform.worldNormal.clone().multiplyScalar(-1);
+      const normalRotation = new THREE.Quaternion().setFromUnitVectors(
+        movingTransform.worldNormal.clone(),
+        targetNormal
+      );
+      const rotatedUp = movingTransform.worldUp.clone().applyQuaternion(normalRotation);
+      const anchorUpProjected = anchorTransform.worldUp
+        .clone()
+        .projectOnPlane(anchorTransform.worldNormal);
+      const rotatedUpProjected = rotatedUp
+        .clone()
+        .projectOnPlane(anchorTransform.worldNormal);
+      if (anchorUpProjected.lengthSq() < 1e-6) {
+        anchorUpProjected.copy(anchorTransform.worldUp);
+      }
+      if (rotatedUpProjected.lengthSq() < 1e-6) {
+        rotatedUpProjected.copy(rotatedUp);
+      }
+      anchorUpProjected.normalize();
+      rotatedUpProjected.normalize();
+
+      const twistNumerator = anchorTransform.worldNormal
+        .clone()
+        .dot(rotatedUpProjected.clone().cross(anchorUpProjected));
+      const twistDenominator = rotatedUpProjected.dot(anchorUpProjected);
+      const twistAngle = Math.atan2(twistNumerator, twistDenominator);
+      const twistQuat = new THREE.Quaternion().setFromAxisAngle(
+        anchorTransform.worldNormal,
+        twistAngle
+      );
+      const totalRotation = twistQuat.multiply(normalRotation);
+      const nextQuat = totalRotation.clone().multiply(movingTransform.quaternion);
+      const nextEuler = new THREE.Euler().setFromQuaternion(nextQuat, "XYZ");
+
+      const rotatedLocalPos = movingTransform.localPos.clone().applyQuaternion(nextQuat);
+      const targetPos = anchorTransform.worldCenter.clone().sub(rotatedLocalPos);
+
+      setObjects((prev) =>
+        prev.map((obj) =>
+          obj.id === movingObj.id
+            ? {
+                ...obj,
+                pos: [targetPos.x, targetPos.y, targetPos.z],
+                rot: [nextEuler.x, nextEuler.y, nextEuler.z],
+              }
+            : obj
+        )
+      );
+      setSelectedIds([movingObj.id]);
+      setPendingConnector(null);
+      setConnectorToast({
+        type: "success",
+        text: `已将 ${formatPartName(movingObj)} 连接到 ${formatPartName(anchorObj)}`,
+      });
+    },
+    [
+      objects,
+      pendingConnector,
+      computeConnectorTransform,
+      formatPartName,
+      getConnectorLabel,
+      setConnectorToast,
+      setObjects,
+      setSelectedIds,
     ]
   );
 
@@ -533,7 +693,7 @@ export default function PCEditor() {
           showHorizontalGrid={showHorizontalGrid}
           onToggleHorizontalGrid={() => setShowHorizontalGrid((prev) => !prev)}
         />
-      <Scene
+        <Scene
           objects={expandedObjects}
           setObjects={setObjects}
           selectedIds={selectedIds}
@@ -542,6 +702,7 @@ export default function PCEditor() {
           showHorizontalGrid={showHorizontalGrid}
           alignMode={alignEnabled}
           onFacePick={handleFacePick}
+          onConnectorPick={handleConnectorPick}
           activeAlignFace={pendingAlignFace}
           transformMode={transformMode}
           onChangeTransformMode={setTransformMode}

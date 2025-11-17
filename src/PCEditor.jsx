@@ -11,6 +11,7 @@ import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
 import { ensureSceneConnectors } from "./utils/connectors";
 import { getMotherboardIoCutoutBounds } from "./config/motherboardPresets";
+import { expandObjectsWithEmbedded } from "./utils/motherboardEmbedded";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 export default function PCEditor() {
@@ -28,6 +29,8 @@ export default function PCEditor() {
   const [transformMode, setTransformMode] = useState("translate");
   const [pendingAlignFace, setPendingAlignFace] = useState(null);
   const [showGizmos, setShowGizmos] = useState(true);
+  const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
+  const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
 
   useEffect(() => {
     if (!connectorToast) {
@@ -130,6 +133,7 @@ export default function PCEditor() {
   };
 
   const handleSelect = (id, multi = false) => {
+    if (!baseIdSet.has(id)) return;
     if (multi) {
       setSelectedIds((prev) => {
         if (prev.includes(id)) {
@@ -303,9 +307,22 @@ export default function PCEditor() {
         return;
       }
 
-      const anchorObj = objects.find((obj) => obj.id === pendingAlignFace.partId);
-      const movingObj = objects.find((obj) => obj.id === faceInfo.partId);
+      const anchorObj = expandedObjects.find((obj) => obj.id === pendingAlignFace.partId);
+      const movingObj = expandedObjects.find((obj) => obj.id === faceInfo.partId);
       if (!anchorObj || !movingObj) {
+        setPendingAlignFace(null);
+        return;
+      }
+      if (movingObj.embeddedParentId) {
+        setConnectorToast({
+          type: "warning",
+          text: "嵌入式部件无法移动，请选择其它零件。",
+        });
+        setPendingAlignFace(null);
+        return;
+      }
+      const movingBaseObj = objects.find((obj) => obj.id === movingObj.id);
+      if (!movingBaseObj) {
         setPendingAlignFace(null);
         return;
       }
@@ -516,8 +533,8 @@ export default function PCEditor() {
           showHorizontalGrid={showHorizontalGrid}
           onToggleHorizontalGrid={() => setShowHorizontalGrid((prev) => !prev)}
         />
-        <Scene
-          objects={objects}
+      <Scene
+          objects={expandedObjects}
           setObjects={setObjects}
           selectedIds={selectedIds}
           onSelect={handleSelect}

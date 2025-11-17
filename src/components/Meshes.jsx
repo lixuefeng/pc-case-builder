@@ -1,7 +1,6 @@
 ﻿import React, { useMemo, useEffect } from "react";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-import { buildMotherboardLayout, getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 import {
   GPU_BRACKET_SPEC,
   GPU_PCB_SPEC,
@@ -48,58 +47,9 @@ const buildPcieBracketGeometry = (width, height) => {
   return geo;
 };
 
-const computeCenterFromEdges = (dims, size, feature) => {
-  let x = 0;
-  if (typeof feature.fromLeft === "number") {
-    x = -dims.w / 2 + feature.fromLeft + size.w / 2;
-  } else if (typeof feature.fromRight === "number") {
-    x = dims.w / 2 - feature.fromRight - size.w / 2;
-  } else if (typeof feature.centerX === "number") {
-    x = feature.centerX;
-  }
-
-  let z = 0;
-  if (typeof feature.fromTop === "number") {
-    z = -dims.d / 2 + feature.fromTop + size.d / 2;
-  } else if (typeof feature.fromBottom === "number") {
-    z = dims.d / 2 - feature.fromBottom - size.d / 2;
-  } else if (typeof feature.centerZ === "number") {
-    z = feature.centerZ;
-  }
-
-  return [x, z];
-};
-
-const createFeatureMesh = (feature, dims, key) => {
-  if (!feature?.size) return null;
-  const [x, z] = computeCenterFromEdges(dims, feature.size, feature);
-  const offsetY = feature.offsetY ?? 0;
-  const extrudeBelow = Math.max(0, feature.extrudeBelow ?? 0);
-  const extrudeAbove = Math.max(0, feature.extrudeAbove ?? 0);
-  const height = feature.size.h + extrudeAbove + extrudeBelow;
-  const centerY = (feature.size.h + extrudeAbove - extrudeBelow) / 2 + offsetY;
-  const position = [x, centerY, z];
-
-  return (
-    <mesh key={key} position={position}>
-      <boxGeometry args={[feature.size.w, height, feature.size.d]} />
-      <meshStandardMaterial
-        color={feature.color || "#475569"}
-        roughness={feature.roughness ?? 0.55}
-        metalness={feature.metalness ?? 0.15}
-        transparent={typeof feature.opacity === "number"}
-        opacity={feature.opacity ?? 1}
-      />
-    </mesh>
-  );
-};
-
 export function MotherboardMesh({ obj, selected }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
-  const layout = useMemo(() => buildMotherboardLayout(obj), [obj]);
-  const ioCutout = getMotherboardIoCutoutBounds(dims);
-
   return (
     <group>
       <mesh userData={{ objectId: obj.id }}>
@@ -122,78 +72,7 @@ export function MotherboardMesh({ obj, selected }) {
         </group>
       )}
 
-      {layout && (
-        <group position={[0, dims.h / 2, 0]}>
-          {layout.cpuKeepout && createFeatureMesh(layout.cpuKeepout, dims, "cpu-keepout")}
-          {layout.cpuSocket && createFeatureMesh(layout.cpuSocket, dims, "cpu-socket")}
-
-          {layout.ramSlots &&
-            Array.from({ length: layout.ramSlots.count }, (_, index) => {
-              const { size, anchor = "left", colors = [] } = layout.ramSlots;
-              if (!size) return null;
-
-              const isRowAlongZ = size.w >= size.d;
-              const slotThickness = isRowAlongZ ? size.d : size.w;
-              const spacing = slotThickness + 3;
-
-              let x = 0;
-              if (anchor === "right") {
-                const rightBase =
-                  dims.w / 2 - (layout.ramSlots.fromRight ?? 0) - size.w / 2;
-                x = isRowAlongZ ? rightBase : rightBase - index * spacing;
-              } else {
-                const leftBase =
-                  -dims.w / 2 + (layout.ramSlots.fromLeft ?? 0) + size.w / 2;
-                x = isRowAlongZ ? leftBase : leftBase + index * spacing;
-              }
-
-              let z = 0;
-              if (typeof layout.ramSlots.fromTop === "number") {
-                const topBase =
-                  -dims.d / 2 + layout.ramSlots.fromTop + size.d / 2;
-                z = isRowAlongZ
-                  ? topBase + index * spacing
-                  : topBase;
-              } else if (typeof layout.ramSlots.fromBottom === "number") {
-                const bottomBase =
-                  dims.d / 2 - layout.ramSlots.fromBottom - size.d / 2;
-                z = isRowAlongZ
-                  ? bottomBase - index * spacing
-                  : bottomBase;
-              }
-
-              const y = size.h / 2 + (layout.ramSlots.offsetY ?? 0);
-              const colorAlt = colors[index % colors.length] || "#cbd5f5";
-
-              return (
-                <mesh key={`ram-${index}`} position={[x, y, z]}>
-                  <boxGeometry args={[size.w, size.h, size.d]} />
-                  <meshStandardMaterial
-                    color={colorAlt}
-                    roughness={0.4}
-                    metalness={0.07}
-                  />
-                </mesh>
-              );
-            })}
-
-          {Array.isArray(layout.powerConnectors) &&
-            layout.powerConnectors.map((connector) =>
-              createFeatureMesh(connector, dims, connector.key)
-            )}
-
-          {Array.isArray(layout.pcieSlots) &&
-            layout.pcieSlots.map((slot, idx) => createFeatureMesh(slot, dims, `${slot.key}-${idx}`))}
-
-          {layout.chipset && createFeatureMesh(layout.chipset, dims, "chipset")}
-        </group>
-      )}
-      {ioCutout && (
-        <mesh position={ioCutout.center}>
-          <boxGeometry args={ioCutout.size} />
-          <meshStandardMaterial color="#fb923c" opacity={0.35} transparent />
-        </mesh>
-      )}
+      {/* Additional motherboard features are rendered as embedded parts */}
     </group>
   );
 }

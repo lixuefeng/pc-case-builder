@@ -182,6 +182,7 @@ export default function MovablePart({
   const groupRef = useRef();
   const controlsRef = useRef();
   const hoverFaceMeshRef = useRef(null);
+  const isEmbedded = !!obj?.embeddedParentId || obj?.type === "embedded";
 
   useEffect(() => {
     if (!controlsRef.current) return;
@@ -211,6 +212,7 @@ export default function MovablePart({
   }, [connections, obj.id]);
 
   const handleDimChange = (axis, value) => {
+    if (isEmbedded) return;
     const newDimValue = Number(value) || 0;
     setObj((prev) => {
       const newDims = { ...prev.dims, [axis]: newDimValue };
@@ -219,6 +221,7 @@ export default function MovablePart({
   };
 
   const handlePosChange = (axisIndex, value) => {
+    if (isEmbedded) return;
     const newPosValue = Number(value) || 0;
     setObj((prev) => {
       const newPos = [...prev.pos];
@@ -228,6 +231,7 @@ export default function MovablePart({
   };
 
   const handleRotChange = (axisIndex, value) => {
+    if (isEmbedded) return;
     const newRotValueDeg = Number(value) || 0;
     const newRotValueRad = THREE.MathUtils.degToRad(newRotValueDeg);
     setObj((prev) => {
@@ -529,34 +533,56 @@ export default function MovablePart({
     const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
     const height = dims.h ?? 0;
     const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
-    const sign = faceName[0] === "+" ? 1 : -1;
     const thickness = 0.2;
     const surfacePadding = 0.02; // 沿面法线轻微外移，避免闪烁
 
     let localOffset;
     let size;
     let localNormal;
-    switch (faceName) {
-      case "+X":
-      case "-X":
-        localOffset = new THREE.Vector3(sign * (width / 2 + surfacePadding), 0, 0);
-        size = [thickness, height, depth];
-        localNormal = new THREE.Vector3(sign, 0, 0);
-        break;
-      case "+Y":
-      case "-Y":
-        localOffset = new THREE.Vector3(0, sign * (height / 2 + surfacePadding), 0);
-        size = [width, thickness, depth];
-        localNormal = new THREE.Vector3(0, sign, 0);
-        break;
-      case "+Z":
-      case "-Z":
-        localOffset = new THREE.Vector3(0, 0, sign * (depth / 2 + surfacePadding));
-        size = [width, height, thickness];
-        localNormal = new THREE.Vector3(0, 0, sign);
-        break;
-      default:
-        return null;
+
+    if (faceName === IO_CUTOUT_FACE && obj?.type === "motherboard") {
+      const spec = getMotherboardIoCutoutBounds(dims);
+      if (!spec) return null;
+      localOffset = new THREE.Vector3(
+        spec.center?.[0] ?? 0,
+        spec.center?.[1] ?? 0,
+        spec.center?.[2] ?? 0
+      );
+      localNormal = new THREE.Vector3(
+        spec.normal?.[0] ?? 0,
+        spec.normal?.[1] ?? 0,
+        spec.normal?.[2] ?? 1
+      ).normalize();
+      localOffset.add(localNormal.clone().setLength(surfacePadding));
+      size = [
+        spec.size?.[0] ?? width,
+        spec.size?.[1] ?? height,
+        thickness,
+      ];
+    } else {
+      const sign = faceName[0] === "+" ? 1 : -1;
+      switch (faceName) {
+        case "+X":
+        case "-X":
+          localOffset = new THREE.Vector3(sign * (width / 2 + surfacePadding), 0, 0);
+          size = [thickness, height, depth];
+          localNormal = new THREE.Vector3(sign, 0, 0);
+          break;
+        case "+Y":
+        case "-Y":
+          localOffset = new THREE.Vector3(0, sign * (height / 2 + surfacePadding), 0);
+          size = [width, thickness, depth];
+          localNormal = new THREE.Vector3(0, sign, 0);
+          break;
+        case "+Z":
+        case "-Z":
+          localOffset = new THREE.Vector3(0, 0, sign * (depth / 2 + surfacePadding));
+          size = [width, height, thickness];
+          localNormal = new THREE.Vector3(0, 0, sign);
+          break;
+        default:
+          return null;
+      }
     }
 
     const localCenter = localOffset.clone();
@@ -907,6 +933,9 @@ const hudInputStyle = {
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
+          if (isEmbedded && !alignMode) {
+            return;
+          }
           if (alignMode && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
             onFacePick?.({ partId: obj.id, face: hoveredFace });
             onSelect?.(obj.id, false);
@@ -972,7 +1001,7 @@ const hudInputStyle = {
         )}
       </group>
 
-      {selected && showTransformControls && (
+      {selected && !isEmbedded && showTransformControls && (
         <TransformControls
           ref={controlsRef}
           object={groupRef.current}
@@ -1084,7 +1113,7 @@ const hudInputStyle = {
         </group>
       )}
 
-      {selected && (
+      {selected && !isEmbedded && (
         <Html fullscreen style={{ pointerEvents: "none" }} zIndexRange={[1000, 0]}>
           <div
             style={{

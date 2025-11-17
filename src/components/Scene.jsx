@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
-import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
+import { expandObjectsWithEmbedded } from "../utils/motherboardEmbedded";
 
 export default function Scene({
   objects,
@@ -45,8 +45,10 @@ export default function Scene({
     };
   }, []);
 
+  const renderObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
+
   const gridOffset = useMemo(() => {
-    const objectMinY = objects.reduce((min, obj) => {
+    const objectMinY = renderObjects.reduce((min, obj) => {
       if (!obj?.dims || !Array.isArray(obj.pos)) return min;
       const height = Number(obj.dims.h) || 0;
       const posY = Number(obj.pos[1]) || 0;
@@ -54,7 +56,7 @@ export default function Scene({
     }, 0);
 
     return Math.min(0, objectMinY);
-  }, [objects]);
+  }, [renderObjects]);
 
   return (
     <Canvas 
@@ -76,14 +78,25 @@ export default function Scene({
           showHorizontalGrid={showHorizontalGrid}
           offsetY={gridOffset}
         />
-        {objects.map((obj) => obj.visible && (
+        {renderObjects.map((obj) => obj.visible !== false && (
           <MovablePart
             key={obj.id}
             obj={obj}
             selected={selectedIds.includes(obj.id)}
-            setObj={(updater) => setObjects((prev) => prev.map((o) => (o.id === obj.id ? (typeof updater === "function" ? updater(o) : updater) : o)))}
+            setObj={(updater) => {
+              if (obj.embeddedParentId) return;
+              setObjects((prev) =>
+                prev.map((o) =>
+                  o.id === obj.id
+                    ? typeof updater === "function"
+                      ? updater(o)
+                      : updater
+                    : o
+                )
+              );
+            }}
             onSelect={onSelect}
-            allObjects={objects}
+            allObjects={renderObjects}
             setDragging={setIsDragging}
             connections={connections}
             alignMode={alignMode}

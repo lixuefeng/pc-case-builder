@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const TopBar = ({
   onImport,
@@ -16,6 +17,8 @@ const TopBar = ({
   snapEnabled,
   setSnapEnabled,
 }) => {
+  const { language, setLanguage, t } = useLanguage();
+
   const btnStyle = {
     padding: "6px 12px",
     borderRadius: 6,
@@ -64,15 +67,15 @@ const TopBar = ({
       }}
     >
       <div style={{ fontWeight: 700, marginRight: 16, color: "#fff" }}>
-        PC Case Builder
+        {t("app.title")}
       </div>
 
       {/* File Operations */}
       <button style={btnStyle} onClick={onImport}>
-        导入
+        {t("action.import")}
       </button>
       <button style={btnStyle} onClick={onExport}>
-        导出
+        {t("action.export")}
       </button>
 
       <div style={dividerStyle} />
@@ -83,14 +86,14 @@ const TopBar = ({
         onClick={undo}
         disabled={!canUndo}
       >
-        撤销
+        {t("action.undo")}
       </button>
       <button
         style={canRedo ? btnStyle : disabledBtnStyle}
         onClick={redo}
         disabled={!canRedo}
       >
-        重做
+        {t("action.redo")}
       </button>
 
       <div style={dividerStyle} />
@@ -100,23 +103,23 @@ const TopBar = ({
         <button
           style={transformMode === "translate" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("translate")}
-          title="移动 (Translate)"
+          title={t("mode.translate")}
         >
-          移动
+          {t("mode.translate")}
         </button>
         <button
           style={transformMode === "rotate" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("rotate")}
-          title="旋转 (Rotate)"
+          title={t("mode.rotate")}
         >
-          旋转
+          {t("mode.rotate")}
         </button>
         <button
           style={transformMode === "scale" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("scale")}
-          title="缩放 (Scale)"
+          title={t("mode.scale")}
         >
-          缩放
+          {t("mode.scale")}
         </button>
       </div>
 
@@ -127,20 +130,30 @@ const TopBar = ({
         style={showGrid ? activeBtnStyle : btnStyle}
         onClick={() => setShowGrid(!showGrid)}
       >
-        网格
+        {t("action.grid")}
       </button>
       <button
         style={showGizmos ? activeBtnStyle : btnStyle}
         onClick={() => setShowGizmos(!showGizmos)}
       >
-        控件
+        {t("action.gizmos")}
       </button>
       <button
         style={snapEnabled ? activeBtnStyle : btnStyle}
         onClick={() => setSnapEnabled(!snapEnabled)}
-        title="开启吸附 (Snap)"
+        title={t("action.snap")}
       >
-        🧲 吸附
+        🧲 {t("action.snap")}
+      </button>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Language Selector */}
+      <button
+        style={btnStyle}
+        onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+      >
+        {language === "zh" ? "English" : "中文"}
       </button>
     </div>
   );

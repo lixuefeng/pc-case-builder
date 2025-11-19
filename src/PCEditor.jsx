@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
 import * as THREE from "three";
 import Scene from "./components/Scene";
 import TopBar from "./components/UI/TopBar";
@@ -76,7 +77,8 @@ const duplicateObject = (sourceObject, offsetIndex = 1) => {
   return assignIds(clone, { applyOffset: true });
 };
 
-export default function PCEditor() {
+function EditorContent() {
+  const { t } = useLanguage();
   const {
     objects,
     setObjects,
@@ -817,6 +819,14 @@ export default function PCEditor() {
         />
       </div>
     </div>
+  );
+}
+
+export default function PCEditor() {
+  return (
+    <LanguageProvider>
+      <EditorContent />
+    </LanguageProvider>
   );
 }
 

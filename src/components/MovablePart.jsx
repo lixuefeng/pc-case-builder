@@ -1,6 +1,7 @@
 // components/MovablePart.jsx — 选中/移动/旋转 + HUD（旋转安全的高亮/吸附 + 调试日志）
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
+import { useThree } from "@react-three/fiber";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { MotherboardMesh, GPUMesh, PartBox, GroupMesh, ImportedMesh } from "./Meshes.jsx";
@@ -194,6 +195,12 @@ export default function MovablePart({
   const groupRef = useRef();
   const controlsRef = useRef();
   const hoverFaceMeshRef = useRef(null);
+  const [hoveredFace, setHoveredFace] = useState(null);
+  const stretchStateRef = useRef(null);
+  const { gl, camera } = useThree();
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const pointerNdc = useMemo(() => new THREE.Vector2(), []);
+  const planeIntersectPoint = useMemo(() => new THREE.Vector3(), []);
   const isEmbedded = !!obj?.embeddedParentId || obj?.type === "embedded";
 
   useEffect(() => {
@@ -253,7 +260,7 @@ const handleRotChange = (axisIndex, value) => {
   });
 };
 
-  const applyRotationSnap = useCallback(
+const applyRotationSnap = useCallback(
     (rotationArray) => {
       if (mode !== "rotate" || !controlsRef.current || !groupRef.current) {
         return rotationArray;
@@ -286,6 +293,110 @@ const handleRotChange = (axisIndex, value) => {
     },
     [mode]
   );
+
+  const applyStretchDelta = useCallback(
+    (delta) => {
+      const state = stretchStateRef.current;
+      if (!state || !groupRef.current) return;
+      const { axisInfo, startDims, startPos, planeNormal } = state;
+      if (!axisInfo?.dimKey) return;
+      const startSize = Number(startDims[axisInfo.dimKey]) || 0;
+      let halfDelta = delta;
+      let nextSize = startSize + halfDelta * 2;
+      const minSize = 1;
+      if (nextSize < minSize) {
+        nextSize = minSize;
+        halfDelta = (nextSize - startSize) / 2;
+      }
+      const newDims = { ...startDims, [axisInfo.dimKey]: nextSize };
+      const newPosVec = new THREE.Vector3(...startPos).add(
+        planeNormal.clone().multiplyScalar(halfDelta)
+      );
+      groupRef.current.position.copy(newPosVec);
+      setObj((prev) => ({
+        ...prev,
+        dims: newDims,
+        pos: [newPosVec.x, newPosVec.y, newPosVec.z],
+      }));
+      state.lastHalfDelta = halfDelta;
+    },
+    [setObj]
+  );
+
+  const handleStretchPointerMove = useCallback(
+    (event) => {
+      const state = stretchStateRef.current;
+      if (!state) return;
+      const rect = gl.domElement.getBoundingClientRect();
+      pointerNdc.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(pointerNdc, camera);
+      if (!raycaster.ray.intersectPlane(state.plane, planeIntersectPoint)) {
+        return;
+      }
+      const delta = state.planeNormal
+        .clone()
+        .dot(planeIntersectPoint.clone().sub(state.startPoint));
+      applyStretchDelta(delta);
+    },
+    [applyStretchDelta, camera, gl, planeIntersectPoint, pointerNdc, raycaster]
+  );
+
+  const finishStretch = useCallback(() => {
+    if (!stretchStateRef.current) return;
+    window.removeEventListener("pointermove", handleStretchPointerMove);
+    window.removeEventListener("pointerup", finishStretch);
+    stretchStateRef.current = null;
+    setUiLock(false);
+    setObj((prev) => {
+      if (!Array.isArray(prev.connectors) || prev.connectors.length === 0) {
+        return prev;
+      }
+      return { ...prev, connectors: [] };
+    });
+  }, [handleStretchPointerMove, setObj]);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("pointermove", handleStretchPointerMove);
+      window.removeEventListener("pointerup", finishStretch);
+    };
+  }, [finishStretch, handleStretchPointerMove]);
+
+  const beginStretch = useCallback(
+    (faceName, faceDetails, event) => {
+      if (stretchStateRef.current || !faceDetails || isEmbedded) return;
+      const axisInfo = getStretchAxisInfo(obj, faceName);
+      if (!axisInfo) return;
+      const planeNormal = new THREE.Vector3(...(faceDetails.normal || [0, 0, 1])).normalize();
+      const planePoint = new THREE.Vector3(...(faceDetails.center || [0, 0, 0]));
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        planeNormal.clone(),
+        planePoint
+      );
+      const startPoint = new THREE.Vector3();
+      if (!event.ray.intersectPlane(plane, startPoint)) {
+        return;
+      }
+      stretchStateRef.current = {
+        faceName,
+        plane,
+        planeNormal,
+        axisInfo,
+        startPoint,
+        startDims: { ...(obj.dims || {}) },
+        startPos: Array.isArray(obj.pos) ? [...obj.pos] : [0, 0, 0],
+      };
+      setHoveredFace(faceName);
+      setUiLock(true);
+      window.addEventListener("pointermove", handleStretchPointerMove);
+      window.addEventListener("pointerup", finishStretch);
+    },
+    [finishStretch, handleStretchPointerMove, isEmbedded, obj, setHoveredFace]
+  );
+
 
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
   const prevPosRef = useRef(null); // 上一帧世界位置，用来推断真实拖拽轴
@@ -573,12 +684,12 @@ const handleRotChange = (axisIndex, value) => {
   };
 
   // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
-  const getFaceDetails = ({ obj, ref, faceName }) => {
-    const { p, q } = getWorldTransform({ ref, obj });
-    const dims = obj?.dims || {};
-    const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
-    const height = dims.h ?? 0;
-    const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+const getFaceDetails = ({ obj, ref, faceName }) => {
+  const { p, q } = getWorldTransform({ ref, obj });
+  const dims = obj?.dims || {};
+  const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+  const height = dims.h ?? 0;
+  const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
     const thickness = 0.2;
     const surfacePadding = 0.02; // 沿面法线轻微外移，避免闪烁
 
@@ -641,10 +752,26 @@ const handleRotChange = (axisIndex, value) => {
       size,
       quaternion: q.clone(),
       normal: worldNormal.toArray(),
-    };
   };
+};
 
-  const startDrag = () => {
+const getStretchAxisInfo = (obj, faceName) => {
+  if (!faceName || faceName.length < 2) return null;
+  const axis = faceName[1];
+  const sign = faceName[0] === "+" ? 1 : -1;
+  let dimKey = null;
+  if (axis === "X") {
+    dimKey = obj?.type === "gpu" ? "d" : "w";
+  } else if (axis === "Y") {
+    dimKey = "h";
+  } else if (axis === "Z") {
+    dimKey = obj?.type === "gpu" ? "w" : "d";
+  }
+  if (!dimKey) return null;
+  return { axis, dimKey, sign };
+};
+
+const startDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
@@ -793,13 +920,11 @@ const hudInputStyle = {
     return { center: center.toArray(), size, quaternion: q };
   }, [bestAlignCandidate]);
 
-  const [hoveredFace, setHoveredFace] = useState(null);
-
-  useEffect(() => {
-    if (!alignMode) {
-      setHoveredFace(null);
-    }
-  }, [alignMode]);
+useEffect(() => {
+  if (!alignMode && mode !== "scale") {
+    setHoveredFace(null);
+  }
+}, [alignMode, mode]);
 
   const selfHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
@@ -877,7 +1002,7 @@ const hudInputStyle = {
 
   const resolveHoveredFace = useCallback(
     (event) => {
-      if (!alignMode || !groupRef.current) return;
+      if ((!alignMode && mode !== "scale") || !groupRef.current) return;
       const dims = obj.dims || {};
       const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
       const height = dims.h ?? 0;
@@ -955,7 +1080,7 @@ const hudInputStyle = {
 
       setHoveredFace(resolvedFace);
     },
-    [alignMode, obj]
+    [alignMode, mode, obj]
   );
 
   return (
@@ -966,20 +1091,36 @@ const hudInputStyle = {
         rotation={obj.rot}
         userData={{ objectId: obj.id }}
         onPointerMove={(e) => {
-          if (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
+          const faceSelectionActive =
+            (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
+            (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey));
+          if (faceSelectionActive) {
             resolveHoveredFace(e);
-          } else if (hoveredFace) {
+          } else if (!stretchStateRef.current && (alignMode || mode === "scale") && hoveredFace) {
             setHoveredFace(null);
           }
         }}
         onPointerLeave={() => {
-          if (alignMode) {
+          if (stretchStateRef.current) {
+            return;
+          }
+          if (alignMode || mode === "scale") {
             setHoveredFace(null);
           }
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (isEmbedded && !alignMode) {
+            return;
+          }
+          if (
+            !alignMode &&
+            mode === "scale" &&
+            (e.shiftKey || e?.nativeEvent?.shiftKey) &&
+            hoveredFace &&
+            hoveredFaceDetails
+          ) {
+            beginStretch(hoveredFace, hoveredFaceDetails, e);
             return;
           }
           if (alignMode && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
@@ -1017,7 +1158,7 @@ const hudInputStyle = {
               />
             );
           })}
-        {alignMode && hoveredFaceDetails && (
+        {(alignMode || mode === "scale") && hoveredFaceDetails && (
           <mesh
             ref={hoverFaceMeshRef}
             position={hoveredFaceDetails.localCenter || hoveredFaceDetails.center}
@@ -1033,7 +1174,7 @@ const hudInputStyle = {
             />
           </mesh>
         )}
-        {alignMode && activeFaceDetails && (
+        {(alignMode || mode === "scale") && activeFaceDetails && (
           <mesh
             position={activeFaceDetails.localCenter || activeFaceDetails.center}
             frustumCulled={false}

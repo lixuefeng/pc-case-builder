@@ -20,16 +20,18 @@ const input = {
   outline: "none",
 };
 
-const BtnGhost = ({ children, onClick }) => (
+const BtnGhost = ({ children, onClick, disabled = false }) => (
   <button
-    onClick={onClick}
+    onClick={disabled ? undefined : onClick}
+    disabled={disabled}
     style={{
       padding: "6px 10px",
       borderRadius: 10,
       border: "1px solid #e5e7eb",
       background: "#fff",
-      color: "#0f172a",
-      cursor: "pointer",
+      color: disabled ? "#94a3b8" : "#0f172a",
+      cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.6 : 1,
     }}
   >
     {children}
@@ -43,6 +45,7 @@ export default function ObjectsList({
   onSelect,
   onGroup,
   onUngroup,
+  onDuplicate,
 }) {
   const toggleVisible = (id) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)));
@@ -55,6 +58,9 @@ export default function ObjectsList({
       <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>物体列表</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <BtnGhost onClick={() => onDuplicate?.(selectedIds)} disabled={selectedIds.length === 0}>
+          复制
+        </BtnGhost>
         <BtnGhost onClick={onGroup} disabled={selectedIds.length <= 1}>
           编组
         </BtnGhost>
@@ -69,7 +75,7 @@ export default function ObjectsList({
             key={o.id}
             style={{
               display: "grid",
-              gridTemplateColumns: "22px 22px 80px 1fr auto",
+              gridTemplateColumns: "22px 22px 80px 1fr auto auto",
               alignItems: "center",
               gap: 8,
               padding: "8px 10px",
@@ -105,6 +111,7 @@ export default function ObjectsList({
               value={o.name}
               onChange={(e) => rename(o.id, e.target.value)}
             />
+            <BtnGhost onClick={() => onDuplicate?.([o.id])}>复制</BtnGhost>
             <BtnGhost onClick={() => remove(o.id)}>删除</BtnGhost>
           </div>
         ))}

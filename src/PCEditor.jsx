@@ -14,6 +14,70 @@ import { getMotherboardIoCutoutBounds } from "./config/motherboardPresets";
 import { expandObjectsWithEmbedded } from "./utils/motherboardEmbedded";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
+const DUPLICATE_OFFSET = 25;
+
+const deepCloneObject = (value) => JSON.parse(JSON.stringify(value));
+const randomSuffix = () => Math.random().toString(36).slice(2, 8);
+const generateObjectId = (type = "obj") => {
+  const safeType = typeof type === "string" && type.trim().length > 0 ? type.trim() : "obj";
+  return `${safeType}_${Date.now().toString(36)}_${randomSuffix()}`;
+};
+
+const remapConnectorIds = (connectors, ownerId) => {
+  if (!Array.isArray(connectors) || connectors.length === 0) {
+    return connectors;
+  }
+  return connectors.map((connector, index) => ({
+    ...connector,
+    id: `${ownerId}_conn_${index}_${randomSuffix()}`,
+  }));
+};
+
+const shiftDuplicatePosition = (pos, offsetIndex = 1) => {
+  const offset = DUPLICATE_OFFSET * Math.max(1, offsetIndex);
+  const [x = 0, y = 0, z = 0] = Array.isArray(pos) ? pos : [0, 0, 0];
+  return [x + offset, y, z + offset];
+};
+
+const buildCopyName = (name, type) => {
+  if (typeof name === "string" && name.trim().length > 0) {
+    return `${name.trim()} 副本`;
+  }
+  if (typeof type === "string" && type.length > 0) {
+    return `${type.toUpperCase()} 副本`;
+  }
+  return "对象 副本";
+};
+
+const duplicateObject = (sourceObject, offsetIndex = 1) => {
+  if (!sourceObject) return null;
+  const clone = deepCloneObject(sourceObject);
+
+  const assignIds = (node, { applyOffset }) => {
+    if (!node || typeof node !== "object") return node;
+    const newId = generateObjectId(node.type || "obj");
+    node.id = newId;
+    node.name = buildCopyName(node.name, node.type);
+    if (applyOffset) {
+      node.pos = shiftDuplicatePosition(node.pos, offsetIndex);
+    } else if (!Array.isArray(node.pos)) {
+      node.pos = [0, 0, 0];
+    }
+    if (node.embeddedParentId) {
+      delete node.embeddedParentId;
+    }
+    if (Array.isArray(node.connectors) && node.connectors.length > 0) {
+      node.connectors = remapConnectorIds(node.connectors, newId);
+    }
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      node.children = node.children.map((child) => assignIds(child, { applyOffset: false }));
+    }
+    return node;
+  };
+
+  return assignIds(clone, { applyOffset: true });
+};
+
 export default function PCEditor() {
   const {
     objects,
@@ -211,6 +275,47 @@ const [pendingConnector, setPendingConnector] = useState(null);
     setObjects((prev) => [...prev.filter((o) => o.id !== group.id), ...children]);
     setSelectedIds(children.map((c) => c.id));
   };
+
+  const handleDuplicate = useCallback(
+    (ids) => {
+      const targetIds = Array.isArray(ids) && ids.length > 0 ? ids : selectedIds;
+      const uniqueIds = Array.from(new Set(targetIds));
+      if (uniqueIds.length === 0) {
+        return;
+      }
+
+      const nextSelection = [];
+      setObjects((prev) => {
+        const clones = [];
+        uniqueIds.forEach((id, index) => {
+          const original = prev.find((obj) => obj.id === id);
+          if (!original) {
+            return;
+          }
+          const duplicate = duplicateObject(original, index + 1);
+          if (!duplicate) {
+            return;
+          }
+          clones.push(duplicate);
+          nextSelection.push(duplicate.id);
+        });
+        if (clones.length === 0) {
+          return prev;
+        }
+        return [...prev, ...clones];
+      });
+
+      if (nextSelection.length > 0) {
+        setSelectedIds(nextSelection);
+        setConnectorToast({
+          type: "success",
+          text: `已复制 ${nextSelection.length} 个零件`,
+          ttl: 1500,
+        });
+      }
+    },
+    [selectedIds, setObjects, setSelectedIds, setConnectorToast]
+  );
 
   const formatPartName = useCallback((part) => {
     if (!part) return "对象";
@@ -682,6 +787,7 @@ const [pendingConnector, setPendingConnector] = useState(null);
             onSelect={handleSelect}
             onGroup={handleGroup}
             onUngroup={handleUngroup}
+            onDuplicate={handleDuplicate}
           />
           <button onClick={() => exportSTLFrom(window.__lastThreeRoot)} style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white", fontWeight: 600 }}>导出 STL</button>
         </div>

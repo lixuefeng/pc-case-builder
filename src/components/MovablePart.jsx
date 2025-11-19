@@ -198,9 +198,67 @@ export default function MovablePart({
   const [hoveredFace, setHoveredFace] = useState(null);
   const stretchStateRef = useRef(null);
   const { gl, camera } = useThree();
+  
+  // Fix: Stabilize setObj to prevent handleStretchPointerMove from changing and triggering useEffect cleanup
+  const setObjRef = useRef(setObj);
+  useEffect(() => {
+    setObjRef.current = setObj;
+  }, [setObj]);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const pointerNdc = useMemo(() => new THREE.Vector2(), []);
-  const planeIntersectPoint = useMemo(() => new THREE.Vector3(), []);
+  const finishStretchRef = useRef(null);
+
+  const requestFinish = useCallback((reason) => {
+    console.log("[stretch/finish-request]", reason);
+    finishStretchRef.current?.();
+  }, []);
+
+  const handleWindowPointerUp = useCallback((event) => {
+    console.log("[stretch/window-pointerup]", {
+      pointerId: event.pointerId,
+      buttons: event.buttons,
+    });
+    requestFinish("pointerup");
+  }, [requestFinish]);
+
+  const handleWindowPointerCancel = useCallback((event) => {
+    console.log("[stretch/window-pointercancel]", {
+      pointerId: event.pointerId,
+    });
+    requestFinish("pointercancel");
+  }, [requestFinish]);
+
+  const handleWindowBlur = useCallback(() => {
+    console.log("[stretch/window-blur]");
+    requestFinish("window-blur");
+  }, [requestFinish]);
+const computeAxisOffsetFromRay = useCallback((ray, axisOrigin, axisDirection) => {
+  if (!ray || !axisOrigin || !axisDirection) {
+    return null;
+  }
+  const w0 = axisOrigin.clone().sub(ray.origin);
+  const rayDir = ray.direction.clone().normalize();
+  const b = axisDirection.dot(rayDir);
+  const d = axisDirection.dot(w0);
+  const e = rayDir.dot(w0);
+  const denom = 1 - b * b;
+  let result;
+  if (Math.abs(denom) < 0.05) {
+    console.log("[stretch/axisOffset] denom too small (parallel view)", denom);
+    return null;
+  } else {
+    result = (b * e - d) / denom;
+  }
+  console.log("[stretch/axisOffset]", {
+    rayOrigin: ray.origin.toArray?.() ?? null,
+    rayDir: rayDir.toArray?.() ?? null,
+    axisOrigin: axisOrigin.toArray?.() ?? null,
+    axisDir: axisDirection.toArray?.() ?? null,
+    denom,
+    result,
+  });
+  return result;
+}, []);
   const isEmbedded = !!obj?.embeddedParentId || obj?.type === "embedded";
 
   useEffect(() => {
@@ -298,56 +356,125 @@ const applyRotationSnap = useCallback(
     (delta) => {
       const state = stretchStateRef.current;
       if (!state || !groupRef.current) return;
-      const { axisInfo, startDims, startPos, planeNormal } = state;
-      if (!axisInfo?.dimKey) return;
+      const { axisInfo, startDims, startPosVec, axisDirection, objectId } = state;
+      if (!axisInfo?.dimKey || !axisDirection || !startPosVec) return;
       const startSize = Number(startDims[axisInfo.dimKey]) || 0;
-      let halfDelta = delta;
-      let nextSize = startSize + halfDelta * 2;
+      let appliedDelta = delta;
+      let nextSize = startSize + appliedDelta;
       const minSize = 1;
       if (nextSize < minSize) {
         nextSize = minSize;
-        halfDelta = (nextSize - startSize) / 2;
+        appliedDelta = nextSize - startSize;
       }
       const newDims = { ...startDims, [axisInfo.dimKey]: nextSize };
-      const newPosVec = new THREE.Vector3(...startPos).add(
-        planeNormal.clone().multiplyScalar(halfDelta)
-      );
+      const centerOffset = axisDirection.clone().multiplyScalar(appliedDelta / 2);
+      const newPosVec = startPosVec.clone().add(centerOffset);
+
       groupRef.current.position.copy(newPosVec);
-      setObj((prev) => ({
+      
+      // Use ref to avoid dependency change
+      setObjRef.current((prev) => ({
         ...prev,
         dims: newDims,
         pos: [newPosVec.x, newPosVec.y, newPosVec.z],
       }));
-      state.lastHalfDelta = halfDelta;
+      state.lastDelta = appliedDelta;
+      console.log("[stretch/applyDelta]", {
+        part: objectId,
+        face: state.faceName,
+        dimKey: axisInfo.dimKey,
+        startSize,
+        nextSize,
+        appliedDelta,
+        centerOffset: centerOffset.toArray(),
+        startPos: startPosVec.toArray(),
+        newPos: newPosVec.toArray(),
+      });
     },
-    [setObj]
+    [] // Removed setObj dependency
   );
 
   const handleStretchPointerMove = useCallback(
     (event) => {
+      console.log("[stretch/pointerMove:raw]", {
+        type: event.type,
+        buttons: event.buttons,
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+      });
       const state = stretchStateRef.current;
-      if (!state) return;
+      if (!state || !state.axisDirection || !state.axisOrigin) return;
+      if (event.buttons === 0) {
+        // Relaxed check: just ignore this event, don't kill the drag
+        // requestFinish("pointermove-buttons-zero");
+        return;
+      }
       const rect = gl.domElement.getBoundingClientRect();
       pointerNdc.set(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
         -((event.clientY - rect.top) / rect.height) * 2 + 1
       );
       raycaster.setFromCamera(pointerNdc, camera);
-      if (!raycaster.ray.intersectPlane(state.plane, planeIntersectPoint)) {
+      const { axisDirection: axisDir, axisOrigin, objectId, pointerId } = state;
+      if (pointerId !== undefined && pointerId !== event.pointerId) {
+        console.log("[stretch/pointerMove] pointerId mismatch (ignoring)", {
+          expected: pointerId,
+          received: event.pointerId,
+        });
+        // Relaxed check: just ignore other pointers
+        // requestFinish("pointer-id-mismatch");
         return;
       }
-      const delta = state.planeNormal
-        .clone()
-        .dot(planeIntersectPoint.clone().sub(state.startPoint));
+      const axisOffset = computeAxisOffsetFromRay(
+        raycaster.ray,
+        axisOrigin,
+        axisDir
+      );
+      if (typeof axisOffset !== "number" || Number.isNaN(axisOffset)) {
+        return;
+      }
+      const delta = axisOffset - state.startAxisOffset;
+      console.log("[stretch/pointerMove] details", {
+        buttons: event.buttons,
+        pointerId: event.pointerId,
+        axisOffset,
+        startAxisOffset: state.startAxisOffset,
+        delta,
+        axisDir: axisDir.toArray(),
+        axisOrigin: axisOrigin.toArray(),
+      });
       applyStretchDelta(delta);
     },
-    [applyStretchDelta, camera, gl, planeIntersectPoint, pointerNdc, raycaster]
+    [
+      applyStretchDelta,
+      computeAxisOffsetFromRay,
+      gl,
+      pointerNdc,
+      raycaster,
+      requestFinish,
+    ]
   );
 
   const finishStretch = useCallback(() => {
     if (!stretchStateRef.current) return;
     window.removeEventListener("pointermove", handleStretchPointerMove);
-    window.removeEventListener("pointerup", finishStretch);
+    window.removeEventListener("pointerup", handleWindowPointerUp);
+    window.removeEventListener("pointercancel", handleWindowPointerCancel);
+    window.removeEventListener("blur", handleWindowBlur);
+    console.log("[stretch/finish]", {
+      part: stretchStateRef.current?.objectId,
+      face: stretchStateRef.current?.faceName,
+    });
+    const captureTarget = stretchStateRef.current?.pointerCaptureTarget;
+    const pointerId = stretchStateRef.current?.pointerId;
+    if (captureTarget && typeof captureTarget.releasePointerCapture === "function" && pointerId !== undefined) {
+      try {
+        captureTarget.releasePointerCapture(pointerId);
+        console.log("[stretch/finish] releasePointerCapture", { pointerId });
+      } catch (releaseError) {
+        console.warn("[stretch/finish] failed to release pointer capture", releaseError);
+      }
+    }
     stretchStateRef.current = null;
     setUiLock(false);
     setObj((prev) => {
@@ -356,45 +483,117 @@ const applyRotationSnap = useCallback(
       }
       return { ...prev, connectors: [] };
     });
-  }, [handleStretchPointerMove, setObj]);
+  }, [handleStretchPointerMove, handleWindowBlur, handleWindowPointerCancel, handleWindowPointerUp, setObj]);
+
+  useEffect(() => {
+    finishStretchRef.current = finishStretch;
+  }, [finishStretch]);
 
   useEffect(() => {
     return () => {
+      console.log("[stretch/cleanup] removing listeners");
       window.removeEventListener("pointermove", handleStretchPointerMove);
-      window.removeEventListener("pointerup", finishStretch);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerCancel);
+      window.removeEventListener("blur", handleWindowBlur);
     };
-  }, [finishStretch, handleStretchPointerMove]);
+  }, [handleStretchPointerMove, handleWindowBlur, handleWindowPointerCancel, handleWindowPointerUp]);
 
   const beginStretch = useCallback(
     (faceName, faceDetails, event) => {
-      if (stretchStateRef.current || !faceDetails || isEmbedded) return;
+      if (stretchStateRef.current) {
+        console.log("[stretch/begin] aborted: existing session, forcing finish");
+        requestFinish("begin-stale-session");
+        if (stretchStateRef.current) {
+          return;
+        }
+      }
+      if (!faceDetails) {
+        console.log("[stretch/begin] aborted: no faceDetails");
+        return;
+      }
+      if (isEmbedded) {
+        console.log("[stretch/begin] aborted: embedded part");
+        return;
+      }
       const axisInfo = getStretchAxisInfo(obj, faceName);
-      if (!axisInfo) return;
-      const planeNormal = new THREE.Vector3(...(faceDetails.normal || [0, 0, 1])).normalize();
-      const planePoint = new THREE.Vector3(...(faceDetails.center || [0, 0, 0]));
-      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
-        planeNormal.clone(),
-        planePoint
+      if (!axisInfo) {
+        console.log("[stretch/begin] aborted: axisInfo missing");
+        return;
+      }
+      const axisDirection = new THREE.Vector3(...(faceDetails.normal || [0, 0, 1])).normalize();
+      const axisOrigin = new THREE.Vector3(...(faceDetails.center || [0, 0, 0]));
+      const startPosVec = new THREE.Vector3(
+        ...(Array.isArray(obj.pos) ? obj.pos : [0, 0, 0])
       );
-      const startPoint = new THREE.Vector3();
-      if (!event.ray.intersectPlane(plane, startPoint)) {
+      const startAxisOffset = computeAxisOffsetFromRay(
+        event.ray,
+        axisOrigin,
+        axisDirection
+      );
+      if (typeof startAxisOffset !== "number" || Number.isNaN(startAxisOffset)) {
+        console.log("[stretch/begin] aborted: invalid axis offset", {
+          rayOrigin: event.ray.origin.toArray(),
+          rayDir: event.ray.direction.toArray(),
+          axisOrigin: axisOrigin.toArray(),
+          axisDir: axisDirection.toArray(),
+        });
         return;
       }
       stretchStateRef.current = {
         faceName,
-        plane,
-        planeNormal,
+        axisDirection,
+        axisOrigin,
+        objectId: obj?.id ?? obj?.name ?? "unknown",
         axisInfo,
-        startPoint,
+        startAxisOffset,
         startDims: { ...(obj.dims || {}) },
-        startPos: Array.isArray(obj.pos) ? [...obj.pos] : [0, 0, 0],
+        startPosVec,
+        lastDelta: 0,
+        pointerId: event.pointerId,
+        pointerCaptureTarget:
+          event.target && typeof event.target.setPointerCapture === "function"
+            ? event.target
+            : null,
       };
+      if (stretchStateRef.current.pointerCaptureTarget) {
+        try {
+          stretchStateRef.current.pointerCaptureTarget.setPointerCapture(event.pointerId);
+          console.log("[stretch/begin] setPointerCapture", {
+            pointerId: event.pointerId,
+            target: stretchStateRef.current.pointerCaptureTarget,
+          });
+        } catch (captureError) {
+          console.warn("[stretch/begin] failed to capture pointer", captureError);
+          stretchStateRef.current.pointerCaptureTarget = null;
+        }
+      }
+      console.log("[stretch/begin] started", {
+        part: obj?.id,
+        face: faceName,
+        axisOrigin: axisOrigin.toArray(),
+        axisDir: axisDirection.toArray(),
+        startAxisOffset,
+        pointerId: event.pointerId,
+      });
       setHoveredFace(faceName);
       setUiLock(true);
       window.addEventListener("pointermove", handleStretchPointerMove);
-      window.addEventListener("pointerup", finishStretch);
+      window.addEventListener("pointerup", handleWindowPointerUp);
+      window.addEventListener("pointercancel", handleWindowPointerCancel);
+      window.addEventListener("blur", handleWindowBlur);
     },
-    [finishStretch, handleStretchPointerMove, isEmbedded, obj, setHoveredFace]
+    [
+      computeAxisOffsetFromRay,
+      handleStretchPointerMove,
+      handleWindowBlur,
+      handleWindowPointerCancel,
+      handleWindowPointerUp,
+      isEmbedded,
+      obj,
+      setHoveredFace,
+      requestFinish,
+    ]
   );
 
 
@@ -1064,20 +1263,6 @@ useEffect(() => {
         resolvedFace = IO_CUTOUT_FACE;
       }
 
-      console.log("[face-hover:raw]", {
-        part: obj?.name || obj.id,
-        face: resolvedFace,
-        hoverLocal: localPoint.toArray(),
-        clamped,
-        dims: { width, height, depth },
-        worldOrigin: worldPos.toArray(),
-        invQuat: invQuat.toArray?.() ?? null,
-        rayOrigin: event.ray.origin.toArray?.() ?? null,
-        rayDir: event.ray.direction.toArray?.() ?? null,
-        objectPos: Array.isArray(obj.pos) ? obj.pos : null,
-        objectRot: Array.isArray(obj.rot) ? obj.rot : null,
-      });
-
       setHoveredFace(resolvedFace);
     },
     [alignMode, mode, obj]
@@ -1191,7 +1376,7 @@ useEffect(() => {
         )}
       </group>
 
-      {selected && !isEmbedded && showTransformControls && (
+      {selected && !isEmbedded && showTransformControls && mode !== "scale" && (
         <TransformControls
           ref={controlsRef}
           object={groupRef.current}
@@ -1208,7 +1393,6 @@ useEffect(() => {
             ];
             r = applyRotationSnap(r);
             updateDuringDrag();
-            setObj((prev) => ({ ...prev, pos: p, rot: r }));
           }}
           onMouseDown={() => {
             startDrag();
@@ -1361,6 +1545,7 @@ useEffect(() => {
               >
                 <option value="translate">Move</option>
                 <option value="rotate">Rotate</option>
+                <option value="scale">Stretch</option>
               </select>
             </div>
 

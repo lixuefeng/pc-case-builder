@@ -263,7 +263,13 @@ export const useStore = create((set) => {
         };
       }),
 
-    setSelectedIds: (newSelectedIds) => set({ selectedIds: newSelectedIds }),
+    setSelectedIds: (updater) =>
+      set((state) => ({
+        selectedIds:
+          typeof updater === "function"
+            ? updater(state.selectedIds)
+            : updater,
+      })),
   };
 });
 

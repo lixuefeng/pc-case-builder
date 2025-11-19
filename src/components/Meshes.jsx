@@ -191,6 +191,7 @@ export function GPUMesh({ obj, selected }) {
   );
 }
 
+
 export function GroupMesh({ obj, selected }) {
   return (
     <group userData={{ objectId: obj.id }}>
@@ -209,7 +210,7 @@ export function GroupMesh({ obj, selected }) {
         />
       </mesh>
       {obj.children.map((child) => (
-        <group key={child.id} position={child.pos}>
+        <group key={child.id} position={child.pos} rotation={child.rot}>
           <PartBox obj={child} selected={false} />
         </group>
       ))}

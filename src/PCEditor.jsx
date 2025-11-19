@@ -267,10 +267,28 @@ const [pendingConnector, setPendingConnector] = useState(null);
     const group = objects.find((o) => o.id === lastSelectedId && o.type === "group");
     if (!group) return;
 
-    const children = group.children.map((child) => ({
-      ...child,
-      pos: [child.pos[0] + group.pos[0], child.pos[1] + group.pos[1], child.pos[2] + group.pos[2]],
-    }));
+    const groupPos = new THREE.Vector3(...group.pos);
+    const groupRot = new THREE.Euler(...(group.rot || [0, 0, 0]));
+    const groupQuat = new THREE.Quaternion().setFromEuler(groupRot);
+
+    const children = group.children.map((child) => {
+      const childPos = new THREE.Vector3(...child.pos);
+      const childRot = new THREE.Euler(...(child.rot || [0, 0, 0]));
+      const childQuat = new THREE.Quaternion().setFromEuler(childRot);
+
+      // Apply group rotation to child position
+      const worldPos = childPos.applyQuaternion(groupQuat).add(groupPos);
+
+      // Combine rotations
+      const worldQuat = groupQuat.multiply(childQuat);
+      const worldEuler = new THREE.Euler().setFromQuaternion(worldQuat);
+
+      return {
+        ...child,
+        pos: worldPos.toArray(),
+        rot: [worldEuler.x, worldEuler.y, worldEuler.z],
+      };
+    });
 
     setObjects((prev) => [...prev.filter((o) => o.id !== group.id), ...children]);
     setSelectedIds(children.map((c) => c.id));

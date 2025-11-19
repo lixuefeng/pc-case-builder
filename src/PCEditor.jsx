@@ -105,7 +105,7 @@ const [pendingConnector, setPendingConnector] = useState(null);
     return () => clearTimeout(timer);
   }, [connectorToast]);
 
-  const alignEnabled = transformMode === "translate" && selectedIds.length > 0;
+  const alignEnabled = (transformMode === "translate" || transformMode === "scale") && selectedIds.length > 0;
 
   useEffect(() => {
     if (!alignEnabled) {
@@ -433,7 +433,7 @@ const [pendingConnector, setPendingConnector] = useState(null);
         setPendingAlignFace(faceInfo);
         setConnectorToast({
           type: "info",
-          text: "已选中目标面。再选择另一个面即可完成对齐。",
+          text: "已选中要移动/调整的面。再选择对齐目标面。",
         });
         return;
       }
@@ -447,8 +447,8 @@ const [pendingConnector, setPendingConnector] = useState(null);
         return;
       }
 
-      const anchorObj = expandedObjects.find((obj) => obj.id === pendingAlignFace.partId);
-      const movingObj = expandedObjects.find((obj) => obj.id === faceInfo.partId);
+      const movingObj = expandedObjects.find((obj) => obj.id === pendingAlignFace.partId);
+      const anchorObj = expandedObjects.find((obj) => obj.id === faceInfo.partId);
       if (!anchorObj || !movingObj) {
         setPendingAlignFace(null);
         return;
@@ -467,8 +467,8 @@ const [pendingConnector, setPendingConnector] = useState(null);
         return;
       }
 
-      const anchorTransform = computeFaceTransform(anchorObj, pendingAlignFace.face);
-      const movingTransform = computeFaceTransform(movingObj, faceInfo.face);
+      const movingTransform = computeFaceTransform(movingObj, pendingAlignFace.face);
+      const anchorTransform = computeFaceTransform(anchorObj, faceInfo.face);
       if (!anchorTransform || !movingTransform) {
         setPendingAlignFace(null);
         return;
@@ -488,17 +488,58 @@ const [pendingConnector, setPendingConnector] = useState(null);
       const delta = direction.dot(
         anchorTransform.center.clone().sub(movingTransform.center)
       );
-      const newPos = new THREE.Vector3(
-        movingObj.pos?.[0] ?? 0,
-        movingObj.pos?.[1] ?? 0,
-        movingObj.pos?.[2] ?? 0
-      ).add(direction.multiplyScalar(delta));
 
-      setObjects((prev) =>
-        prev.map((obj) =>
-          obj.id === movingObj.id ? { ...obj, pos: [newPos.x, newPos.y, newPos.z] } : obj
-        )
-      );
+      if (transformMode === "scale") {
+        // Stretch Alignment Logic
+        const getStretchAxisInfo = (obj, faceName) => {
+          if (!faceName || faceName.length < 2) return null;
+          const axis = faceName[1];
+          const dimKey = obj?.type === "gpu" 
+            ? (axis === "X" ? "d" : axis === "Z" ? "w" : "h")
+            : (axis === "X" ? "w" : axis === "Y" ? "h" : "d");
+          return { dimKey };
+        };
+
+        const axisInfo = getStretchAxisInfo(movingObj, pendingAlignFace.face);
+        if (!axisInfo) {
+             setConnectorToast({ type: "warning", text: "无法调整该方向的尺寸。" });
+             setPendingAlignFace(null);
+             return;
+        }
+
+        const currentSize = movingObj.dims[axisInfo.dimKey];
+        let newSize = currentSize + delta;
+        if (newSize < 1) newSize = 1;
+        const appliedDelta = newSize - currentSize;
+        
+        const offset = direction.clone().multiplyScalar(appliedDelta / 2);
+        const newPos = new THREE.Vector3(...movingObj.pos).add(offset);
+
+        setObjects((prev) =>
+          prev.map((obj) =>
+            obj.id === movingObj.id
+              ? {
+                  ...obj,
+                  pos: [newPos.x, newPos.y, newPos.z],
+                  dims: { ...obj.dims, [axisInfo.dimKey]: newSize },
+                }
+              : obj
+          )
+        );
+      } else {
+        // Translate Alignment Logic
+        const newPos = new THREE.Vector3(
+          movingObj.pos?.[0] ?? 0,
+          movingObj.pos?.[1] ?? 0,
+          movingObj.pos?.[2] ?? 0
+        ).add(direction.multiplyScalar(delta));
+
+        setObjects((prev) =>
+          prev.map((obj) =>
+            obj.id === movingObj.id ? { ...obj, pos: [newPos.x, newPos.y, newPos.z] } : obj
+          )
+        );
+      }
       setSelectedIds([movingObj.id]);
       setPendingAlignFace(null);
       setConnectorToast({

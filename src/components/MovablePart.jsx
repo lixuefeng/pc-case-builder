@@ -443,6 +443,19 @@ const applyRotationSnap = useCallback(
         axisDir: axisDir.toArray(),
         axisOrigin: axisOrigin.toArray(),
       });
+      // Check for drag threshold to distinguish click from drag
+      if (!state.hasTriggeredDrag) {
+        const dist = Math.sqrt(
+          Math.pow(event.clientX - state.startScreenPos.x, 2) +
+          Math.pow(event.clientY - state.startScreenPos.y, 2)
+        );
+        if (dist < 5) {
+          // Hasn't moved enough to count as drag
+          return;
+        }
+        state.hasTriggeredDrag = true;
+      }
+
       applyStretchDelta(delta);
     },
     [
@@ -475,8 +488,19 @@ const applyRotationSnap = useCallback(
         console.warn("[stretch/finish] failed to release pointer capture", releaseError);
       }
     }
+    const wasDrag = stretchStateRef.current?.hasTriggeredDrag;
+    const faceName = stretchStateRef.current?.faceName;
+    const objectId = stretchStateRef.current?.objectId;
+
     stretchStateRef.current = null;
     setUiLock(false);
+    
+    // If it wasn't a drag, treat it as a click (pick face)
+    if (!wasDrag && onFacePick && faceName && objectId) {
+       console.log("[stretch/finish] treated as click", { objectId, faceName });
+       onFacePick({ partId: objectId, face: faceName });
+    }
+
     setObj((prev) => {
       if (!Array.isArray(prev.connectors) || prev.connectors.length === 0) {
         return prev;
@@ -555,6 +579,8 @@ const applyRotationSnap = useCallback(
           event.target && typeof event.target.setPointerCapture === "function"
             ? event.target
             : null,
+        hasTriggeredDrag: false, // New flag to track if actual drag occurred
+        startScreenPos: { x: event.clientX, y: event.clientY }, // Track start screen pos
       };
       if (stretchStateRef.current.pointerCaptureTarget) {
         try {
@@ -1309,6 +1335,14 @@ useEffect(() => {
             return;
           }
           if (alignMode && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
+            // onFacePick?.({ partId: obj.id, face: hoveredFace });
+            // onSelect?.(obj.id, false);
+            // return;
+            // In scale mode, we let beginStretch handle the click-vs-drag decision
+            if (mode === "scale") {
+               beginStretch(hoveredFace, hoveredFaceDetails, e);
+               return;
+            }
             onFacePick?.({ partId: obj.id, face: hoveredFace });
             onSelect?.(obj.id, false);
             return;

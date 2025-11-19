@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import Scene from "./components/Scene";
-import AddObjectForm from "./components/UI/AddObjectForm";
-import ObjectsList from "./components/UI/ObjectsList"; // group/ungroup buttons relocated from ControlsPanel
-import FrameBuilderPanel from "./components/UI/FrameBuilderPanel";
-import ConnectorEditor from "./components/UI/ConnectorEditor";
-import ProjectPanel from "./components/UI/ProjectPanel";
-import SceneSettingsPanel from "./components/UI/SceneSettingsPanel";
+import TopBar from "./components/UI/TopBar";
+import LeftSidebar from "./components/UI/LeftSidebar";
+import RightSidebar from "./components/UI/RightSidebar";
+import ViewportHUD from "./components/UI/ViewportHUD";
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
 import { ensureSceneConnectors } from "./utils/connectors";
@@ -89,13 +87,20 @@ export default function PCEditor() {
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const [connectorToast, setConnectorToast] = useState(null);
   const [activeConnectorId, setActiveConnectorId] = useState(null);
-const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
-const [transformMode, setTransformMode] = useState("translate");
-const [pendingAlignFace, setPendingAlignFace] = useState(null);
-const [showGizmos, setShowGizmos] = useState(true);
-const [pendingConnector, setPendingConnector] = useState(null);
+  const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
+  const [transformMode, setTransformMode] = useState("translate");
+  const [pendingAlignFace, setPendingAlignFace] = useState(null);
+  const [showGizmos, setShowGizmos] = useState(true);
+  const [pendingConnector, setPendingConnector] = useState(null);
+  const [snapEnabled, setSnapEnabled] = useState(false); // New snap state
+
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
+
+  const selectedObject = useMemo(
+    () => objects.find((o) => o.id === selectedIds[selectedIds.length - 1]),
+    [objects, selectedIds]
+  );
 
   useEffect(() => {
     if (!connectorToast) {
@@ -215,7 +220,7 @@ const [pendingConnector, setPendingConnector] = useState(null);
     }
   };
   const lastSelectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
-  const selectedObject = objects.find((o) => o.id === lastSelectedId);
+
 
   const handleGroup = () => {
     if (selectedIds.length <= 1) return;
@@ -734,144 +739,81 @@ const [pendingConnector, setPendingConnector] = useState(null);
     }
   }, [objects, setObjects]);
 
-  useEffect(() => {
-    if (!selectedObject) {
-      setActiveConnectorId(null);
-    }
-  }, [selectedObject]);
+  const handleDelete = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    setObjects((prev) => prev.filter((o) => !selectedIds.includes(o.id)));
+    setSelectedIds([]);
+  }, [selectedIds, setObjects, setSelectedIds]);
+
+
 
   return (
-    <div style={{ display: "flex", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
-      {/* Left Panel */}
-      <div style={{ flex: "0 0 420px", width: 420, padding: 16, overflowY: "auto", background: "rgba(255,255,255,0.96)", borderRight: "1px solid #e5e7eb" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <AddObjectForm onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
-          <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
-          {selectedObject && (
-            <ConnectorEditor
-              object={selectedObject}
-              activeConnectorId={activeConnectorId}
-              onSelectConnector={setActiveConnectorId}
-              onApplyOrientation={handleApplyConnectorOrientation}
-            />
-          )}
-          {connectorToast && (
-            <div
-              style={{
-                padding: "10px 12px",
-                borderRadius: 10,
-                border:
-                  connectorToast.type === "success"
-                    ? "1px solid #34d399"
-                    : connectorToast.type === "warning"
-                    ? "1px solid #fbbf24"
-                    : "1px solid #60a5fa",
-                background:
-                  connectorToast.type === "success"
-                    ? "rgba(52, 211, 153, 0.16)"
-                    : connectorToast.type === "warning"
-                    ? "rgba(251, 191, 36, 0.18)"
-                    : "rgba(96, 165, 250, 0.16)",
-                color:
-                  connectorToast.type === "success"
-                    ? "#064e3b"
-                    : connectorToast.type === "warning"
-                    ? "#78350f"
-                    : "#1e3a8a",
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
-              {connectorToast.text}
-            </div>
-          )}
-          {alignEnabled && pendingAlignFace && (
-            <div style={{ fontSize: 12, color: "#475569" }}>
-              目标面：{pendingAlignFace.face} · {pendingAlignFace.partId}
-            </div>
-          )}
-          <button
-            onClick={() => setShowGizmos((prev) => !prev)}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 8,
-              background: showGizmos ? "#0ea5e9" : "#94a3b8",
-              color: "#fff",
-              fontWeight: 600,
-              border: "1px solid transparent",
-              cursor: "pointer",
-            }}
-          >
-            {showGizmos ? "关闭变换控件" : "开启变换控件"}
-          </button>
-          <ProjectPanel onExport={handleExport} onImport={handleImport} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={undo}
-              disabled={past.length === 0}
-              style={{
-                flex: 1,
-                padding: "8px 12px",
-                borderRadius: 8,
-                background: past.length === 0 ? "#e5e7eb" : "#2563eb",
-                color: past.length === 0 ? "#9ca3af" : "#fff",
-                border: "1px solid #1d4ed8",
-                cursor: past.length === 0 ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
-            >
-              撤销 (Undo)
-            </button>
-            <button
-              onClick={redo}
-              disabled={future.length === 0}
-              style={{
-                flex: 1,
-                padding: "8px 12px",
-                borderRadius: 8,
-                background: future.length === 0 ? "#e5e7eb" : "#2563eb",
-                color: future.length === 0 ? "#9ca3af" : "#fff",
-                border: "1px solid #1d4ed8",
-                cursor: future.length === 0 ? "not-allowed" : "pointer",
-                fontWeight: 600,
-              }}
-            >
-              重做 (Redo)
-            </button>
-          </div>
-          <ObjectsList
-            objects={objects}
-            setObjects={setObjects}
-            selectedIds={selectedIds}
-            onSelect={handleSelect}
-            onGroup={handleGroup}
-            onUngroup={handleUngroup}
-            onDuplicate={handleDuplicate}
-          />
-          <button onClick={() => exportSTLFrom(window.__lastThreeRoot)} style={{ padding: "8px 12px", borderRadius: 8, background: "#2563eb", color: "white", fontWeight: 600 }}>导出 STL</button>
-        </div>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
+      {/* Top Bar */}
+      <TopBar
+        onImport={handleImport}
+        onExport={handleExport}
+        undo={undo}
+        redo={redo}
+        canUndo={past.length > 0}
+        canRedo={future.length > 0}
+        transformMode={transformMode}
+        setTransformMode={setTransformMode}
+        showGrid={showHorizontalGrid}
+        setShowGrid={setShowHorizontalGrid}
+        showGizmos={showGizmos}
+        setShowGizmos={setShowGizmos}
+        snapEnabled={snapEnabled}
+        setSnapEnabled={setSnapEnabled}
+      />
 
-      {/* Right 3D Area */}
-      <div style={{ flex: 1, position: "relative" }}>
-        <SceneSettingsPanel
-          showHorizontalGrid={showHorizontalGrid}
-          onToggleHorizontalGrid={() => setShowHorizontalGrid((prev) => !prev)}
-        />
-        <Scene
-          objects={expandedObjects}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {/* Left Sidebar */}
+        <LeftSidebar
+          objects={objects}
           setObjects={setObjects}
           selectedIds={selectedIds}
           onSelect={handleSelect}
-          connections={connections}
-          showHorizontalGrid={showHorizontalGrid}
-          alignMode={alignEnabled}
-          onFacePick={handleFacePick}
-          onConnectorPick={handleConnectorPick}
-          activeAlignFace={pendingAlignFace}
-          transformMode={transformMode}
-          onChangeTransformMode={setTransformMode}
-          showTransformControls={showGizmos}
+          onGroup={handleGroup}
+          onUngroup={handleUngroup}
+          onDuplicate={handleDuplicate}
+        />
+
+        {/* Main Viewport */}
+        <div style={{ flex: 1, position: "relative" }}>
+          <Scene
+            objects={expandedObjects}
+            setObjects={setObjects}
+            selectedIds={selectedIds}
+            onSelect={handleSelect}
+            connections={connections}
+            showHorizontalGrid={showHorizontalGrid}
+            alignMode={alignEnabled}
+            onFacePick={handleFacePick}
+            onConnectorPick={handleConnectorPick}
+            activeAlignFace={pendingAlignFace}
+            transformMode={transformMode}
+            onChangeTransformMode={setTransformMode}
+            showTransformControls={showGizmos}
+            snapEnabled={snapEnabled}
+          />
+          <ViewportHUD
+            connectorToast={connectorToast}
+            pendingAlignFace={pendingAlignFace}
+          />
+        </div>
+
+        {/* Right Sidebar */}
+        <RightSidebar
+          selectedObject={selectedObject}
+          setObjects={setObjects}
+          activeConnectorId={activeConnectorId}
+          setActiveConnectorId={setActiveConnectorId}
+          onApplyConnectorOrientation={handleApplyConnectorOrientation}
+          onGroup={handleGroup}
+          onUngroup={handleUngroup}
+          onDuplicate={handleDuplicate}
+          onDelete={handleDelete}
         />
       </div>
     </div>

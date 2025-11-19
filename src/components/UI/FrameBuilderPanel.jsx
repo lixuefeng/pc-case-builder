@@ -2,13 +2,7 @@
 import React, { useState } from "react";
 
 // 从 AddObjectForm 借用样式
-const card = {
-  border: "1px solid #e5e7eb",
-  borderRadius: 16,
-  background: "rgba(255,255,255,0.96)",
-  boxShadow: "0 10px 25px rgba(0,0,0,.08)",
-  padding: 16,
-};
+
 const labelSm = { color: "#64748b", fontSize: 12, marginBottom: 6 };
 const input = {
   width: "100%",
@@ -59,8 +53,8 @@ export default function FrameBuilderPanel({ onAdd }) {
   };
 
   return (
-    <div style={card}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
+    <div style={{ padding: "0 4px" }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>
         制作机箱零件
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginTop: 6 }}>

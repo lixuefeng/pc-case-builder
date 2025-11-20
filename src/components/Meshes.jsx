@@ -157,9 +157,9 @@ export function GPUMesh({ obj, selected }) {
   const pcbPosition = [
     pcbLeft + pcbLayout.width / 2,
     -dims.d / 2 +
-      GPU_PCB_SPEC.widthClearance.inner +
-      GPU_PCB_SPEC.sideInset +
-      pcbLayout.width / 2,
+    GPU_PCB_SPEC.widthClearance.inner +
+    GPU_PCB_SPEC.sideInset +
+    pcbLayout.width / 2,
     -dims.h / 2 + pcbLayout.thickness / 2 + GPU_PCB_SPEC.heightLift,
     -dims.w / 2 + GPU_PCB_SPEC.depthOffsets.front + pcbLayout.depth / 2,
   ];
@@ -173,7 +173,7 @@ export function GPUMesh({ obj, selected }) {
 
       {bracketGeometry && (
         //<mesh geometry={bracketGeometry} position={bracketPosition}>
-        <mesh geometry={bracketGeometry} position={bracketPosition} rotation={[0 , 0, -Math.PI/2]}>
+        <mesh geometry={bracketGeometry} position={bracketPosition} rotation={[0, 0, -Math.PI / 2]}>
           <meshStandardMaterial color="#9ca3af" metalness={0.55} roughness={0.32} />
         </mesh>
       )}
@@ -288,3 +288,22 @@ export function ImportedMesh({ obj, selected }) {
 
 
 
+export function ReferenceMesh({ obj, selected }) {
+  const { dims, color } = obj;
+  // Cylinder: radiusTop, radiusBottom, height, radialSegments
+  const radius = (dims.w || 66) / 2;
+  const height = dims.h || 115;
+
+  return (
+    <group userData={{ objectId: obj.id }}>
+      <mesh>
+        <cylinderGeometry args={[radius, radius, height, 32]} />
+        <meshStandardMaterial
+          color={selected ? "#ef4444" : color || "#ef4444"}
+          metalness={0.6}
+          roughness={0.3}
+        />
+      </mesh>
+    </group>
+  );
+}

@@ -220,9 +220,9 @@ export const PRESETS = {
   motherboard: [
     (() => {
       const preset = {
-      key: "itx",
-      label: "ITX 170×170",
-      dims: { w: 170, h: 2, d: 170 },
+        key: "itx",
+        label: "ITX 170×170",
+        dims: { w: 170, h: 2, d: 170 },
         meta: {
           presetKey: "itx",
           holeMap: ITX_HOLES_MM,
@@ -337,6 +337,16 @@ export const PRESETS = {
   ],
   box: [
     { key: "cube50", label: "Box 50×50×50", dims: { w: 50, h: 50, d: 50 } },
+  ],
+  reference: [
+    {
+      key: "coke-can",
+      label: "Coke Can (330ml)",
+      dims: { w: 66, h: 115, d: 66 },
+      color: "#ef4444",
+      meta: { type: "reference" },
+      connectors: [],
+    },
   ],
 };
 

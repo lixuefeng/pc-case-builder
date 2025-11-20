@@ -1,10 +1,15 @@
+
 // components/MovablePart.jsx — 选中/移动/旋转 + HUD（旋转安全的高亮/吸附 + 调试日志）
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-import { MotherboardMesh, GPUMesh, PartBox, GroupMesh, ImportedMesh } from "./Meshes.jsx";
+import {
+  MotherboardMesh, GPUMesh, PartBox, GroupMesh,
+  ImportedMesh,
+  ReferenceMesh,
+} from "./Meshes.jsx";
 import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 
 // === Debug helpers ===
@@ -198,7 +203,7 @@ export default function MovablePart({
   const [hoveredFace, setHoveredFace] = useState(null);
   const stretchStateRef = useRef(null);
   const { gl, camera } = useThree();
-  
+
   // Fix: Stabilize setObj to prevent handleStretchPointerMove from changing and triggering useEffect cleanup
   const setObjRef = useRef(setObj);
   useEffect(() => {
@@ -232,33 +237,33 @@ export default function MovablePart({
     console.log("[stretch/window-blur]");
     requestFinish("window-blur");
   }, [requestFinish]);
-const computeAxisOffsetFromRay = useCallback((ray, axisOrigin, axisDirection) => {
-  if (!ray || !axisOrigin || !axisDirection) {
-    return null;
-  }
-  const w0 = axisOrigin.clone().sub(ray.origin);
-  const rayDir = ray.direction.clone().normalize();
-  const b = axisDirection.dot(rayDir);
-  const d = axisDirection.dot(w0);
-  const e = rayDir.dot(w0);
-  const denom = 1 - b * b;
-  let result;
-  if (Math.abs(denom) < 0.05) {
-    console.log("[stretch/axisOffset] denom too small (parallel view)", denom);
-    return null;
-  } else {
-    result = (b * e - d) / denom;
-  }
-  console.log("[stretch/axisOffset]", {
-    rayOrigin: ray.origin.toArray?.() ?? null,
-    rayDir: rayDir.toArray?.() ?? null,
-    axisOrigin: axisOrigin.toArray?.() ?? null,
-    axisDir: axisDirection.toArray?.() ?? null,
-    denom,
-    result,
-  });
-  return result;
-}, []);
+  const computeAxisOffsetFromRay = useCallback((ray, axisOrigin, axisDirection) => {
+    if (!ray || !axisOrigin || !axisDirection) {
+      return null;
+    }
+    const w0 = axisOrigin.clone().sub(ray.origin);
+    const rayDir = ray.direction.clone().normalize();
+    const b = axisDirection.dot(rayDir);
+    const d = axisDirection.dot(w0);
+    const e = rayDir.dot(w0);
+    const denom = 1 - b * b;
+    let result;
+    if (Math.abs(denom) < 0.05) {
+      console.log("[stretch/axisOffset] denom too small (parallel view)", denom);
+      return null;
+    } else {
+      result = (b * e - d) / denom;
+    }
+    console.log("[stretch/axisOffset]", {
+      rayOrigin: ray.origin.toArray?.() ?? null,
+      rayDir: rayDir.toArray?.() ?? null,
+      axisOrigin: axisOrigin.toArray?.() ?? null,
+      axisDir: axisDirection.toArray?.() ?? null,
+      denom,
+      result,
+    });
+    return result;
+  }, []);
   const isEmbedded = !!obj?.embeddedParentId || obj?.type === "embedded";
 
   useEffect(() => {
@@ -307,18 +312,18 @@ const computeAxisOffsetFromRay = useCallback((ray, axisOrigin, axisDirection) =>
     });
   };
 
-const handleRotChange = (axisIndex, value) => {
-  if (isEmbedded) return;
-  const newRotValueDeg = Number(value) || 0;
-  const newRotValueRad = THREE.MathUtils.degToRad(newRotValueDeg);
-  setObj((prev) => {
+  const handleRotChange = (axisIndex, value) => {
+    if (isEmbedded) return;
+    const newRotValueDeg = Number(value) || 0;
+    const newRotValueRad = THREE.MathUtils.degToRad(newRotValueDeg);
+    setObj((prev) => {
       const newRot = [...prev.rot];
       newRot[axisIndex] = newRotValueRad;
       return { ...prev, rot: newRot };
-  });
-};
+    });
+  };
 
-const applyRotationSnap = useCallback(
+  const applyRotationSnap = useCallback(
     (rotationArray) => {
       if (mode !== "rotate" || !controlsRef.current || !groupRef.current) {
         return rotationArray;
@@ -371,7 +376,7 @@ const applyRotationSnap = useCallback(
       const newPosVec = startPosVec.clone().add(centerOffset);
 
       groupRef.current.position.copy(newPosVec);
-      
+
       // Use ref to avoid dependency change
       setObjRef.current((prev) => ({
         ...prev,
@@ -494,11 +499,11 @@ const applyRotationSnap = useCallback(
 
     stretchStateRef.current = null;
     setUiLock(false);
-    
+
     // If it wasn't a drag, treat it as a click (pick face)
     if (!wasDrag && onFacePick && faceName && objectId) {
-       console.log("[stretch/finish] treated as click", { objectId, faceName });
-       onFacePick({ partId: objectId, face: faceName });
+      console.log("[stretch/finish] treated as click", { objectId, faceName });
+      onFacePick({ partId: objectId, face: faceName });
     }
 
     setObj((prev) => {
@@ -909,12 +914,12 @@ const applyRotationSnap = useCallback(
   };
 
   // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
-const getFaceDetails = ({ obj, ref, faceName }) => {
-  const { p, q } = getWorldTransform({ ref, obj });
-  const dims = obj?.dims || {};
-  const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
-  const height = dims.h ?? 0;
-  const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+  const getFaceDetails = ({ obj, ref, faceName }) => {
+    const { p, q } = getWorldTransform({ ref, obj });
+    const dims = obj?.dims || {};
+    const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+    const height = dims.h ?? 0;
+    const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
     const thickness = 0.2;
     const surfacePadding = 0.02; // 沿面法线轻微外移，避免闪烁
 
@@ -977,26 +982,26 @@ const getFaceDetails = ({ obj, ref, faceName }) => {
       size,
       quaternion: q.clone(),
       normal: worldNormal.toArray(),
+    };
   };
-};
 
-const getStretchAxisInfo = (obj, faceName) => {
-  if (!faceName || faceName.length < 2) return null;
-  const axis = faceName[1];
-  const sign = faceName[0] === "+" ? 1 : -1;
-  let dimKey = null;
-  if (axis === "X") {
-    dimKey = obj?.type === "gpu" ? "d" : "w";
-  } else if (axis === "Y") {
-    dimKey = "h";
-  } else if (axis === "Z") {
-    dimKey = obj?.type === "gpu" ? "w" : "d";
-  }
-  if (!dimKey) return null;
-  return { axis, dimKey, sign };
-};
+  const getStretchAxisInfo = (obj, faceName) => {
+    if (!faceName || faceName.length < 2) return null;
+    const axis = faceName[1];
+    const sign = faceName[0] === "+" ? 1 : -1;
+    let dimKey = null;
+    if (axis === "X") {
+      dimKey = obj?.type === "gpu" ? "d" : "w";
+    } else if (axis === "Y") {
+      dimKey = "h";
+    } else if (axis === "Z") {
+      dimKey = obj?.type === "gpu" ? "w" : "d";
+    }
+    if (!dimKey) return null;
+    return { axis, dimKey, sign };
+  };
 
-const startDrag = () => {
+  const startDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
@@ -1088,8 +1093,8 @@ const startDrag = () => {
         currentDragAxis === 'X'
           ? new THREE.Vector3(1, 0, 0)
           : currentDragAxis === 'Y'
-          ? new THREE.Vector3(0, 1, 0)
-          : new THREE.Vector3(0, 0, 1);
+            ? new THREE.Vector3(0, 1, 0)
+            : new THREE.Vector3(0, 0, 1);
       dlog('axis:fallback-world', { currentDragAxis });
       findBestAlignCandidate(worldDir, currentDragAxis);
     } else {
@@ -1098,16 +1103,16 @@ const startDrag = () => {
     }
   };
 
-const hudInputStyle = {
+  const hudInputStyle = {
     width: 50,
     padding: "4px 6px",
-    border: `1px solid ${t?.border || "#e5e7eb"}`,
+    border: "1px solid #e5e7eb",
     borderRadius: 6,
-    background: t?.inputBg || "#fff",
-    color: t?.inputText || "#111827",
+    background: "#fff",
+    color: "#111827",
     fontSize: 12,
-    outline: 'none',
-    textAlign: 'center',
+    outline: "none",
+    textAlign: "center",
   };
 
   // ✅ 工具：把事件彻底拦下
@@ -1145,11 +1150,11 @@ const hudInputStyle = {
     return { center: center.toArray(), size, quaternion: q };
   }, [bestAlignCandidate]);
 
-useEffect(() => {
-  if (!alignMode && mode !== "scale") {
-    setHoveredFace(null);
-  }
-}, [alignMode, mode]);
+  useEffect(() => {
+    if (!alignMode && mode !== "scale") {
+      setHoveredFace(null);
+    }
+  }, [alignMode, mode]);
 
   const selfHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
@@ -1340,8 +1345,8 @@ useEffect(() => {
             // return;
             // In scale mode, we let beginStretch handle the click-vs-drag decision
             if (mode === "scale") {
-               beginStretch(hoveredFace, hoveredFaceDetails, e);
-               return;
+              beginStretch(hoveredFace, hoveredFaceDetails, e);
+              return;
             }
             onFacePick?.({ partId: obj.id, face: hoveredFace });
             onSelect?.(obj.id, false);
@@ -1359,6 +1364,8 @@ useEffect(() => {
           <GroupMesh obj={obj} selected={selected} />
         ) : obj.type === "imported" ? (
           <ImportedMesh obj={obj} selected={selected} />
+        ) : obj.type === "reference" ? (
+          <ReferenceMesh obj={obj} selected={selected} />
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}
@@ -1534,12 +1541,12 @@ useEffect(() => {
               display: "flex",
               alignItems: "center",
               gap: 12,
-              background: t?.cardBg || "rgba(255,255,255,0.95)",
-              border: `1px solid ${t?.border || "#e5e7eb"}`,
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid #e5e7eb",
               borderRadius: 10,
               padding: "6px 10px",
-              boxShadow: t?.shadow || "0 6px 18px rgba(0,0,0,.12)",
-              color: t?.text || "#111827",
+              boxShadow: "0 6px 18px rgba(0,0,0,.12)",
+              color: "#111827",
               fontSize: 12,
               zIndex: 1000,
             }}
@@ -1550,7 +1557,7 @@ useEffect(() => {
             onPointerMove={eat}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ color: t?.muted || "#64748b" }}>Mode:</span>
+              <span style={{ color: "#64748b" }}>Mode:</span>
               <select
                 value={mode}
                 onChange={(e) => {
@@ -1560,10 +1567,10 @@ useEffect(() => {
                 style={{
                   width: 110,
                   padding: "6px 10px",
-                  border: `1px solid ${t?.border || "#e5e7eb"}`,
+                  border: "1px solid #e5e7eb",
                   borderRadius: 10,
-                  background: t?.inputBg || "#fff",
-                  color: t?.inputText || "#111827",
+                  background: "#fff",
+                  color: "#111827",
                   position: "relative",
                   zIndex: 1001,
                 }}
@@ -1583,34 +1590,34 @@ useEffect(() => {
               </select>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>
-              <span style={{ color: t?.muted || "#64748b" }}>X:</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: "1px solid #e5e7eb", paddingLeft: 12 }}>
+              <span style={{ color: "#64748b" }}>X:</span>
               <input type="number" value={Number(obj.pos[0].toFixed(1))} onChange={(e) => handlePosChange(0, e.target.value)} style={hudInputStyle} />
-              <span style={{ color: t?.muted || "#64748b" }}>Y:</span>
+              <span style={{ color: "#64748b" }}>Y:</span>
               <input type="number" value={Number(obj.pos[1].toFixed(1))} onChange={(e) => handlePosChange(1, e.target.value)} style={hudInputStyle} />
-              <span style={{ color: t?.muted || "#64748b" }}>Z:</span>
+              <span style={{ color: "#64748b" }}>Z:</span>
               <input type="number" value={Number(obj.pos[2].toFixed(1))} onChange={(e) => handlePosChange(2, e.target.value)} style={hudInputStyle} />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>
-              <span style={{ color: t?.muted || "#64748b" }}>Rx:</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: "1px solid #e5e7eb", paddingLeft: 12 }}>
+              <span style={{ color: "#64748b" }}>Rx:</span>
               <input type="number" value={Number(THREE.MathUtils.radToDeg(obj.rot[0]).toFixed(1))} onChange={(e) => handleRotChange(0, e.target.value)} style={hudInputStyle} />
-              <span style={{ color: t?.muted || "#64748b" }}>Ry:</span>
+              <span style={{ color: "#64748b" }}>Ry:</span>
               <input type="number" value={Number(THREE.MathUtils.radToDeg(obj.rot[1]).toFixed(1))} onChange={(e) => handleRotChange(1, e.target.value)} style={hudInputStyle} />
-              <span style={{ color: t?.muted || "#64748b" }}>Rz:</span>
+              <span style={{ color: "#64748b" }}>Rz:</span>
               <input type="number" value={Number(THREE.MathUtils.radToDeg(obj.rot[2]).toFixed(1))} onChange={(e) => handleRotChange(2, e.target.value)} style={hudInputStyle} />
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: `1px solid ${t?.border || "#e5e7eb"}`, paddingLeft: 12 }}>
-              <span style={{ color: t?.muted || "#64748b" }}>W:</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, borderLeft: "1px solid #e5e7eb", paddingLeft: 12 }}>
+              <span style={{ color: "#64748b" }}>W:</span>
               <input type="number" value={obj.dims.w} onChange={(e) => handleDimChange("w", e.target.value)} style={hudInputStyle} />
-              <span style={{ color: t?.muted || "#64748b" }}>H:</span>
+              <span style={{ color: "#64748b" }}>H:</span>
               <input type="number" value={obj.dims.h} onChange={(e) => handleDimChange("h", e.target.value)} style={hudInputStyle} />
-              <span style={{ color: t?.muted || "#64748b" }}>D:</span>
+              <span style={{ color: "#64748b" }}>D:</span>
               <input type="number" value={obj.dims.d} onChange={(e) => handleDimChange("d", e.target.value)} style={hudInputStyle} />
             </div>
 
-            <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", color: t?.subText || "#334155" }}>
+            <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", color: "#334155" }}>
               {/* 如需显示增量可开启：
               Δx:{delta.dx}mm Δy:{delta.dy}mm Δz:{delta.dz}mm | Δα:{delta.rx}° Δβ:{delta.ry}° Δγ:{delta.rz}°
               */}

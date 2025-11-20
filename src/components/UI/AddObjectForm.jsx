@@ -105,7 +105,7 @@ export default function AddObjectForm({ onAdd }) {
       dims: { ...preset.dims },
       pos: [0, preset.dims.h / 2, 0], // place on the ground plane by default
       rot: [0, 0, 0],
-      color: undefined,
+      color: preset.color || undefined,
       visible: true,
       includeInExport: true,
       meta,
@@ -129,6 +129,7 @@ export default function AddObjectForm({ onAdd }) {
           <option value="psu">PSU</option>
           <option value="ram">RAM</option>
           <option value="box">Box</option>
+          <option value="reference">Reference</option>
         </select>
 
         <label style={labelSm}>预设</label>

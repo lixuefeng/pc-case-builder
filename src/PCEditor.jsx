@@ -5,7 +5,7 @@ import Scene from "./components/Scene";
 import TopBar from "./components/UI/TopBar";
 import LeftSidebar from "./components/UI/LeftSidebar";
 import RightSidebar from "./components/UI/RightSidebar";
-import ViewportHUD from "./components/UI/ViewportHUD";
+
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
 import { ensureSceneConnectors } from "./utils/connectors";
@@ -509,7 +509,7 @@ function EditorContent() {
         return;
       }
 
-      const direction = anchorTransform.normal.clone();
+      const direction = movingTransform.normal.clone();
       const delta = direction.dot(
         anchorTransform.center.clone().sub(movingTransform.center)
       );
@@ -519,7 +519,7 @@ function EditorContent() {
         const getStretchAxisInfo = (obj, faceName) => {
           if (!faceName || faceName.length < 2) return null;
           const axis = faceName[1];
-          const dimKey = obj?.type === "gpu" 
+          const dimKey = obj?.type === "gpu"
             ? (axis === "X" ? "d" : axis === "Z" ? "w" : "h")
             : (axis === "X" ? "w" : axis === "Y" ? "h" : "d");
           return { dimKey };
@@ -527,16 +527,16 @@ function EditorContent() {
 
         const axisInfo = getStretchAxisInfo(movingObj, pendingAlignFace.face);
         if (!axisInfo) {
-             setConnectorToast({ type: "warning", text: "无法调整该方向的尺寸。" });
-             setPendingAlignFace(null);
-             return;
+          setConnectorToast({ type: "warning", text: "无法调整该方向的尺寸。" });
+          setPendingAlignFace(null);
+          return;
         }
 
         const currentSize = movingObj.dims[axisInfo.dimKey];
         let newSize = currentSize + delta;
         if (newSize < 1) newSize = 1;
         const appliedDelta = newSize - currentSize;
-        
+
         const offset = direction.clone().multiplyScalar(appliedDelta / 2);
         const newPos = new THREE.Vector3(...movingObj.pos).add(offset);
 
@@ -544,10 +544,10 @@ function EditorContent() {
           prev.map((obj) =>
             obj.id === movingObj.id
               ? {
-                  ...obj,
-                  pos: [newPos.x, newPos.y, newPos.z],
-                  dims: { ...obj.dims, [axisInfo.dimKey]: newSize },
-                }
+                ...obj,
+                pos: [newPos.x, newPos.y, newPos.z],
+                dims: { ...obj.dims, [axisInfo.dimKey]: newSize },
+              }
               : obj
           )
         );
@@ -683,10 +683,10 @@ function EditorContent() {
         prev.map((obj) =>
           obj.id === movingObj.id
             ? {
-                ...obj,
-                pos: [targetPos.x, targetPos.y, targetPos.z],
-                rot: [nextEuler.x, nextEuler.y, nextEuler.z],
-              }
+              ...obj,
+              pos: [targetPos.x, targetPos.y, targetPos.z],
+              rot: [nextEuler.x, nextEuler.y, nextEuler.z],
+            }
             : obj
         )
       );
@@ -799,10 +799,7 @@ function EditorContent() {
             showTransformControls={showGizmos}
             snapEnabled={snapEnabled}
           />
-          <ViewportHUD
-            connectorToast={connectorToast}
-            pendingAlignFace={pendingAlignFace}
-          />
+
         </div>
 
         {/* Right Sidebar */}

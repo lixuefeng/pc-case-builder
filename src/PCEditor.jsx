@@ -5,6 +5,7 @@ import Scene from "./components/Scene";
 import TopBar from "./components/UI/TopBar";
 import LeftSidebar from "./components/UI/LeftSidebar";
 import RightSidebar from "./components/UI/RightSidebar";
+import ConnectorToast from "./components/UI/ConnectorToast";
 
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
@@ -601,11 +602,8 @@ function EditorContent() {
         setSelectedIds([partId]);
         setConnectorToast({
           type: "info",
-          text: `已选中 ${formatPartName(currentObj)} · ${getConnectorLabel(
-            currentObj,
-            connectorId
-          )}`,
-          ttl: 2000,
+          text: `已选中 ${formatPartName(currentObj)} (移动部件)。请选择目标连接点。`,
+          ttl: 4000,
         });
         return;
       }
@@ -615,11 +613,16 @@ function EditorContent() {
         pendingConnector.connectorId === connectorId
       ) {
         setPendingConnector(null);
+        setConnectorToast(null);
         return;
       }
 
-      const anchorObj = objects.find((obj) => obj.id === pendingConnector.partId);
-      const movingObj = objects.find((obj) => obj.id === partId);
+      // Logic Swapped: 
+      // pendingConnector = Source (Moving Part)
+      // current selection (partId) = Target (Anchor Part)
+      const movingObj = objects.find((obj) => obj.id === pendingConnector.partId);
+      const anchorObj = objects.find((obj) => obj.id === partId);
+      
       if (!anchorObj || !movingObj) {
         setPendingConnector(null);
         return;
@@ -634,11 +637,12 @@ function EditorContent() {
         return;
       }
 
-      const anchorTransform = computeConnectorTransform(
-        anchorObj,
+      const movingTransform = computeConnectorTransform(
+        movingObj,
         pendingConnector.connectorId
       );
-      const movingTransform = computeConnectorTransform(movingObj, connectorId);
+      const anchorTransform = computeConnectorTransform(anchorObj, connectorId);
+      
       if (!anchorTransform || !movingTransform) {
         setPendingConnector(null);
         return;
@@ -771,7 +775,7 @@ function EditorContent() {
         setSnapEnabled={setSnapEnabled}
       />
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
         {/* Left Sidebar */}
         <LeftSidebar
           objects={objects}
@@ -805,20 +809,23 @@ function EditorContent() {
         </div>
 
         {/* Right Sidebar */}
-        {/* Right Sidebar */}
         {selectedObject && (
-          <RightSidebar
-            selectedObject={selectedObject}
-            setObjects={setObjects}
-            activeConnectorId={activeConnectorId}
-            setActiveConnectorId={setActiveConnectorId}
-            onApplyConnectorOrientation={handleApplyConnectorOrientation}
-            onGroup={handleGroup}
-            onUngroup={handleUngroup}
-            onDuplicate={handleDuplicate}
-            onDelete={handleDelete}
-          />
+          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 10, height: "100%" }}>
+            <RightSidebar
+              selectedObject={selectedObject}
+              setObjects={setObjects}
+              activeConnectorId={activeConnectorId}
+              setActiveConnectorId={setActiveConnectorId}
+              onApplyConnectorOrientation={handleApplyConnectorOrientation}
+              onGroup={handleGroup}
+              onUngroup={handleUngroup}
+              onDuplicate={handleDuplicate}
+              onDelete={handleDelete}
+            />
+          </div>
         )}
+
+        <ConnectorToast toast={connectorToast} />
       </div>
     </div>
   );

@@ -13,4 +13,6 @@ Main features:
 3. cusotmize connector
 4. cut object (make holes)
 5. round corner
-6. 
+6. preset pc build
+7. database - backend for part sharing
+8. 

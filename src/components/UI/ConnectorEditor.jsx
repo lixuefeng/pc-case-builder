@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const cardStyle = {
   border: "1px solid #e5e7eb",
@@ -89,6 +90,7 @@ export default function ConnectorEditor({
   onSelectConnector,
   onApplyOrientation,
 }) {
+  const { t } = useLanguage();
   const connectors = useMemo(
     () => (object?.connectors || []).filter((connector) => connector && connector.id),
     [object?.connectors]
@@ -149,12 +151,12 @@ export default function ConnectorEditor({
       {object && ( // ConnectorEditor panel only shows when an object is selected
         <div style={cardStyle}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
-            {object.name || '零件'} 设置
+            {object.name || t("label.part")} {t("label.settings")}
           </div>
           
       {connectors.length === 0 && (
         <div style={{ fontSize: 12, color: "#94a3b8" }}>
-          该零件当前没有定义任何连接点。
+          {t("label.noConnectors")}
         </div>
       )}
 
@@ -225,7 +227,7 @@ export default function ConnectorEditor({
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
             <button style={btnStyle} onClick={handleApply}>
-              更新方向
+              {t("action.updateOrientation")}
             </button>
           </div>
         </>

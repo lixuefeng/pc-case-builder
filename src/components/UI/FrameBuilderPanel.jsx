@@ -1,5 +1,6 @@
 // components/UI/FrameBuilderPanel.jsx — 创建机箱零件
 import React, { useState } from "react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 // 从 AddObjectForm 借用样式
 
@@ -33,6 +34,7 @@ const Btn = ({ children, onClick }) => (
 );
 
 export default function FrameBuilderPanel({ onAdd }) {
+  const { t } = useLanguage();
   const [dims, setDims] = useState({ w: 100, h: 20, d: 20 });
 
   const handleAdd = () => {
@@ -55,7 +57,7 @@ export default function FrameBuilderPanel({ onAdd }) {
   return (
     <div style={{ padding: "0 4px" }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>
-        制作机箱零件
+        {t("frame.title")}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginTop: 6 }}>
         <div style={{ gridColumn: "span 1", alignSelf: "center", ...labelSm }}>W</div>

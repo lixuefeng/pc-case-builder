@@ -62,6 +62,10 @@ export const translations = {
         "toast.cantStretch": "无法调整该方向的尺寸。",
         "toast.selectDifferentConnector": "请选择不同零件的连接点。",
         "type.cpuCooler": "CPU 散热器",
+        "label.noConnectors": "该零件当前没有定义任何连接点。",
+        "action.updateOrientation": "更新方向",
+        "label.settings": "设置",
+        "label.part": "零件",
     },
     en: {
         "app.title": "PC Case Builder",
@@ -126,5 +130,9 @@ export const translations = {
         "toast.cantStretch": "Cannot stretch in this direction.",
         "toast.selectDifferentConnector": "Please select a connector on a different part.",
         "type.cpuCooler": "CPU Cooler",
+        "label.noConnectors": "No connectors defined for this part.",
+        "action.updateOrientation": "Update Orientation",
+        "label.settings": "Settings",
+        "label.part": "Part",
     }
 };

@@ -1,0 +1,16 @@
+Bug fixes:
+1. still some of the components are not translated correctly for example: 制作机箱零件 该零件当前没有定义任何连接点。
+2. when right panel pop up or disappear, the main gride would jump left or right. that's bad expreience.
+3. pc part: box is not needed
+4. GPU bottom clearence is not right, too low
+5. after introduce panel hide, assembly is not working
+6. 
+
+
+Main features:
+1. automatically add screw holes
+2. motherboard riser
+3. cusotmize connector
+4. cut object (make holes)
+5. round corner
+6. 

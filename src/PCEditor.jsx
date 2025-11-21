@@ -97,6 +97,7 @@ function EditorContent() {
   const [pendingConnector, setPendingConnector] = useState(null);
   const [snapEnabled, setSnapEnabled] = useState(false); // New snap state
   const [rulerPoints, setRulerPoints] = useState([]); // Ruler state
+  const [measurements, setMeasurements] = useState([]); // Persistent measurements
 
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
@@ -508,15 +509,54 @@ function EditorContent() {
         } else {
           const p1 = rulerPoints[0];
           const p2 = newPoint;
-          const dist = p1.center.distanceTo(p2.center);
+
+          const n1 = p1.normal.clone();
+          const n2 = p2.normal.clone();
+          const parallel = Math.abs(n1.dot(n2));
+          let dist, p2Final, label;
+
+          if (parallel > 0.99) {
+            // Parallel faces: Calculate perpendicular distance
+            const v = p2.center.clone().sub(p1.center);
+            dist = Math.abs(v.dot(n1));
+
+            if (dist > 0.1) {
+              // Project p2 onto the line starting at p1 along n1
+              // actually we want a line from p1 to the plane of p2
+              // The closest point on plane 2 from p1 is p1 + n1 * dist (if n1 points to p2)
+              // Let's just visualize the perpendicular drop.
+              // We can keep p1 as is, and move p2 to be p1 + n * dist * sign
+              const sign = Math.sign(v.dot(n1));
+              p2Final = p1.center.clone().add(n1.clone().multiplyScalar(dist * sign));
+              label = "Perpendicular Distance";
+            } else {
+              // Coplanar (or very close): Use center-to-center
+              dist = p1.center.distanceTo(p2.center);
+              p2Final = p2.center;
+              label = "Center-to-Center Distance";
+            }
+          } else {
+            // Non-parallel: Use Euclidean distance
+            dist = p1.center.distanceTo(p2.center);
+            p2Final = p2.center;
+            label = "Distance";
+          }
+
           const dx = Math.abs(p1.center.x - p2.center.x);
           const dy = Math.abs(p1.center.y - p2.center.y);
           const dz = Math.abs(p1.center.z - p2.center.z);
 
+          const newMeasurement = {
+            p1: p1.center.toArray(),
+            p2: p2Final.toArray(),
+            distance: dist,
+          };
+          setMeasurements((prev) => [...prev, newMeasurement]);
+
           setConnectorToast({
             type: "success",
-            text: `Distance: ${dist.toFixed(2)}mm (X: ${dx.toFixed(2)}, Y: ${dy.toFixed(2)}, Z: ${dz.toFixed(2)})`,
-            ttl: 10000,
+            text: `${label}: ${dist.toFixed(2)}mm (X: ${dx.toFixed(2)}, Y: ${dy.toFixed(2)}, Z: ${dz.toFixed(2)})`,
+            ttl: 5000,
           });
           setRulerPoints([]); // Reset for next measurement
         }
@@ -812,6 +852,12 @@ function EditorContent() {
     setSelectedIds([]);
   }, [selectedIds, setObjects, setSelectedIds]);
 
+  const clearMeasurements = useCallback(() => {
+    setMeasurements([]);
+    setRulerPoints([]);
+    setConnectorToast({ type: "info", text: "Measurements cleared.", ttl: 2000 });
+  }, []);
+
 
 
   return (
@@ -832,6 +878,8 @@ function EditorContent() {
         setShowGizmos={setShowGizmos}
         snapEnabled={snapEnabled}
         setSnapEnabled={setSnapEnabled}
+        measurements={measurements}
+        onClearMeasurements={clearMeasurements}
       />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
@@ -863,6 +911,7 @@ function EditorContent() {
             onChangeTransformMode={setTransformMode}
             showTransformControls={showGizmos}
             snapEnabled={snapEnabled}
+            measurements={measurements}
           />
 
         </div>

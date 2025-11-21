@@ -16,6 +16,8 @@ const TopBar = ({
   setShowGizmos,
   snapEnabled,
   setSnapEnabled,
+  measurements = [],
+  onClearMeasurements,
 }) => {
   const { language, setLanguage, t } = useLanguage();
 
@@ -128,6 +130,15 @@ const TopBar = ({
         >
           📏 Ruler
         </button>
+        {transformMode === "ruler" && measurements.length > 0 && (
+          <button
+            style={{ ...btnStyle, background: "#ef4444", borderColor: "#ef4444", marginLeft: 4 }}
+            onClick={onClearMeasurements}
+            title="Clear Measurements"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       <div style={dividerStyle} />

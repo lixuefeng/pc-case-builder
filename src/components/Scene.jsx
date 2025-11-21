@@ -3,6 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
+import RulerMarkers from "./RulerMarkers";
 import { expandObjectsWithEmbedded } from "../utils/motherboardEmbedded";
 
 export default function Scene({
@@ -19,6 +20,7 @@ export default function Scene({
   transformMode = "translate",
   onChangeTransformMode,
   showTransformControls = false,
+  measurements = [],
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -60,8 +62,8 @@ export default function Scene({
   }, [renderObjects]);
 
   return (
-    <Canvas 
-      style={{ width: "100%", height: "100%" }} 
+    <Canvas
+      style={{ width: "100%", height: "100%" }}
       camera={{
         position: [450, 280, 850],
         fov: 55,
@@ -109,6 +111,7 @@ export default function Scene({
             showTransformControls={showTransformControls}
           />
         ))}
+        <RulerMarkers measurements={measurements} />
       </group>
       <OrbitControls
         ref={orbitRef}

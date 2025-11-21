@@ -121,6 +121,13 @@ const TopBar = ({
         >
           {t("mode.scale")}
         </button>
+        <button
+          style={transformMode === "ruler" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
+          onClick={() => setTransformMode("ruler")}
+          title="Ruler"
+        >
+          📏 Ruler
+        </button>
       </div>
 
       <div style={dividerStyle} />

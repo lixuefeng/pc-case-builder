@@ -4,6 +4,7 @@ export const GPU_BRACKET_SPEC = {
   height: 120.65,
   offsetX: 10.16,
   offsetZ: 1.2,
+  bottomClearance: 9.5,
 };
 
 export const GPU_PCB_SPEC = {

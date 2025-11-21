@@ -96,6 +96,7 @@ function EditorContent() {
   const [showGizmos, setShowGizmos] = useState(true);
   const [pendingConnector, setPendingConnector] = useState(null);
   const [snapEnabled, setSnapEnabled] = useState(false); // New snap state
+  const [rulerPoints, setRulerPoints] = useState([]); // Ruler state
 
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
@@ -113,13 +114,24 @@ function EditorContent() {
     return () => clearTimeout(timer);
   }, [connectorToast]);
 
-  const alignEnabled = (transformMode === "translate" || transformMode === "scale") && selectedIds.length > 0;
+  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "ruler";
 
   useEffect(() => {
     if (!alignEnabled) {
       setPendingAlignFace(null);
+    } else if (selectedIds.length === 0 && transformMode !== "ruler" && !pendingAlignFace) {
+      // Only clear if we are not in ruler mode and have no pending face, 
+      // OR if we want to enforce selection-clearing behavior.
+      // Actually, if we want to allow starting without selection, we shouldn't auto-clear here just because selectedIds is empty.
+      // But we SHOULD clear if the user explicitly deselected everything (which usually sets selectedIds to []).
+      // Let's rely on handleSelect(null) to clear things if needed, or just keep it simple:
+      // If we are in a mode that allows it, we don't strictly need selectedIds to be non-empty to hold a pending face.
+      // However, if the user clicks empty space, handleSelect(null) is called.
     }
-  }, [alignEnabled]);
+    if (transformMode !== "ruler") {
+      setRulerPoints([]);
+    }
+  }, [alignEnabled, transformMode]);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(objects, null, 2);
@@ -208,6 +220,10 @@ function EditorContent() {
   const handleSelect = (id, multi = false) => {
     if (id === null) {
       setSelectedIds([]);
+      setPendingAlignFace(null);
+      if (transformMode === "ruler") {
+        setRulerPoints([]);
+      }
       return;
     }
     // Removed baseIdSet check to allow selection even if set is stale
@@ -457,12 +473,53 @@ function EditorContent() {
       if (!alignEnabled || !faceInfo) {
         return;
       }
-      if (!pendingAlignFace) {
+      if (!pendingAlignFace && transformMode !== "ruler") {
         setPendingAlignFace(faceInfo);
         setConnectorToast({
           type: "info",
           text: "已选中要移动/调整的面。再选择对齐目标面。",
         });
+        return;
+      }
+
+      if (transformMode === "ruler") {
+        const obj = expandedObjects.find((o) => o.id === faceInfo.partId);
+        if (!obj) return;
+        const transform = computeFaceTransform(obj, faceInfo.face);
+        if (!transform) return;
+
+        const newPoint = { ...transform, partId: faceInfo.partId, face: faceInfo.face };
+
+        if (rulerPoints.length === 0) {
+          if (!faceInfo.shiftKey) {
+            setConnectorToast({
+              type: "info",
+              text: "Hold Shift + Click to select start face.",
+              ttl: 3000,
+            });
+            return;
+          }
+          setRulerPoints([newPoint]);
+          setConnectorToast({
+            type: "info",
+            text: "Start face selected. Click target face to measure.",
+            ttl: 3000,
+          });
+        } else {
+          const p1 = rulerPoints[0];
+          const p2 = newPoint;
+          const dist = p1.center.distanceTo(p2.center);
+          const dx = Math.abs(p1.center.x - p2.center.x);
+          const dy = Math.abs(p1.center.y - p2.center.y);
+          const dz = Math.abs(p1.center.z - p2.center.z);
+
+          setConnectorToast({
+            type: "success",
+            text: `Distance: ${dist.toFixed(2)}mm (X: ${dx.toFixed(2)}, Y: ${dy.toFixed(2)}, Z: ${dz.toFixed(2)})`,
+            ttl: 10000,
+          });
+          setRulerPoints([]); // Reset for next measurement
+        }
         return;
       }
 
@@ -584,6 +641,8 @@ function EditorContent() {
       formatPartName,
       setConnectorToast,
       computeFaceTransform,
+      transformMode,
+      rulerPoints,
     ]
   );
 
@@ -622,7 +681,7 @@ function EditorContent() {
       // current selection (partId) = Target (Anchor Part)
       const movingObj = objects.find((obj) => obj.id === pendingConnector.partId);
       const anchorObj = objects.find((obj) => obj.id === partId);
-      
+
       if (!anchorObj || !movingObj) {
         setPendingConnector(null);
         return;
@@ -642,7 +701,7 @@ function EditorContent() {
         pendingConnector.connectorId
       );
       const anchorTransform = computeConnectorTransform(anchorObj, connectorId);
-      
+
       if (!anchorTransform || !movingTransform) {
         setPendingConnector(null);
         return;

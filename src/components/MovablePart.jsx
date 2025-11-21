@@ -502,7 +502,7 @@ export default function MovablePart({
     // If it wasn't a drag, treat it as a click (pick face)
     if (!wasDrag && onFacePick && faceName && objectId) {
       console.log("[stretch/finish] treated as click", { objectId, faceName });
-      onFacePick({ partId: objectId, face: faceName });
+      onFacePick({ partId: objectId, face: faceName, shiftKey: isShiftPressed });
     }
 
     setObj((prev) => {
@@ -1347,7 +1347,7 @@ export default function MovablePart({
               beginStretch(hoveredFace, hoveredFaceDetails, e);
               return;
             }
-            onFacePick?.({ partId: obj.id, face: hoveredFace });
+            onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
             onSelect?.(obj.id, false);
             return;
           }
@@ -1420,7 +1420,7 @@ export default function MovablePart({
         )}
       </group>
 
-      {selected && !isEmbedded && showTransformControls && mode !== "scale" && (
+      {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && (
         <TransformControls
           ref={controlsRef}
           object={groupRef.current}

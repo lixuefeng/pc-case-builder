@@ -118,10 +118,10 @@ export function GPUMesh({ obj, selected }) {
   const fingerPosition = useMemo(
     () => [
       dims.d / 2 + pcieFingerLayout.depth / 2,
-      -dims.h / 2 + pcieFingerLayout.thickness / 2,
+      GPU_BRACKET_SPEC.bottomClearance + pcieFingerLayout.thickness / 2,
       dims.w / 2 - pcieFingerLayout.length / 2 - GPU_PCIE_FINGER_SPEC.topInset,
     ],
-    [dims.d, dims.h, dims.w, pcieFingerLayout.depth, pcieFingerLayout.length, pcieFingerLayout.thickness],
+    [dims.d, dims.w, pcieFingerLayout.depth, pcieFingerLayout.length, pcieFingerLayout.thickness],
   );
 
   useEffect(() => {
@@ -152,7 +152,7 @@ export function GPUMesh({ obj, selected }) {
 
   return (
     <group>
-      <mesh userData={{ objectId: obj.id }}>
+      <mesh userData={{ objectId: obj.id }} position={[0, GPU_BRACKET_SPEC.bottomClearance + dims.h / 2, 0]}>
         <boxGeometry args={[dims.d, dims.h, dims.w]} />
         <meshStandardMaterial color={coolerColor} metalness={0.25} roughness={0.5} />
       </mesh>
@@ -271,7 +271,7 @@ export function ImportedMesh({ obj, selected }) {
 
 export function ReferenceMesh({ obj, selected }) {
   const { dims, color, key } = obj;
-  
+
   // Check if it's a coke can to apply the custom shape
   // Note: obj.name is used for the display name, obj.key is the preset key
   const isCokeCan = key === "coke-can" || (obj.name && obj.name.toLowerCase().includes("coke"));
@@ -287,10 +287,10 @@ export function ReferenceMesh({ obj, selected }) {
       const p1 = new THREE.Vector2(radius * 0.7, -halfHeight);
       const p2 = new THREE.Vector2(radius * 0.75, -halfHeight + 2);
       const p3 = new THREE.Vector2(radius, -halfHeight + 10);
-      
+
       const p4 = new THREE.Vector2(radius, halfHeight - 12);
       const p5 = new THREE.Vector2(radius * 0.82, halfHeight - 2);
-      
+
       const p6 = new THREE.Vector2(radius * 0.82, halfHeight);
       const p7 = new THREE.Vector2(radius * 0.78, halfHeight);
       const p8 = new THREE.Vector2(0, halfHeight - 1);
@@ -325,7 +325,7 @@ export function ReferenceMesh({ obj, selected }) {
           <latheGeometry args={[bottomPoints, 32]} />
           {silverMaterial}
         </mesh>
-        
+
         {/* Body (Painted) */}
         <mesh>
           <latheGeometry args={[bodyPoints, 32]} />

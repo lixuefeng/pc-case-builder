@@ -1,6 +1,8 @@
 import React from "react";
 import ConnectorEditor from "./ConnectorEditor";
 
+import { useLanguage } from "../../i18n/LanguageContext";
+
 const RightSidebar = ({
   selectedObject,
   setObjects,
@@ -12,6 +14,8 @@ const RightSidebar = ({
   onDuplicate,
   onDelete,
 }) => {
+  const { t } = useLanguage();
+
   if (!selectedObject) {
     return (
       <div
@@ -27,7 +31,7 @@ const RightSidebar = ({
           justifyContent: "center",
         }}
       >
-        未选择对象
+        {t("prop.noSelection")}
       </div>
     );
   }
@@ -105,15 +109,16 @@ const RightSidebar = ({
         height: "100%",
         overflowY: "auto",
         padding: 16,
+        flexShrink: 0,
       }}
     >
       <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#0f172a" }}>
-        属性检查器
+        {t("label.inspector")}
       </div>
 
       {/* Basic Info */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>名称</label>
+        <label style={labelStyle}>{t("prop.name")}</label>
         <input
           style={inputStyle}
           value={selectedObject.name || selectedObject.id}
@@ -121,11 +126,11 @@ const RightSidebar = ({
         />
         <div style={rowStyle}>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>类型</label>
+            <label style={labelStyle}>{t("prop.type")}</label>
             <div style={{ fontSize: 13, color: "#334155" }}>{selectedObject.type}</div>
           </div>
           <div style={{ flex: 1 }}>
-            <label style={labelStyle}>ID</label>
+            <label style={labelStyle}>{t("prop.id")}</label>
             <div style={{ fontSize: 13, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis" }}>
               {selectedObject.id}
             </div>
@@ -135,9 +140,9 @@ const RightSidebar = ({
 
       {/* Transform */}
       <div style={sectionStyle}>
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>变换 (Transform)</div>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.transform")}</div>
         
-        <label style={labelStyle}>位置 (Position)</label>
+        <label style={labelStyle}>{t("prop.position")}</label>
         <div style={rowStyle}>
           <input
             type="number"
@@ -162,7 +167,7 @@ const RightSidebar = ({
           />
         </div>
 
-        <label style={labelStyle}>尺寸 (Dimensions)</label>
+        <label style={labelStyle}>{t("prop.dimensions")}</label>
         <div style={rowStyle}>
           <input
             type="number"
@@ -190,12 +195,12 @@ const RightSidebar = ({
 
       {/* Actions */}
       <div style={sectionStyle}>
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>操作 (Actions)</div>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.actions")}</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button style={btnStyle} onClick={onDuplicate}>复制</button>
-          <button style={{ ...btnStyle, color: "#ef4444", borderColor: "#fca5a5" }} onClick={onDelete}>删除</button>
+          <button style={btnStyle} onClick={onDuplicate}>{t("action.copy")}</button>
+          <button style={{ ...btnStyle, color: "#ef4444", borderColor: "#fca5a5" }} onClick={onDelete}>{t("action.delete")}</button>
           {selectedObject.type === "group" && (
-            <button style={btnStyle} onClick={onUngroup}>取消编组</button>
+            <button style={btnStyle} onClick={onUngroup}>{t("action.ungroup")}</button>
           )}
         </div>
       </div>

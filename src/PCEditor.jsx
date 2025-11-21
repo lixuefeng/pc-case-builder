@@ -205,25 +205,27 @@ function EditorContent() {
   };
 
   const handleSelect = (id, multi = false) => {
-    if (!baseIdSet.has(id)) return;
+    if (id === null) {
+      setSelectedIds([]);
+      return;
+    }
+    // Removed baseIdSet check to allow selection even if set is stale
     if (multi) {
       setSelectedIds((prev) => {
         if (prev.includes(id)) {
           // 如果已选中，则从选择集中移除
           return prev.filter((i) => i !== id);
         } else {
-          // 如果未选中，则添加到选择�?
+          // 如果未选中，则添加到选择?
           return [...prev, id];
         }
       });
     } else {
-      // 单�?
+      // 单?
       setSelectedIds([id]);
     }
   };
   const lastSelectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
-
-
   const handleGroup = () => {
     if (selectedIds.length <= 1) return;
 
@@ -782,7 +784,7 @@ function EditorContent() {
         />
 
         {/* Main Viewport */}
-        <div style={{ flex: 1, position: "relative" }}>
+        <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
           <Scene
             objects={expandedObjects}
             setObjects={setObjects}
@@ -803,17 +805,20 @@ function EditorContent() {
         </div>
 
         {/* Right Sidebar */}
-        <RightSidebar
-          selectedObject={selectedObject}
-          setObjects={setObjects}
-          activeConnectorId={activeConnectorId}
-          setActiveConnectorId={setActiveConnectorId}
-          onApplyConnectorOrientation={handleApplyConnectorOrientation}
-          onGroup={handleGroup}
-          onUngroup={handleUngroup}
-          onDuplicate={handleDuplicate}
-          onDelete={handleDelete}
-        />
+        {/* Right Sidebar */}
+        {selectedObject && (
+          <RightSidebar
+            selectedObject={selectedObject}
+            setObjects={setObjects}
+            activeConnectorId={activeConnectorId}
+            setActiveConnectorId={setActiveConnectorId}
+            onApplyConnectorOrientation={handleApplyConnectorOrientation}
+            onGroup={handleGroup}
+            onUngroup={handleUngroup}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
     </div>
   );

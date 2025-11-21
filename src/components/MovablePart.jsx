@@ -9,12 +9,11 @@ import {
   MotherboardMesh, GPUMesh, PartBox, GroupMesh,
   ImportedMesh,
   ReferenceMesh,
+  CPUCoolerMesh,
 } from "./Meshes.jsx";
 import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 
-// === Debug helpers ===
-const DEBUG_ALIGN = true; // 控制调试日志；需要时改为 false 关闭
-const dlog = (...args) => { if (DEBUG_ALIGN) console.log("[align]", ...args); };
+const dlog = (...args) => console.log("[MovablePart]", ...args);
 
 const CONNECTOR_TYPE_COLORS = {
   "screw-m3": "#38bdf8",
@@ -1355,6 +1354,8 @@ export default function MovablePart({
           const multi = e.ctrlKey || e.metaKey;
           onSelect?.(obj.id, multi);
         }}
+        onClick={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
       >
         {obj.type === "motherboard" ? (
           <MotherboardMesh obj={obj} selected={selected} />
@@ -1366,6 +1367,8 @@ export default function MovablePart({
           <ImportedMesh obj={obj} selected={selected} />
         ) : obj.type === "reference" ? (
           <ReferenceMesh obj={obj} selected={selected} />
+        ) : obj.type === "cpu-cooler" ? (
+          <CPUCoolerMesh obj={obj} selected={selected} />
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}
@@ -1464,6 +1467,8 @@ export default function MovablePart({
             }
           }}
           onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         />
       )}
 

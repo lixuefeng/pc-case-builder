@@ -150,20 +150,6 @@ export function GPUMesh({ obj, selected }) {
     };
   }, [bracketGeometry]);
 
-  const pcbLeft =
-    -dims.d / 2 +
-    GPU_PCB_SPEC.widthClearance.inner +
-    GPU_PCB_SPEC.sideInset;
-  const pcbPosition = [
-    pcbLeft + pcbLayout.width / 2,
-    -dims.d / 2 +
-    GPU_PCB_SPEC.widthClearance.inner +
-    GPU_PCB_SPEC.sideInset +
-    pcbLayout.width / 2,
-    -dims.h / 2 + pcbLayout.thickness / 2 + GPU_PCB_SPEC.heightLift,
-    -dims.w / 2 + GPU_PCB_SPEC.depthOffsets.front + pcbLayout.depth / 2,
-  ];
-
   return (
     <group>
       <mesh userData={{ objectId: obj.id }}>
@@ -177,11 +163,6 @@ export function GPUMesh({ obj, selected }) {
           <meshStandardMaterial color="#9ca3af" metalness={0.55} roughness={0.32} />
         </mesh>
       )}
-
-      <mesh position={pcbPosition}>
-        <boxGeometry args={[pcbLayout.width, pcbLayout.thickness, pcbLayout.depth]} />
-        <meshStandardMaterial color="#0f172a" metalness={0.1} roughness={0.55} />
-      </mesh>
 
       <mesh position={fingerPosition}>
         <boxGeometry args={[pcieFingerLayout.depth, pcieFingerLayout.thickness, pcieFingerLayout.length]} />
@@ -289,8 +270,78 @@ export function ImportedMesh({ obj, selected }) {
 
 
 export function ReferenceMesh({ obj, selected }) {
-  const { dims, color } = obj;
-  // Cylinder: radiusTop, radiusBottom, height, radialSegments
+  const { dims, color, key } = obj;
+  
+  // Check if it's a coke can to apply the custom shape
+  // Note: obj.name is used for the display name, obj.key is the preset key
+  const isCokeCan = key === "coke-can" || (obj.name && obj.name.toLowerCase().includes("coke"));
+
+  if (isCokeCan) {
+    const radius = (dims.w || 66) / 2;
+    const height = dims.h || 115;
+    const halfHeight = height / 2;
+
+    // Define the profile points
+    const { bottomPoints, bodyPoints, topPoints } = useMemo(() => {
+      const p0 = new THREE.Vector2(0, -halfHeight);
+      const p1 = new THREE.Vector2(radius * 0.7, -halfHeight);
+      const p2 = new THREE.Vector2(radius * 0.75, -halfHeight + 2);
+      const p3 = new THREE.Vector2(radius, -halfHeight + 10);
+      
+      const p4 = new THREE.Vector2(radius, halfHeight - 12);
+      const p5 = new THREE.Vector2(radius * 0.82, halfHeight - 2);
+      
+      const p6 = new THREE.Vector2(radius * 0.82, halfHeight);
+      const p7 = new THREE.Vector2(radius * 0.78, halfHeight);
+      const p8 = new THREE.Vector2(0, halfHeight - 1);
+
+      return {
+        bottomPoints: [p0, p1, p2, p3],
+        bodyPoints: [p3, p4, p5],
+        topPoints: [p5, p6, p7, p8],
+      };
+    }, [radius, halfHeight]);
+
+    const silverMaterial = (
+      <meshStandardMaterial
+        color="#e2e8f0"
+        metalness={0.8}
+        roughness={0.2}
+      />
+    );
+
+    const paintMaterial = (
+      <meshStandardMaterial
+        color={selected ? "#ef4444" : color || "#ef4444"}
+        metalness={0.6}
+        roughness={0.3}
+      />
+    );
+
+    return (
+      <group userData={{ objectId: obj.id }}>
+        {/* Bottom (Silver) */}
+        <mesh>
+          <latheGeometry args={[bottomPoints, 32]} />
+          {silverMaterial}
+        </mesh>
+        
+        {/* Body (Painted) */}
+        <mesh>
+          <latheGeometry args={[bodyPoints, 32]} />
+          {paintMaterial}
+        </mesh>
+
+        {/* Top (Silver) */}
+        <mesh>
+          <latheGeometry args={[topPoints, 32]} />
+          {silverMaterial}
+        </mesh>
+      </group>
+    );
+  }
+
+  // Default cylinder for other reference objects
   const radius = (dims.w || 66) / 2;
   const height = dims.h || 115;
 
@@ -303,6 +354,48 @@ export function ReferenceMesh({ obj, selected }) {
           metalness={0.6}
           roughness={0.3}
         />
+      </mesh>
+    </group>
+  );
+}
+
+export function CPUCoolerMesh({ obj, selected }) {
+  const { dims, color } = obj;
+  const { w, h, d } = dims;
+
+  // Heatsink (Silver)
+  const heatsinkMaterial = (
+    <meshStandardMaterial
+      color="#e2e8f0"
+      metalness={0.7}
+      roughness={0.3}
+    />
+  );
+
+  // Fan (Black) - Simplified as a block on the front
+  const fanMaterial = (
+    <meshStandardMaterial
+      color="#1e293b"
+      metalness={0.2}
+      roughness={0.8}
+    />
+  );
+
+  const fanDepth = 25;
+  const heatsinkDepth = Math.max(10, d - fanDepth);
+
+  return (
+    <group userData={{ objectId: obj.id }}>
+      {/* Heatsink */}
+      <mesh position={[0, 0, -fanDepth / 2]}>
+        <boxGeometry args={[w, h, heatsinkDepth]} />
+        {heatsinkMaterial}
+      </mesh>
+
+      {/* Fan */}
+      <mesh position={[0, 0, heatsinkDepth / 2]}>
+        <boxGeometry args={[w, h, fanDepth]} />
+        {fanMaterial}
       </mesh>
     </group>
   );

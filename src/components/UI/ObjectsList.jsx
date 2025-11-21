@@ -32,6 +32,8 @@ const BtnGhost = ({ children, onClick, disabled = false }) => (
   </button>
 );
 
+import { useLanguage } from "../../i18n/LanguageContext";
+
 export default function ObjectsList({
   objects,
   setObjects,
@@ -41,6 +43,7 @@ export default function ObjectsList({
   onUngroup,
   onDuplicate,
 }) {
+  const { t } = useLanguage();
   const toggleVisible = (id) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)));
   const remove = (id) => setObjects((prev) => prev.filter((o) => o.id !== id));
@@ -49,34 +52,34 @@ export default function ObjectsList({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>物体列表</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>{t("label.objects")}</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <BtnGhost onClick={() => onDuplicate?.(selectedIds)} disabled={selectedIds.length === 0}>
-          复制
+          {t("action.copy")}
         </BtnGhost>
         <BtnGhost onClick={onGroup} disabled={selectedIds.length <= 1}>
-          编组
+          {t("action.group")}
         </BtnGhost>
-        <BtnGhost onClick={onUngroup}>解散编组</BtnGhost>
+        <BtnGhost onClick={onUngroup}>{t("action.ungroup")}</BtnGhost>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
-        {objects.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>暂无物体</div>}
+        {objects.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>{t("label.noObjects")}</div>}
 
         {(() => {
           const groups = {
-            "PC Parts": [],
-            "Structures": [],
-            "Groups": [],
-            "Others": []
+            [t("category.pcParts")]: [],
+            [t("category.structures")]: [],
+            [t("category.groups")]: [],
+            [t("category.others")]: []
           };
 
           objects.forEach(o => {
-            if (o.type === "structure") groups["Structures"].push(o);
-            else if (o.type === "group") groups["Groups"].push(o);
-            else if (["motherboard", "gpu", "psu", "ram", "box"].includes(o.type)) groups["PC Parts"].push(o);
-            else groups["Others"].push(o);
+            if (o.type === "structure") groups[t("category.structures")].push(o);
+            else if (o.type === "group") groups[t("category.groups")].push(o);
+            else if (["motherboard", "gpu", "psu", "ram", "box", "cpu-cooler"].includes(o.type)) groups[t("category.pcParts")].push(o);
+            else groups[t("category.others")].push(o);
           });
 
           return Object.entries(groups).map(([category, items]) => {
@@ -138,14 +141,14 @@ export default function ObjectsList({
                       <div style={{ display: "flex", gap: 4 }}>
                         <button 
                           onClick={() => onDuplicate?.([o.id])}
-                          title="复制"
+                          title={t("action.copy")}
                           style={{ border: "none", background: "transparent", cursor: "pointer", color: "#64748b", fontSize: 12 }}
                         >
                           📋
                         </button>
                         <button 
                           onClick={() => remove(o.id)}
-                          title="删除"
+                          title={t("action.delete")}
                           style={{ border: "none", background: "transparent", cursor: "pointer", color: "#ef4444", fontSize: 12 }}
                         >
                           ✕

@@ -26,6 +26,7 @@ export const translations = {
         "label.inspector": "属性检查器",
         "label.objects": "物体列表",
         "label.noObjects": "暂无物体",
+        "label.addPart": "添加装机零件",
 
         "category.pcParts": "装机零件",
         "category.structures": "结构件",
@@ -60,6 +61,7 @@ export const translations = {
         "toast.notParallel": "两个面的法线不平行，无法对齐。",
         "toast.cantStretch": "无法调整该方向的尺寸。",
         "toast.selectDifferentConnector": "请选择不同零件的连接点。",
+        "type.cpuCooler": "CPU 散热器",
     },
     en: {
         "app.title": "PC Case Builder",
@@ -88,6 +90,7 @@ export const translations = {
         "label.inspector": "Inspector",
         "label.objects": "Objects List",
         "label.noObjects": "No objects",
+        "label.addPart": "Add PC Part",
 
         "category.pcParts": "PC Parts",
         "category.structures": "Structures",
@@ -122,5 +125,6 @@ export const translations = {
         "toast.notParallel": "Faces are not parallel.",
         "toast.cantStretch": "Cannot stretch in this direction.",
         "toast.selectDifferentConnector": "Please select a connector on a different part.",
+        "type.cpuCooler": "CPU Cooler",
     }
 };

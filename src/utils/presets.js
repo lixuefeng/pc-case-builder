@@ -335,6 +335,22 @@ export const PRESETS = {
       connectors: [],
     },
   ],
+  "cpu-cooler": [
+    {
+      key: "tower-120",
+      label: "Tower Cooler 120mm",
+      dims: { w: 125, h: 160, d: 80 },
+      meta: { type: "tower" },
+      connectors: [],
+    },
+    {
+      key: "custom-160",
+      label: "Custom Cooler 160x120x8",
+      dims: { w: 120, h: 160, d: 8 }, // User specified 160mm(H?) 120mm(W?) 8mm(D?) - assuming H=160, W=120, D=8 based on request, though D=8 is very thin.
+      meta: { type: "custom" },
+      connectors: [],
+    },
+  ],
   box: [
     { key: "cube50", label: "Box 50×50×50", dims: { w: 50, h: 50, d: 50 } },
   ],

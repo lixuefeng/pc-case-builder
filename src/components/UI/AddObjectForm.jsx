@@ -73,7 +73,10 @@ const instantiateConnectors = (type, preset) => {
   return [];
 };
 
+import { useLanguage } from "../../i18n/LanguageContext";
+
 export default function AddObjectForm({ onAdd }) {
+  const { t } = useLanguage();
   const [type, setType] = useState("motherboard");
   const [presetKey, setPresetKey] = useState("itx");
   const [name, setName] = useState("");
@@ -100,6 +103,7 @@ export default function AddObjectForm({ onAdd }) {
 
     const obj = {
       id,
+      key: preset.key,
       type,
       name: name || preset.label,
       dims: { ...preset.dims },
@@ -118,21 +122,22 @@ export default function AddObjectForm({ onAdd }) {
   return (
     <div style={{ padding: "0 4px" }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>
-        添加装机零件
+        {t("label.addPart")}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center" }}>
-        <label style={labelSm}>类型</label>
+        <label style={labelSm}>{t("form.type")}</label>
         <select value={type} onChange={(e) => setType(e.target.value)} style={input}>
           <option value="motherboard">Motherboard</option>
           <option value="gpu">GPU</option>
           <option value="psu">PSU</option>
           <option value="ram">RAM</option>
           <option value="box">Box</option>
+          <option value="cpu-cooler">{t("type.cpuCooler") || "CPU Cooler"}</option>
           <option value="reference">Reference</option>
         </select>
 
-        <label style={labelSm}>预设</label>
+        <label style={labelSm}>{t("form.preset")}</label>
         <select value={presetKey} onChange={(e) => setPresetKey(e.target.value)} style={input}>
           {presets.map((p) => (
             <option key={p.key} value={p.key}>
@@ -143,27 +148,27 @@ export default function AddObjectForm({ onAdd }) {
 
         {type === "motherboard" && (
           <>
-            <label style={labelSm}>摆放方式</label>
+            <label style={labelSm}>{t("form.orientation")}</label>
             <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={input}>
-              <option value="horizontal">水平</option>
-              <option value="vertical">竖直</option>
+              <option value="horizontal">{t("form.orientation.horizontal")}</option>
+              <option value="vertical">{t("form.orientation.vertical")}</option>
             </select>
           </>
         )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center", marginTop: 8 }}>
-        <label style={labelSm}>名称</label>
+        <label style={labelSm}>{t("prop.name")}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="可选：自定义名称"
+          placeholder={t("form.namePlaceholder")}
           style={input}
         />
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
-        <Btn onClick={handleAdd}>添加</Btn>
+        <Btn onClick={handleAdd}>{t("action.add")}</Btn>
       </div>
     </div>
   );

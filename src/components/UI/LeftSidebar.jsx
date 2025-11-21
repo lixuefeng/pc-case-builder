@@ -3,6 +3,8 @@ import AddObjectForm from "./AddObjectForm";
 import FrameBuilderPanel from "./FrameBuilderPanel";
 import ObjectsList from "./ObjectsList";
 
+import { useLanguage } from "../../i18n/LanguageContext";
+
 const LeftSidebar = ({
   objects,
   setObjects,
@@ -12,6 +14,7 @@ const LeftSidebar = ({
   onUngroup,
   onDuplicate,
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState("library"); // "library" | "hierarchy"
 
   const tabStyle = (isActive) => ({
@@ -34,6 +37,7 @@ const LeftSidebar = ({
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        flexShrink: 0,
       }}
     >
       {/* Tabs */}
@@ -42,13 +46,13 @@ const LeftSidebar = ({
           style={tabStyle(activeTab === "library")}
           onClick={() => setActiveTab("library")}
         >
-          库 (Library)
+          {t("label.library")}
         </div>
         <div
           style={tabStyle(activeTab === "hierarchy")}
           onClick={() => setActiveTab("hierarchy")}
         >
-          层级 (Tree)
+          {t("label.hierarchy")}
         </div>
       </div>
 

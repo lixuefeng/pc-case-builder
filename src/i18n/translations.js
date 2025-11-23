@@ -82,7 +82,7 @@ export const translations = {
         "action.add": "Add",
         "action.addStructure": "Add Block",
 
-        "mode.translate": "Translate",
+        "mode.translate": "Move",
         "mode.rotate": "Rotate",
         "mode.scale": "Scale",
         "action.grid": "Grid",

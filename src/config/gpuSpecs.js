@@ -3,7 +3,7 @@ export const GPU_BRACKET_SPEC = {
   widthPerSlot: 18.42,
   height: 120.65,
   offsetX: 10.16,
-  offsetZ: 1.2,
+  offsetZ: 1,
   bottomClearance: 9.5,
 };
 
@@ -13,13 +13,13 @@ export const GPU_PCB_SPEC = {
   minWidth: 40,
   depthOffsets: { front: 7, rear: 10 },
   widthClearance: { inner: 1.6, shroud: 6 },
-  sideInset: 3,
+  sideInset: 6,
   heightLift: 0.6,
 };
 
 export const GPU_PCIE_FINGER_SPEC = {
   length: 89,
   thickness: 1.6,
-  depth: 5,
+  depth: 12.5,
   topInset: 42,
 };

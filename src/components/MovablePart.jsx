@@ -6,7 +6,7 @@ import { useThree } from "@react-three/fiber";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import {
-  MotherboardMesh, GPUMesh, PartBox, GroupMesh,
+  MotherboardMesh, GPUMesh, GPUBracketMesh, PartBox, GroupMesh,
   ImportedMesh,
   ReferenceMesh,
   CPUCoolerMesh,
@@ -202,6 +202,12 @@ export default function MovablePart({
   const [hoveredFace, setHoveredFace] = useState(null);
   const stretchStateRef = useRef(null);
   const { gl, camera } = useThree();
+
+  useEffect(() => {
+    if (obj.type === 'gpu-bracket') {
+      console.log("[MovablePart] GPU Bracket Update:", { id: obj.id, pos: obj.pos, rot: obj.rot });
+    }
+  }, [obj]);
 
   // Fix: Stabilize setObj to prevent handleStretchPointerMove from changing and triggering useEffect cleanup
   const setObjRef = useRef(setObj);
@@ -914,19 +920,53 @@ export default function MovablePart({
 
   // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
   const getFaceDetails = ({ obj, ref, faceName }) => {
-    const { p, q } = getWorldTransform({ ref, obj });
-    const dims = obj?.dims || {};
-    const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+    let targetObj = obj;
+    let targetFace = faceName;
+    let isChild = false;
+
+    if (faceName && faceName.includes("#")) {
+      const [childId, face] = faceName.split("#");
+      targetFace = face;
+      // Find child in obj.children (assuming flat structure for now)
+      const child = obj.children?.find((c) => c.id === childId);
+      if (child) {
+        targetObj = child;
+        isChild = true;
+      }
+    }
+
+    const { p, q } = getWorldTransform({ ref, obj }); // Group Transform
+
+    if (isChild) {
+      // Compose Child Transform
+      const childPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
+      const childEuler = new THREE.Euler(...(targetObj.rot || [0, 0, 0]));
+      const childQuat = new THREE.Quaternion().setFromEuler(childEuler);
+
+      // WorldPos = GroupPos + GroupQuat * ChildPos
+      p.add(childPos.applyQuaternion(q));
+      // WorldQuat = GroupQuat * ChildQuat
+      q.multiply(childQuat);
+    }
+
+    const dims = targetObj?.dims || {};
+    // For gpu-body, it's a standard box, so w=width, d=depth.
+    // Only keep the swap for 'gpu' if that was intended for the group box (though it seems odd if group box is w,h,d).
+    // Let's assume 'gpu' group also follows w,h,d.
+    const width = dims.w ?? 0;
     const height = dims.h ?? 0;
-    const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+    const depth = dims.d ?? 0;
     const thickness = 0.2;
     const surfacePadding = 0.02; // 沿面法线轻微外移，避免闪烁
+
+    // Use targetFace instead of faceName for the switch
+    const currentFaceName = targetFace;
 
     let localOffset;
     let size;
     let localNormal;
 
-    if (faceName === IO_CUTOUT_FACE && obj?.type === "motherboard") {
+    if (currentFaceName === IO_CUTOUT_FACE && obj?.type === "motherboard") {
       const spec = getMotherboardIoCutoutBounds(dims);
       if (!spec) return null;
       localOffset = new THREE.Vector3(
@@ -946,8 +986,8 @@ export default function MovablePart({
         thickness,
       ];
     } else {
-      const sign = faceName[0] === "+" ? 1 : -1;
-      switch (faceName) {
+      const sign = currentFaceName[0] === "+" ? 1 : -1;
+      switch (currentFaceName) {
         case "+X":
         case "-X":
           localOffset = new THREE.Vector3(sign * (width / 2 + surfacePadding), 0, 0);
@@ -990,11 +1030,11 @@ export default function MovablePart({
     const sign = faceName[0] === "+" ? 1 : -1;
     let dimKey = null;
     if (axis === "X") {
-      dimKey = obj?.type === "gpu" ? "d" : "w";
+      dimKey = "w";
     } else if (axis === "Y") {
       dimKey = "h";
     } else if (axis === "Z") {
-      dimKey = obj?.type === "gpu" ? "w" : "d";
+      dimKey = "d";
     }
     if (!dimKey) return null;
     return { axis, dimKey, sign };
@@ -1223,7 +1263,7 @@ export default function MovablePart({
       });
     }
   }, [hoveredFace, hoveredFaceDetails, obj]);
-
+ 
   const activeFaceDetails = useMemo(() => {
     if (!activeAlignFace || activeAlignFace.partId !== obj.id) return null;
     return getFaceDetails({ obj, ref: groupRef, faceName: activeAlignFace.face });
@@ -1233,11 +1273,20 @@ export default function MovablePart({
     (event) => {
       if ((!alignMode && mode !== "scale") || !groupRef.current) return;
       const dims = obj.dims || {};
-      const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+      const width = dims.w ?? 0;
       const height = dims.h ?? 0;
-      const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+      const depth = dims.d ?? 0;
       if (width === 0 || height === 0 || depth === 0) {
         setHoveredFace(null);
+        return;
+      }
+
+      // Handle Group Objects (Composite Faces)
+      if (obj.type === "group") {
+        const hit = event; // R3F event contains intersection info
+        if (!hit.object || !hit.face) return;
+
+        // Find the child object ID
         return;
       }
 
@@ -1298,6 +1347,7 @@ export default function MovablePart({
     [alignMode, mode, obj]
   );
 
+
   return (
     <>
       <group
@@ -1306,6 +1356,7 @@ export default function MovablePart({
         rotation={obj.rot}
         userData={{ objectId: obj.id }}
         onPointerMove={(e) => {
+          e.stopPropagation();
           const faceSelectionActive =
             (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
             (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey));
@@ -1369,6 +1420,8 @@ export default function MovablePart({
           <ReferenceMesh obj={obj} selected={selected} />
         ) : obj.type === "cpu-cooler" ? (
           <CPUCoolerMesh obj={obj} selected={selected} />
+        ) : obj.type === "gpu-bracket" ? (
+          <GPUBracketMesh obj={obj} selected={selected} />
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}
@@ -1387,37 +1440,6 @@ export default function MovablePart({
               />
             );
           })}
-        {(alignMode || mode === "scale") && hoveredFaceDetails && (
-          <mesh
-            ref={hoverFaceMeshRef}
-            position={hoveredFaceDetails.localCenter || hoveredFaceDetails.center}
-            frustumCulled={false}
-          >
-            <boxGeometry args={hoveredFaceDetails.size} />
-            <meshStandardMaterial
-              color="#67e8f9"
-              transparent
-              opacity={0.3}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        )}
-        {(alignMode || mode === "scale") && activeFaceDetails && (
-          <mesh
-            position={activeFaceDetails.localCenter || activeFaceDetails.center}
-            frustumCulled={false}
-          >
-            <boxGeometry args={activeFaceDetails.size} />
-            <meshStandardMaterial
-              color="#facc15"
-              transparent
-              opacity={0.35}
-              depthWrite={false}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        )}
       </group>
 
       {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && (
@@ -1472,7 +1494,44 @@ export default function MovablePart({
         />
       )}
 
-      {/* ✅ 面高亮（世界坐标 & 继承物体旋转） */}
+      {/* ✅ Hover Highlight (World Space) */}
+      {(alignMode || mode === "scale") && hoveredFaceDetails && (
+        <mesh
+          ref={hoverFaceMeshRef}
+          position={hoveredFaceDetails.center}
+          quaternion={hoveredFaceDetails.quaternion}
+          frustumCulled={false}
+        >
+          <boxGeometry args={hoveredFaceDetails.size} />
+          <meshStandardMaterial
+            color="#67e8f9"
+            transparent
+            opacity={0.3}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+
+      {/* ✅ Active Highlight (World Space) */}
+      {(alignMode || mode === "scale") && activeFaceDetails && (
+        <mesh
+          position={activeFaceDetails.center}
+          quaternion={activeFaceDetails.quaternion}
+          frustumCulled={false}
+        >
+          <boxGeometry args={activeFaceDetails.size} />
+          <meshStandardMaterial
+            color="#facc15"
+            transparent
+            opacity={0.35}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+
+      {/* ✅ Alignment Candidate Highlights (World Space) */}
       {bestAlignCandidate && (
         <group>
           {targetHighlightDetails && (
@@ -1534,8 +1593,6 @@ export default function MovablePart({
           </Html>
         </group>
       )}
-
-
     </>
   );
 }

@@ -129,54 +129,87 @@ export const buildMotherboardEmbeddedParts = (obj) => {
   return parts.filter(Boolean);
 };
 
+export const buildGpuEmbeddedParts = (obj) => {
+  if (!obj?.dims) return [];
+  const dims = obj.dims;
+  const parts = [];
+
+  // 1. Bracket
+  // The bracket is usually at the back (Z-min or Z-max depending on orientation, but here we assume standard)
+  // In presets.js, bracket holes are at bracketHoleZ = -dims.w / 2 + 10.
+  // So the bracket is at the -dims.w / 2 end.
+
+  parts.push({
+    key: "bracket",
+    name: "PCIe Bracket",
+    type: "gpu-bracket", // Special type for rendering
+    localCenter: [-dims.w / 2 + 0.8, 0, 0], // Approx position, 0.8 is half thickness of 1.6mm bracket
+    size: [1.6, dims.h, dims.d], // Bracket dimensions: Thickness, Height, Width (slot width)
+    color: "#e2e8f0",
+  });
+
+  return parts;
+};
+
 export const expandObjectsWithEmbedded = (objects) => {
   const expanded = [];
   const embedCounters = new Map();
   const existingIds = new Set(objects.map((obj) => obj?.id).filter(Boolean));
+
   objects.forEach((obj) => {
     expanded.push(obj);
-    if (obj?.type !== "motherboard" || !obj?.dims) return;
 
-    const embeds = buildMotherboardEmbeddedParts(obj);
-    const parentPos = new THREE.Vector3(
-      ...(Array.isArray(obj.pos) ? obj.pos : [0, 0, 0])
-    );
-    const parentEuler = new THREE.Euler(
-      ...(Array.isArray(obj.rot) ? obj.rot : [0, 0, 0]),
-      "XYZ"
-    );
-    const parentQuat = new THREE.Quaternion().setFromEuler(parentEuler);
-
-    embeds.forEach((embed) => {
-      const localCenter = new THREE.Vector3(...embed.localCenter);
-      const worldCenter = parentPos.clone().add(localCenter.clone().applyQuaternion(parentQuat));
-
-      const baseKey = `${obj.id}__embed_${embed.key}`;
-      const embedIndex = embedCounters.get(baseKey) ?? 0;
-      embedCounters.set(baseKey, embedIndex + 1);
-
-      const embedId = `${baseKey}_${embedIndex}`;
-      if (existingIds.has(embedId)) {
-        return;
-      }
-      existingIds.add(embedId);
-
-      expanded.push({
-        id: embedId,
-        name: embed.name,
-        type: "embedded",
-        embeddedParentId: obj.id,
-        dims: { w: embed.size[0], h: embed.size[1], d: embed.size[2] },
-        pos: worldCenter.toArray(),
-        rot: Array.isArray(obj.rot) ? [...obj.rot] : [0, 0, 0],
-        color: embed.color || "#94a3b8",
-        visible: obj.visible,
-        includeInExport: false,
-      });
-    });
+    if (obj?.type === "motherboard" && obj?.dims) {
+      const embeds = buildMotherboardEmbeddedParts(obj);
+      processEmbeds(embeds, obj, expanded, embedCounters, existingIds);
+    } else if (obj?.type === "gpu" && obj?.dims) {
+      const embeds = buildGpuEmbeddedParts(obj);
+      processEmbeds(embeds, obj, expanded, embedCounters, existingIds);
+    }
   });
 
   return expanded;
+};
+
+const processEmbeds = (embeds, obj, expanded, embedCounters, existingIds) => {
+  const parentPos = new THREE.Vector3(
+    ...(Array.isArray(obj.pos) ? obj.pos : [0, 0, 0])
+  );
+  const parentEuler = new THREE.Euler(
+    ...(Array.isArray(obj.rot) ? obj.rot : [0, 0, 0]),
+    "XYZ"
+  );
+  const parentQuat = new THREE.Quaternion().setFromEuler(parentEuler);
+
+  embeds.forEach((embed) => {
+    const localCenter = new THREE.Vector3(...embed.localCenter);
+    const worldCenter = parentPos.clone().add(localCenter.clone().applyQuaternion(parentQuat));
+
+    const baseKey = `${obj.id}__embed_${embed.key}`;
+    const embedIndex = embedCounters.get(baseKey) ?? 0;
+    embedCounters.set(baseKey, embedIndex + 1);
+
+    const embedId = `${baseKey}_${embedIndex}`;
+    if (existingIds.has(embedId)) {
+      return;
+    }
+    existingIds.add(embedId);
+
+    expanded.push({
+      id: embedId,
+      name: embed.name,
+      type: embed.type || "embedded", // Use specific type if provided
+      embeddedParentId: obj.id,
+      dims: { w: embed.size[0], h: embed.size[1], d: embed.size[2] },
+      pos: worldCenter.toArray(),
+      rot: Array.isArray(obj.rot) ? [...obj.rot] : [0, 0, 0],
+      color: embed.color || "#94a3b8",
+      visible: obj.visible,
+      includeInExport: false,
+      // Pass through any other props needed for rendering
+      parentDims: obj.dims, // Useful for bracket to know full size?
+    });
+  });
 };
 
 export { computeCenterFromEdges };

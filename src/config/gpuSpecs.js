@@ -2,8 +2,8 @@ export const GPU_BRACKET_SPEC = {
   slotWidth: 20.32,
   widthPerSlot: 18.42,
   height: 120.65,
-  offsetX: 10.16,
-  offsetZ: 1,
+  offsetX: 110.16,
+  offsetZ: 10,
   bottomClearance: 9.5,
 };
 

@@ -133,28 +133,6 @@ const createGpuConnectors = (preset) => {
     },
   ];
 
-  const bracketHoleOffsetY = Math.min(dims.h / 2 - 5, 15);
-  const bracketHoleZ = -dims.w / 2 + 10;
-
-  connectors.push(
-    {
-      id: `${key}-bracket-upper`,
-      label: "Bracket Tab Upper",
-      type: "bracket-tab",
-      pos: [-dims.d / 2, bracketHoleOffsetY, bracketHoleZ],
-      normal: [1, 0, 0],
-      up: [0, 0, -1],
-    },
-    {
-      id: `${key}-bracket-lower`,
-      label: "Bracket Tab Lower",
-      type: "bracket-tab",
-      pos: [-dims.d / 2, -bracketHoleOffsetY, bracketHoleZ],
-      normal: [-1, 0, 0],
-      up: [0, 1, 0],
-    }
-  );
-
   return connectors;
 };
 
@@ -251,56 +229,29 @@ export const PRESETS = {
     {
       key: "std",
       label: "GPU 267×112×42",
-      dims: { w: 267, h: 42, d: 112 },
+      type: "gpu", // Changed to gpu to use GPUMesh
+      dims: { w: 267, h: 112, d: 42 }, // Body dimensions
       meta: {
         presetKey: "std",
-        layoutVersion: 1,
-        pcie: {
-          fingerLength: 89,
-          fingerThickness: 1.6,
-          fingerDepth: 5,
-          fingerOffsetFromBracket: 11,
-          fingerDrop: 1.2,
-        },
-        bracket: {
-          width: 19.05,
-          height: 120,
-          thickness: 2,
-        },
-        pcb: {
-          thickness: 1.6,
-          clearanceAbove: 10,
-          insetFromBottom: 7,
-        },
+        layoutVersion: 2,
       },
-      connectors: [],
-    },
-    {
-      key: "large",
-      label: "GPU 313×140×62",
-      dims: { w: 313, h: 62, d: 140 },
-      meta: {
-        presetKey: "large",
-        layoutVersion: 1,
-        pcie: {
-          fingerLength: 89,
-          fingerThickness: 1.6,
-          fingerDepth: 5.5,
-          fingerOffsetFromBracket: 11,
-          fingerDrop: 1.4,
+      connectors: [
+        {
+          id: "std-pcie-fingers",
+          label: "PCIe Gold Fingers",
+          type: "pcie-fingers",
+          // Position Calculation:
+          // Fingers Center X = -85 (relative to group, calculated as -dims.w/2 + 5 + 87/2)
+          // Fingers Bottom Y = -50 (relative to group)
+          // Insertion Depth = 5.5mm
+          // Connector Y = Fingers Bottom Y + Insertion Depth = -50 + 5.5 = -44.5
+          // Z = -18 (3mm from left edge)
+          pos: [-85, -52.5, -18],
+          normal: [0, -1, 0], // Points down
+          up: [1, 0, 0],
+          span: 87,
         },
-        bracket: {
-          width: 19.05,
-          height: 120,
-          thickness: 2,
-        },
-        pcb: {
-          thickness: 1.6,
-          clearanceAbove: 12,
-          insetFromBottom: 8,
-        },
-      },
-      connectors: [],
+      ],
     },
   ],
   psu: [

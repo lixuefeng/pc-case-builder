@@ -101,10 +101,19 @@ export default function AddObjectForm({ onAdd }) {
       meta.orientation = orientation;
     }
 
+    const generateChildIds = (children, parentId) => {
+      if (!Array.isArray(children)) return undefined;
+      return children.map((child, index) => ({
+        ...child,
+        id: `${parentId}_child_${index}_${Math.floor(Math.random() * 1e5)}`,
+        children: generateChildIds(child.children, parentId), // Recurse if needed
+      }));
+    };
+
     const obj = {
       id,
       key: preset.key,
-      type,
+      type: preset.type || type, // Use preset type if defined (e.g. group), else selected type
       name: name || preset.label,
       dims: { ...preset.dims },
       pos: [0, preset.dims.h / 2, 0], // place on the ground plane by default
@@ -114,6 +123,7 @@ export default function AddObjectForm({ onAdd }) {
       includeInExport: true,
       meta,
       connectors: instantiateConnectors(type, preset),
+      children: generateChildIds(preset.children, id),
     };
     onAdd(obj);
     setName("");

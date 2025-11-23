@@ -77,106 +77,84 @@ export function MotherboardMesh({ obj, selected }) {
   );
 }
 
-export function GPUMesh({ obj, selected }) {
+export function GPUBracketMesh({ obj, selected }) {
   const { dims, color } = obj;
-
-  const coolerColor = selected ? "#ef4444" : color || "#475569";
-
-  const { bracketWidth, bracketHeight, pcbLayout, pcieFingerLayout } = useMemo(() => {
-    const numSlots = Math.max(1, Math.round(dims.h / GPU_BRACKET_SPEC.slotWidth));
-    const bracketWidth = numSlots * GPU_BRACKET_SPEC.widthPerSlot;
-    const bracketHeight = GPU_BRACKET_SPEC.height;
-
-    const pcbLayout = {
-      thickness: GPU_PCB_SPEC.thickness,
-      depth: Math.max(
-        GPU_PCB_SPEC.minDepth,
-        dims.w - GPU_PCB_SPEC.depthOffsets.front - GPU_PCB_SPEC.depthOffsets.rear
-      ),
-      width: Math.max(
-        GPU_PCB_SPEC.minWidth,
-        dims.d - GPU_PCB_SPEC.widthClearance.inner - GPU_PCB_SPEC.widthClearance.shroud
-      ),
-    };
-
-    const pcieFingerLayout = { ...GPU_PCIE_FINGER_SPEC };
-
-    return { bracketWidth, bracketHeight, pcbLayout, pcieFingerLayout };
-  }, [dims.h, dims.w, dims.d]);
-
-  const bracketPosition = [
-    -dims.d / 2 + GPU_BRACKET_SPEC.offsetX,
-    0,
-    dims.w / 2 + GPU_BRACKET_SPEC.offsetZ,
-  ];
-
+  
   const bracketGeometry = useMemo(
-    () => buildPcieBracketGeometry(bracketWidth, bracketHeight),
-    [bracketWidth, bracketHeight],
+    () => buildPcieBracketGeometry(dims.d, dims.h), // Use depth (42) as width for the face
+    [dims.d, dims.h]
   );
-
-  const fingerPosition = useMemo(
-    () => [
-      dims.d / 2 + pcieFingerLayout.depth / 2,
-      GPU_BRACKET_SPEC.bottomClearance + pcieFingerLayout.thickness / 2,
-      dims.w / 2 - pcieFingerLayout.length / 2 - GPU_PCIE_FINGER_SPEC.topInset,
-    ],
-    [dims.d, dims.w, pcieFingerLayout.depth, pcieFingerLayout.length, pcieFingerLayout.thickness],
-  );
-
-  useEffect(() => {
-    // Ensure this component is the single source of truth for the PCIe connector.
-    // First, remove any existing PCIe card connectors to avoid duplicates.
-    const otherConnectors = (obj.connectors || []).filter(
-      (c) => c.type !== "pcie-x16-card"
-    );
-
-    // Then, add the definitive PCIe connector with the correct position.
-    const pcieConnector = {
-      id: "gpu_pcie_x16",
-      label: "PCIe x16",
-      type: "pcie-x16-card",
-      pos: fingerPosition,
-      normal: [1, 0, 0], // Points down, away from the card
-      up: [0, 0, -1], // Points along the card's depth axis
-    };
-
-    obj.connectors = [...otherConnectors, pcieConnector];
-  }, [obj, fingerPosition]);
-
-  useEffect(() => {
-    return () => {
-      bracketGeometry?.dispose();
-    };
-  }, [bracketGeometry]);
 
   return (
-    <group>
-      <mesh userData={{ objectId: obj.id }} position={[0, GPU_BRACKET_SPEC.bottomClearance + dims.h / 2, 0]}>
-        <boxGeometry args={[dims.d, dims.h, dims.w]} />
-        <meshStandardMaterial color={coolerColor} metalness={0.25} roughness={0.5} />
-      </mesh>
-
+    <group userData={{ objectId: obj.id }}>
       {bracketGeometry && (
-        //<mesh geometry={bracketGeometry} position={bracketPosition}>
-        <mesh geometry={bracketGeometry} position={bracketPosition} rotation={[0, 0, -Math.PI / 2]}>
-          <meshStandardMaterial color="#9ca3af" metalness={0.55} roughness={0.32} />
-        </mesh>
+         <mesh 
+           geometry={bracketGeometry} 
+           position={[0, -dims.h / 2, 0]} 
+           rotation={[0, Math.PI / 2, 0]} // Rotate to face X axis
+         >
+           <meshStandardMaterial 
+             color={selected ? "#ef4444" : "#9ca3af"} 
+             metalness={0.55} 
+             roughness={0.32} 
+           />
+         </mesh>
       )}
+    </group>
+  );
+}
 
-      <mesh position={fingerPosition}>
-        <boxGeometry args={[pcieFingerLayout.depth, pcieFingerLayout.thickness, pcieFingerLayout.length]} />
-        <meshStandardMaterial color="#d4a017" metalness={0.8} roughness={0.3} />
+export function GPUMesh({ obj, selected }) {
+  const { dims, color } = obj;
+  const coolerColor = selected ? "#ef4444" : color || "#475569";
+  
+  // Fingers Spec (Standard):
+  const fingersLength = 87;
+  const fingersHeight = 12.5;
+  const fingersThickness = 1.6;
+  
+  // Calculate fingers X position relative to bracket end (-dims.w/2)
+  // Standard offset from bracket face to start of fingers is approx 30mm?
+  // Let's target center X = -dims.w / 2 + 5 + fingersLength / 2
+  const fingersX = -dims.w / 2 + 5 + fingersLength / 2;
+
+  return (
+    <group userData={{ objectId: obj.id }}>
+      {/* Main Body */}
+      <mesh>
+        <boxGeometry args={[dims.w, dims.h, dims.d]} />
+        <meshStandardMaterial
+          color={coolerColor}
+          metalness={0.6}
+          roughness={0.4}
+        />
+      </mesh>
+      
+      {/* PCIe Fingers (Visual) */}
+      <mesh position={[fingersX, -dims.h / 2 - fingersHeight / 2 + 5, -18]}>
+        <boxGeometry args={[fingersLength, fingersHeight, fingersThickness]} />
+        <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} />
       </mesh>
     </group>
   );
 }
 
+export function ChildMeshRenderer({ obj }) {
+  switch (obj.type) {
+    case "gpu-body":
+      return <GPUMesh obj={obj} selected={false} />;
+    case "gpu-bracket":
+      return <GPUBracketMesh obj={obj} selected={false} />;
+    case "structure":
+    default:
+      return <PartBox obj={obj} selected={false} />;
+  }
+}
 
 export function GroupMesh({ obj, selected }) {
   return (
     <group userData={{ objectId: obj.id }}>
-      <mesh>
+      <mesh raycast={() => null}>
         <boxGeometry
           args={[
             obj.dims.w + 0.1,
@@ -192,7 +170,7 @@ export function GroupMesh({ obj, selected }) {
       </mesh>
       {obj.children.map((child) => (
         <group key={child.id} position={child.pos} rotation={child.rot}>
-          <PartBox obj={child} selected={false} />
+          <ChildMeshRenderer obj={child} />
         </group>
       ))}
     </group>

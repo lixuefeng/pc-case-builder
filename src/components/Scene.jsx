@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
+import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
 import RulerMarkers from "./RulerMarkers";
-import { expandObjectsWithEmbedded } from "../utils/motherboardEmbedded";
+import { expandObjectsWithEmbedded } from "../utils/embeddedParts";
 
 export default function Scene({
   objects,
@@ -49,6 +50,57 @@ export default function Scene({
   }, []);
 
   const renderObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
+
+  const alignmentCandidates = useMemo(() => {
+    const result = [];
+    
+    const traverse = (obj, parentWorldPos = null, parentWorldQuat = null) => {
+      // Calculate world transform for current object
+      let worldPos, worldQuat, worldRot;
+
+      if (parentWorldPos && parentWorldQuat) {
+        // It's a child
+        const localPos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+        const localEuler = new THREE.Euler(...(obj.rot || [0, 0, 0]), 'XYZ');
+        const localQuat = new THREE.Quaternion().setFromEuler(localEuler);
+
+        // World Pos = ParentPos + (LocalPos rotated by ParentQuat)
+        worldPos = parentWorldPos.clone().add(localPos.applyQuaternion(parentWorldQuat));
+        
+        // World Quat = ParentQuat * LocalQuat
+        worldQuat = parentWorldQuat.clone().multiply(localQuat);
+        const e = new THREE.Euler().setFromQuaternion(worldQuat, 'XYZ');
+        worldRot = [e.x, e.y, e.z];
+      } else {
+        // It's a root object
+        worldPos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+        const e = new THREE.Euler(...(obj.rot || [0, 0, 0]), 'XYZ');
+        worldQuat = new THREE.Quaternion().setFromEuler(e);
+        worldRot = obj.rot || [0, 0, 0];
+      }
+
+      // Add to result (as a virtual object with world transform)
+      // We preserve the ID so MovablePart can identify it.
+      // We also need dims and type for alignment logic.
+      result.push({
+        ...obj,
+        pos: worldPos.toArray(),
+        rot: worldRot,
+        // If it's a group, we might still want to align to its bounding box? 
+        // Or just its children?
+        // If we align to group, we use the group's dims/pos.
+        // If we align to children, we use children's dims/pos.
+        // Let's include both.
+      });
+
+      if (Array.isArray(obj.children)) {
+        obj.children.forEach(child => traverse(child, worldPos, worldQuat));
+      }
+    };
+
+    renderObjects.forEach(obj => traverse(obj));
+    return result;
+  }, [renderObjects]);
 
   const gridOffset = useMemo(() => {
     const objectMinY = renderObjects.reduce((min, obj) => {
@@ -99,7 +151,7 @@ export default function Scene({
               );
             }}
             onSelect={onSelect}
-            allObjects={renderObjects}
+            allObjects={alignmentCandidates}
             setDragging={setIsDragging}
             connections={connections}
             alignMode={alignMode}

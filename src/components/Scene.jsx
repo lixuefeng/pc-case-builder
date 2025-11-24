@@ -26,6 +26,7 @@ export default function Scene({
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [gizmoHovered, setGizmoHovered] = useState(false);
 
   // 修复：恢复对 Alt 键的全局监听，以控制视角
   useEffect(() => {
@@ -161,6 +162,8 @@ export default function Scene({
             mode={transformMode}
             onModeChange={onChangeTransformMode}
             showTransformControls={showTransformControls}
+            gizmoHovered={gizmoHovered}
+            setGizmoHovered={setGizmoHovered}
           />
         ))}
         <RulerMarkers measurements={measurements} />

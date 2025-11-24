@@ -2,7 +2,7 @@
 // components/MovablePart.jsx — 选中/移动/旋转 + HUD（旋转安全的高亮/吸附 + 调试日志）
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
-import { useThree } from "@react-three/fiber";
+import { useThree, useFrame } from "@react-three/fiber";
 import { TransformControls, Html } from "@react-three/drei";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import {
@@ -194,6 +194,8 @@ export default function MovablePart({
   mode = "translate",
   onModeChange,
   showTransformControls = false,
+  gizmoHovered,
+  setGizmoHovered,
 }) {
   const t = palette;
   const groupRef = useRef();
@@ -1347,6 +1349,22 @@ export default function MovablePart({
     [alignMode, mode, obj]
   );
 
+  // Monitor Gizmo Hover State
+  useFrame(() => {
+    if (selected && showTransformControls && controlsRef.current && setGizmoHovered) {
+      // TransformControls (drei) exposes the internal Three.js instance via ref
+      // The internal instance has an 'axis' property which is non-null when hovering
+      const axis = controlsRef.current.axis;
+      if (axis && !gizmoHovered) {
+        setGizmoHovered(true);
+      } else if (!axis && gizmoHovered) {
+        // Only set to false if WE were the ones who set it (or just aggressively set false if no axis)
+        // Since only one object is selected at a time, this is safe.
+        setGizmoHovered(false);
+      }
+    }
+  });
+
 
   return (
     <>
@@ -1376,6 +1394,14 @@ export default function MovablePart({
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
+          // If the gizmo is currently hovered, do NOT select this object (allow click to pass to gizmo)
+          // But wait, TransformControls events are separate.
+          // If we stop propagation here, does it hurt?
+          // The issue is that clicking here triggers onSelect, which might deselect the current object.
+          if (gizmoHovered) {
+             return;
+          }
+
           if (isEmbedded && !alignMode) {
             return;
           }
@@ -1448,6 +1474,7 @@ export default function MovablePart({
           object={groupRef.current}
           mode={mode}
           space="local"
+          depthTest={false} // Always render on top to ensure clickability
           enabled={!uiLock}
           onObjectChange={() => {
             if (!groupRef.current) return;

@@ -15,7 +15,7 @@ import { expandObjectsWithEmbedded } from "./utils/embeddedParts";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 const DUPLICATE_OFFSET = 25;
-const alog = (...args) => console.log("[Align]", ...args);
+const alog = () => {};
 
 const deepCloneObject = (value) => JSON.parse(JSON.stringify(value));
 const randomSuffix = () => Math.random().toString(36).slice(2, 8);

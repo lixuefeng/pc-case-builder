@@ -1,5 +1,5 @@
-
-// components/MovablePart.jsx — 选中/移动/旋转 + HUD（旋转安全的高亮/吸附 + 调试日志）
+﻿
+// components/MovablePart.jsx 鈥?閫変腑/绉诲姩/鏃嬭浆 + HUD锛堟棆杞畨鍏ㄧ殑楂樹寒/鍚搁檮 + 璋冭瘯鏃ュ織锛?
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { useThree, useFrame } from "@react-three/fiber";
@@ -13,7 +13,8 @@ import {
 } from "./Meshes.jsx";
 import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 
-const dlog = (...args) => console.log("[MovablePart]", ...args);
+const DEBUG_LOG = false;
+const dlog = DEBUG_LOG ? (...args) => console.log("[MovablePart]", ...args) : () => {};
 
 const CONNECTOR_TYPE_COLORS = {
   "screw-m3": "#38bdf8",
@@ -184,8 +185,8 @@ export default function MovablePart({
   setObj,
   onSelect,
   palette,
-  allObjects = [], // 用于面检测
-  setDragging, // 告知父组件控制 OrbitControls
+  allObjects = [], // 鐢ㄤ簬闈㈡娴?
+  setDragging, // 鍛婄煡鐖剁粍浠舵帶鍒?OrbitControls
   connections = [],
   alignMode = false,
   onFacePick,
@@ -215,12 +216,12 @@ export default function MovablePart({
   const finishStretchRef = useRef(null);
 
   const requestFinish = useCallback((reason) => {
-    console.log("[stretch/finish-request]", reason);
+    if (DEBUG_LOG) console.log("[stretch/finish-request]", reason);
     finishStretchRef.current?.();
   }, []);
 
   const handleWindowPointerUp = useCallback((event) => {
-    console.log("[stretch/window-pointerup]", {
+    if (DEBUG_LOG) console.log("[stretch/window-pointerup]", {
       pointerId: event.pointerId,
       buttons: event.buttons,
     });
@@ -228,14 +229,14 @@ export default function MovablePart({
   }, [requestFinish]);
 
   const handleWindowPointerCancel = useCallback((event) => {
-    console.log("[stretch/window-pointercancel]", {
+    if (DEBUG_LOG) console.log("[stretch/window-pointercancel]", {
       pointerId: event.pointerId,
     });
     requestFinish("pointercancel");
   }, [requestFinish]);
 
   const handleWindowBlur = useCallback(() => {
-    console.log("[stretch/window-blur]");
+    if (DEBUG_LOG) console.log("[stretch/window-blur]");
     requestFinish("window-blur");
   }, [requestFinish]);
   const computeAxisOffsetFromRay = useCallback((ray, axisOrigin, axisDirection) => {
@@ -250,12 +251,12 @@ export default function MovablePart({
     const denom = 1 - b * b;
     let result;
     if (Math.abs(denom) < 0.05) {
-      console.log("[stretch/axisOffset] denom too small (parallel view)", denom);
+      if (DEBUG_LOG) console.log("[stretch/axisOffset] denom too small (parallel view)", denom);
       return null;
     } else {
       result = (b * e - d) / denom;
     }
-    console.log("[stretch/axisOffset]", {
+    if (DEBUG_LOG) console.log("[stretch/axisOffset]", {
       rayOrigin: ray.origin.toArray?.() ?? null,
       rayDir: rayDir.toArray?.() ?? null,
       axisOrigin: axisOrigin.toArray?.() ?? null,
@@ -277,7 +278,7 @@ export default function MovablePart({
     });
   }, [showTransformControls, selected]);
 
-  // ✅ UI 锁：当在 HUD 上交互时，禁用 TransformControls + OrbitControls
+  // 鉁?UI 閿侊細褰撳湪 HUD 涓婁氦浜掓椂锛岀鐢?TransformControls + OrbitControls
   const [uiLock, setUiLock] = useState(false);
 
   const connectedConnectorIds = useMemo(() => {
@@ -385,7 +386,7 @@ export default function MovablePart({
         pos: [newPosVec.x, newPosVec.y, newPosVec.z],
       }));
       state.lastDelta = appliedDelta;
-      console.log("[stretch/applyDelta]", {
+      if (DEBUG_LOG) console.log("[stretch/applyDelta]", {
         part: objectId,
         face: state.faceName,
         dimKey: axisInfo.dimKey,
@@ -402,7 +403,7 @@ export default function MovablePart({
 
   const handleStretchPointerMove = useCallback(
     (event) => {
-      console.log("[stretch/pointerMove:raw]", {
+      if (DEBUG_LOG) console.log("[stretch/pointerMove:raw]", {
         type: event.type,
         buttons: event.buttons,
         pointerId: event.pointerId,
@@ -423,7 +424,7 @@ export default function MovablePart({
       raycaster.setFromCamera(pointerNdc, camera);
       const { axisDirection: axisDir, axisOrigin, objectId, pointerId } = state;
       if (pointerId !== undefined && pointerId !== event.pointerId) {
-        console.log("[stretch/pointerMove] pointerId mismatch (ignoring)", {
+        if (DEBUG_LOG) console.log("[stretch/pointerMove] pointerId mismatch (ignoring)", {
           expected: pointerId,
           received: event.pointerId,
         });
@@ -440,7 +441,7 @@ export default function MovablePart({
         return;
       }
       const delta = axisOffset - state.startAxisOffset;
-      console.log("[stretch/pointerMove] details", {
+      if (DEBUG_LOG) console.log("[stretch/pointerMove] details", {
         buttons: event.buttons,
         pointerId: event.pointerId,
         axisOffset,
@@ -480,7 +481,7 @@ export default function MovablePart({
     window.removeEventListener("pointerup", handleWindowPointerUp);
     window.removeEventListener("pointercancel", handleWindowPointerCancel);
     window.removeEventListener("blur", handleWindowBlur);
-    console.log("[stretch/finish]", {
+    if (DEBUG_LOG) console.log("[stretch/finish]", {
       part: stretchStateRef.current?.objectId,
       face: stretchStateRef.current?.faceName,
     });
@@ -489,9 +490,9 @@ export default function MovablePart({
     if (captureTarget && typeof captureTarget.releasePointerCapture === "function" && pointerId !== undefined) {
       try {
         captureTarget.releasePointerCapture(pointerId);
-        console.log("[stretch/finish] releasePointerCapture", { pointerId });
+        if (DEBUG_LOG) console.log("[stretch/finish] releasePointerCapture", { pointerId });
       } catch (releaseError) {
-        console.warn("[stretch/finish] failed to release pointer capture", releaseError);
+        if (DEBUG_LOG) console.warn("[stretch/finish] failed to release pointer capture", releaseError);
       }
     }
     const wasDrag = stretchStateRef.current?.hasTriggeredDrag;
@@ -503,7 +504,7 @@ export default function MovablePart({
 
     // If it wasn't a drag, treat it as a click (pick face)
     if (!wasDrag && onFacePick && faceName && objectId) {
-      console.log("[stretch/finish] treated as click", { objectId, faceName });
+      if (DEBUG_LOG) console.log("[stretch/finish] treated as click", { objectId, faceName });
       onFacePick({ partId: objectId, face: faceName, shiftKey: isShiftPressed });
     }
 
@@ -521,7 +522,7 @@ export default function MovablePart({
 
   useEffect(() => {
     return () => {
-      console.log("[stretch/cleanup] removing listeners");
+      if (DEBUG_LOG) console.log("[stretch/cleanup] removing listeners");
       window.removeEventListener("pointermove", handleStretchPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerUp);
       window.removeEventListener("pointercancel", handleWindowPointerCancel);
@@ -532,23 +533,23 @@ export default function MovablePart({
   const beginStretch = useCallback(
     (faceName, faceDetails, event) => {
       if (stretchStateRef.current) {
-        console.log("[stretch/begin] aborted: existing session, forcing finish");
+        if (DEBUG_LOG) console.log("[stretch/begin] aborted: existing session, forcing finish");
         requestFinish("begin-stale-session");
         if (stretchStateRef.current) {
           return;
         }
       }
       if (!faceDetails) {
-        console.log("[stretch/begin] aborted: no faceDetails");
+        if (DEBUG_LOG) console.log("[stretch/begin] aborted: no faceDetails");
         return;
       }
       if (isEmbedded) {
-        console.log("[stretch/begin] aborted: embedded part");
+        if (DEBUG_LOG) console.log("[stretch/begin] aborted: embedded part");
         return;
       }
       const axisInfo = getStretchAxisInfo(obj, faceName);
       if (!axisInfo) {
-        console.log("[stretch/begin] aborted: axisInfo missing");
+        if (DEBUG_LOG) console.log("[stretch/begin] aborted: axisInfo missing");
         return;
       }
       const axisDirection = new THREE.Vector3(...(faceDetails.normal || [0, 0, 1])).normalize();
@@ -562,7 +563,7 @@ export default function MovablePart({
         axisDirection
       );
       if (typeof startAxisOffset !== "number" || Number.isNaN(startAxisOffset)) {
-        console.log("[stretch/begin] aborted: invalid axis offset", {
+        if (DEBUG_LOG) console.log("[stretch/begin] aborted: invalid axis offset", {
           rayOrigin: event.ray.origin.toArray(),
           rayDir: event.ray.direction.toArray(),
           axisOrigin: axisOrigin.toArray(),
@@ -591,16 +592,16 @@ export default function MovablePart({
       if (stretchStateRef.current.pointerCaptureTarget) {
         try {
           stretchStateRef.current.pointerCaptureTarget.setPointerCapture(event.pointerId);
-          console.log("[stretch/begin] setPointerCapture", {
+          if (DEBUG_LOG) console.log("[stretch/begin] setPointerCapture", {
             pointerId: event.pointerId,
             target: stretchStateRef.current.pointerCaptureTarget,
           });
         } catch (captureError) {
-          console.warn("[stretch/begin] failed to capture pointer", captureError);
+          if (DEBUG_LOG) console.warn("[stretch/begin] failed to capture pointer", captureError);
           stretchStateRef.current.pointerCaptureTarget = null;
         }
       }
-      console.log("[stretch/begin] started", {
+      if (DEBUG_LOG) console.log("[stretch/begin] started", {
         part: obj?.id,
         face: faceName,
         axisOrigin: axisOrigin.toArray(),
@@ -630,20 +631,20 @@ export default function MovablePart({
 
 
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
-  const prevPosRef = useRef(null); // 上一帧世界位置，用来推断真实拖拽轴
+  const prevPosRef = useRef(null); // 涓婁竴甯т笘鐣屼綅缃紝鐢ㄦ潵鎺ㄦ柇鐪熷疄鎷栨嫿杞?
   const [delta, setDelta] = useState({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
 
-  // ✅ 智能对齐状态
+  // 鉁?鏅鸿兘瀵归綈鐘舵€?
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [bestAlignCandidate, setBestAlignCandidate] = useState(null);
-  // 记录拖拽过程中的最后一个可用候选，用于松手时吸附
+  // 璁板綍鎷栨嫿杩囩▼涓殑鏈€鍚庝竴涓彲鐢ㄥ€欓€夛紝鐢ㄤ簬鏉炬墜鏃跺惛闄?
   const lastAlignCandidateRef = useRef(null);
   const isDraggingRef = useRef(false);
-  const noHitFramesRef = useRef(0); // 连续无候选的帧数（用于宽限）
-  const upListenerRef = useRef(null); // 全局 pointerup 兜底监听
+  const noHitFramesRef = useRef(0); // 杩炵画鏃犲€欓€夌殑甯ф暟锛堢敤浜庡闄愶級
+  const upListenerRef = useRef(null); // 鍏ㄥ眬 pointerup 鍏滃簳鐩戝惉
   const lastHoverSampleRef = useRef({ local: null, world: null });
 
-  // ⌨️ 仅处理 Shift
+  // 鈱笍 浠呭鐞?Shift
   useEffect(() => {
     const handleKeyDown = (e) => { if (e.key === 'Shift') setIsShiftPressed(true); };
     const handleKeyUp = (e) => { if (e.key === 'Shift') { setIsShiftPressed(false); setBestAlignCandidate(null); } };
@@ -655,17 +656,17 @@ export default function MovablePart({
     };
   }, []);
 
-  // === 吸附并行性容差（仅当两面近似平行才高亮/吸附） ===
-  const ALIGN_ANG_TOL_DEG = 5; // 允许 5° 以内的夹角误差
+  // === 鍚搁檮骞惰鎬у宸紙浠呭綋涓ら潰杩戜技骞宠鎵嶉珮浜?鍚搁檮锛?===
+  const ALIGN_ANG_TOL_DEG = 5; // 鍏佽 5掳 浠ュ唴鐨勫す瑙掕宸?
   const PARALLEL_COS = Math.cos(THREE.MathUtils.degToRad(ALIGN_ANG_TOL_DEG));
-  const DIST_THRESHOLD = 50; // 50mm 检测距离
-  const MIN_MOVE_EPS = 0.25; // 本帧最小移动阈值，避免第一帧 axis 误判
-  // ——— 抗抖/粘滞参数（抑制高亮闪烁） ———
-  const HYST_MM = 3;           // 候选切换的最小改进（小于3mm不切）
-  const IMPROVE_MM = 2;        // 新候选需要至少优于上一个2mm才替换
-  const GRACE_FRAMES = 6;      // 丢失候选后，保留旧候选的宽限帧数
+  const DIST_THRESHOLD = 50; // 50mm 妫€娴嬭窛绂?
+  const MIN_MOVE_EPS = 0.25; // 鏈抚鏈€灏忕Щ鍔ㄩ槇鍊硷紝閬垮厤绗竴甯?axis 璇垽
+  // 鈥斺€斺€?鎶楁姈/绮樻粸鍙傛暟锛堟姂鍒堕珮浜棯鐑侊級 鈥斺€斺€?
+  const HYST_MM = 3;           // 鍊欓€夊垏鎹㈢殑鏈€灏忔敼杩涳紙灏忎簬3mm涓嶅垏锛?
+  const IMPROVE_MM = 2;        // 鏂板€欓€夐渶瑕佽嚦灏戜紭浜庝笂涓€涓?mm鎵嶆浛鎹?
+  const GRACE_FRAMES = 6;      // 涓㈠け鍊欓€夊悗锛屼繚鐣欐棫鍊欓€夌殑瀹介檺甯ф暟
 
-  // ===== 工具：世界位姿、轴与 OBB 投影 =====
+  // ===== 宸ュ叿锛氫笘鐣屼綅濮裤€佽酱涓?OBB 鎶曞奖 =====
   function getWorldTransform({ ref, obj }) {
     const p = new THREE.Vector3();
     const q = new THREE.Quaternion();
@@ -683,7 +684,7 @@ export default function MovablePart({
     return { p, q, axes: { ax, ay, az } };
   }
 
-  // OBB 在世界轴 a 上的投影半径
+  // OBB 鍦ㄤ笘鐣岃酱 a 涓婄殑鎶曞奖鍗婂緞
   function projectedHalfExtentAlongAxis(worldAxis, dims, axes) {
     const { ax, ay, az } = axes;
     const w2 = (dims?.w ?? 0) / 2, h2 = (dims?.h ?? 0) / 2, d2 = (dims?.d ?? 0) / 2;
@@ -700,7 +701,7 @@ export default function MovablePart({
     const half = projectedHalfExtentAlongAxis(dirN, targetObj.dims, axes);
     const centerCoord = p.dot(dirN);
 
-    // 取与 dirN 投影最大的本地轴，确定面名
+    // 鍙栦笌 dirN 鎶曞奖鏈€澶х殑鏈湴杞达紝纭畾闈㈠悕
     const projections = [
       { label: "X", axis: axes.ax, proj: Math.abs(dirN.dot(axes.ax)) },
       { label: "Y", axis: axes.ay, proj: Math.abs(dirN.dot(axes.ay)) },
@@ -718,7 +719,7 @@ export default function MovablePart({
   }
 
 
-  // 根据移动向量在本地基上的投影，推断最可能的拖拽轴
+  // 鏍规嵁绉诲姩鍚戦噺鍦ㄦ湰鍦板熀涓婄殑鎶曞奖锛屾帹鏂渶鍙兘鐨勬嫋鎷借酱
   function inferAxisFromMovement(mv, tf) {
     if (!mv) return { axis: null, proj: { X: 0, Y: 0, Z: 0 }, len: 0 };
     const { ax, ay, az } = tf.axes;
@@ -747,7 +748,7 @@ export default function MovablePart({
     return { dir: best.v.clone().normalize(), label: best.label };
   }
 
-  // 查找最佳对齐候选（基于当前拖拽本地轴投影到世界后的方向）
+  // 鏌ユ壘鏈€浣冲榻愬€欓€夛紙鍩轰簬褰撳墠鎷栨嫿鏈湴杞存姇褰卞埌涓栫晫鍚庣殑鏂瑰悜锛?
   const findBestAlignCandidate = (worldDir, axisLabel) => {
     const dirN = worldDir.clone().normalize();
     dlog("findBestAlignCandidate:start", { axisLabel, worldDir: dirN.toArray() });
@@ -769,7 +770,7 @@ export default function MovablePart({
       if (targetObj.id === obj.id || !targetObj.visible) continue;
       const targetTF = getWorldTransform({ ref: null, obj: targetObj });
       const picked = pickTargetBasis(targetTF, dirN);
-      const targetDir = picked.dir; // 已归一化
+      const targetDir = picked.dir; // 宸插綊涓€鍖?
       const targetAxisLabel = picked.label; // 'X' | 'Y' | 'Z'
       const isGpuTarget = targetObj.type === "gpu" || targetObj.type === "gpu-bracket";
       if (isGpuTarget) {
@@ -783,7 +784,7 @@ export default function MovablePart({
         });
       }
 
-      // ⛔ 角度不平行则跳过（仅当 |cosθ| >= cos(tol) 才认为可对齐）
+      // 鉀?瑙掑害涓嶅钩琛屽垯璺宠繃锛堜粎褰?|cos胃| >= cos(tol) 鎵嶈涓哄彲瀵归綈锛?
       const parallelCos = Math.abs(dirN.dot(targetDir));
       if (parallelCos < PARALLEL_COS) {
         if (isGpuTarget) {
@@ -797,7 +798,7 @@ export default function MovablePart({
 
       for (const selfFace of selfFaces) {
         for (const targetFace of targetFaces) {
-          // 统一标量方向：若 targetDir 与 selfDir 反向，则把目标侧标量翻转到同一坐标系
+          // 缁熶竴鏍囬噺鏂瑰悜锛氳嫢 targetDir 涓?selfDir 鍙嶅悜锛屽垯鎶婄洰鏍囦晶鏍囬噺缈昏浆鍒板悓涓€鍧愭爣绯?
           const sameOrientation = Math.sign(targetDir.dot(dirN)) || 1;
           const targetCoordAligned = sameOrientation * targetFace.coord;
           const distance = Math.abs(selfFace.coord - targetCoordAligned);
@@ -822,7 +823,7 @@ export default function MovablePart({
       }
     }
 
-    // —— 粘滞/抗抖：没有新候选时，短时间保留旧候选；有新候选时，只有明显更好才替换 ——
+    // 鈥斺€?绮樻粸/鎶楁姈锛氭病鏈夋柊鍊欓€夋椂锛岀煭鏃堕棿淇濈暀鏃у€欓€夛紱鏈夋柊鍊欓€夋椂锛屽彧鏈夋槑鏄炬洿濂芥墠鏇挎崲 鈥斺€?
     let finalCandidate = bestAlignCandidate;
     const prev = lastAlignCandidateRef.current;
 
@@ -834,7 +835,7 @@ export default function MovablePart({
         });
       }
       if (prev && noHitFramesRef.current < GRACE_FRAMES) {
-        finalCandidate = prev; // 宽限期内沿用上一个
+        finalCandidate = prev; // 瀹介檺鏈熷唴娌跨敤涓婁竴涓?
         noHitFramesRef.current += 1;
         dlog('candidate:stick(prev)', { noHitFrames: noHitFramesRef.current });
       } else {
@@ -844,7 +845,7 @@ export default function MovablePart({
     } else {
       noHitFramesRef.current = 0;
       if (prev && prev.targetObj?.id === bestCandidate.targetObj?.id && prev.targetAxisLabel === bestCandidate.targetAxisLabel) {
-        // 若新候选没有“显著更好”（小于 IMPROVE_MM），继续沿用旧候选，避免来回跳
+        // 鑻ユ柊鍊欓€夋病鏈夆€滄樉钁楁洿濂解€濓紙灏忎簬 IMPROVE_MM锛夛紝缁х画娌跨敤鏃у€欓€夛紝閬垮厤鏉ュ洖璺?
         if (bestCandidate.distance > prev.distance - IMPROVE_MM) {
           finalCandidate = prev;
           dlog('candidate:keep(prev)', { prevDist: prev.distance, newDist: bestCandidate.distance });
@@ -864,7 +865,7 @@ export default function MovablePart({
     if (finalCandidate) lastAlignCandidateRef.current = finalCandidate;
   };
 
-  // 旋转安全的吸附计算：沿当前拖拽方向做一维替换
+  // 鏃嬭浆瀹夊叏鐨勫惛闄勮绠楋細娌垮綋鍓嶆嫋鎷芥柟鍚戝仛涓€缁存浛鎹?
   const calculateAlignPosition = (candidate) => {
     const { selfFace, targetFace, targetObj, selfDir, targetDir } = candidate;
     const dir = selfDir.clone().normalize();
@@ -965,7 +966,7 @@ export default function MovablePart({
     requestAnimationFrame(step);
   };
 
-  // 统一的“拖拽结束”处理：onDraggingChange(false) 与全局 pointerup 都会调用
+  // 缁熶竴鐨勨€滄嫋鎷界粨鏉熲€濆鐞嗭細onDraggingChange(false) 涓庡叏灞€ pointerup 閮戒細璋冪敤
   const handleDragEnd = () => {
     const candidate = bestAlignCandidate || lastAlignCandidateRef.current;
     dlog("onDragEnd", {
@@ -976,7 +977,7 @@ export default function MovablePart({
     });
 
     if (candidate) {
-      // 只要当前/最近存在高亮候选，就吸附（不再强制要求 Shift）
+      // 鍙褰撳墠/鏈€杩戝瓨鍦ㄩ珮浜€欓€夛紝灏卞惛闄勶紙涓嶅啀寮哄埗瑕佹眰 Shift锛?
       snapToCandidate(candidate);
     } else {
       const p = groupRef.current.position.clone().toArray();
@@ -992,7 +993,7 @@ export default function MovablePart({
     lastAlignCandidateRef.current = null;
   };
 
-  // 根据面名得到高亮薄盒的世界中心/尺寸/朝向
+  // 鏍规嵁闈㈠悕寰楀埌楂樹寒钖勭洅鐨勪笘鐣屼腑蹇?灏哄/鏈濆悜
   const getFaceDetails = ({ obj, ref, faceName }) => {
     let targetObj = obj;
     let targetFace = faceName;
@@ -1031,7 +1032,7 @@ export default function MovablePart({
     const height = dims.h ?? 0;
     const depth = dims.d ?? 0;
     const thickness = 0.2;
-    const surfacePadding = 0.02; // 沿面法线轻微外移，避免闪烁
+    const surfacePadding = 0.02; // 娌块潰娉曠嚎杞诲井澶栫Щ锛岄伩鍏嶉棯鐑?
 
     // Use targetFace instead of faceName for the switch
     const currentFaceName = targetFace;
@@ -1119,7 +1120,7 @@ export default function MovablePart({
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
     dragStartRef.current = { pos: p, rot: r };
-    prevPosRef.current = p; // 初始化上一帧位置
+    prevPosRef.current = p; // 鍒濆鍖栦笂涓€甯т綅缃?
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
     isDraggingRef.current = true;
     dlog("startDrag", { pos: p, rot: r });
@@ -1148,7 +1149,7 @@ export default function MovablePart({
     };
     setDelta(d);
 
-    // 计算当前帧移动向量（上一帧 -> 当前帧）
+    // 璁＄畻褰撳墠甯хЩ鍔ㄥ悜閲忥紙涓婁竴甯?-> 褰撳墠甯э級
     let mv = null;
     if (prevPosRef.current) {
       mv = new THREE.Vector3(
@@ -1170,7 +1171,7 @@ export default function MovablePart({
       ],
     });
 
-    // 未按住 Shift：不对齐
+    // 鏈寜浣?Shift锛氫笉瀵归綈
     if (!isShiftPressed) { setBestAlignCandidate(null); return; }
     dlog("drag:update", {
       shift: isShiftPressed,
@@ -1179,23 +1180,23 @@ export default function MovablePart({
       axisFromCtrl: controlsRef.current?.axis,
     });
 
-    // 备用：世界轴主导判断（退化用）
+    // 澶囩敤锛氫笘鐣岃酱涓诲鍒ゆ柇锛堥€€鍖栫敤锛?
     const absDx = Math.abs(d.dx), absDy = Math.abs(d.dy), absDz = Math.abs(d.dz);
     let currentDragAxis = null;
     if (absDx > absDy && absDx > absDz) currentDragAxis = 'X';
     else if (absDy > absDx && absDy > absDz) currentDragAxis = 'Y';
     else if (absDz > absDx && absDz > absDy) currentDragAxis = 'Z';
 
-    // 等移动超过阈值再解析轴，避免第一帧误判
+    // 绛夌Щ鍔ㄨ秴杩囬槇鍊煎啀瑙ｆ瀽杞达紝閬垮厤绗竴甯ц鍒?
     const selfTF = getWorldTransform({ ref: groupRef, obj });
     const mvLen = mv ? mv.length() : 0;
     if (mvLen < MIN_MOVE_EPS) {
       dlog('axis:wait-move', { mvLen });
-      // 保持现有候选，避免低速/停顿帧导致的闪烁
+      // 淇濇寔鐜版湁鍊欓€夛紝閬垮厤浣庨€?鍋滈】甯у鑷寸殑闂儊
       return;
     }
 
-    // 解析轴：控件轴优先，必要时用移动向量纠错
+    // 瑙ｆ瀽杞达細鎺т欢杞翠紭鍏堬紝蹇呰鏃剁敤绉诲姩鍚戦噺绾犻敊
     const axisFromCtrlRaw = controlsRef.current?.axis || null; // 'X'|'Y'|'Z'|'XY'|'YZ'|'XZ'|null
     let resolvedAxis = (axisFromCtrlRaw === 'X' || axisFromCtrlRaw === 'Y' || axisFromCtrlRaw === 'Z') ? axisFromCtrlRaw : null;
 
@@ -1205,7 +1206,7 @@ export default function MovablePart({
     if (!resolvedAxis) {
       resolvedAxis = inferred || currentDragAxis;
     } else {
-      // 仅当推断轴投影显著更大时才覆盖控件轴
+      // 浠呭綋鎺ㄦ柇杞存姇褰辨樉钁楁洿澶ф椂鎵嶈鐩栨帶浠惰酱
       const margin = 1.25; // 25%
       const ctrlProj = proj[resolvedAxis] ?? 0;
       const infProj = inferred ? (proj[inferred] ?? 0) : 0;
@@ -1217,7 +1218,7 @@ export default function MovablePart({
       }
     }
 
-    // 根据解析的轴找候选（不平行/超距会被过滤）
+    // 鏍规嵁瑙ｆ瀽鐨勮酱鎵惧€欓€夛紙涓嶅钩琛?瓒呰窛浼氳杩囨护锛?
     if (resolvedAxis === 'X' || resolvedAxis === 'Y' || resolvedAxis === 'Z') {
       const worldDir = getLocalAxisDir(selfTF, resolvedAxis);
       dlog('axis:resolved', { axisFromCtrlRaw, resolvedAxis, mv: mv?.toArray?.() });
@@ -1232,8 +1233,8 @@ export default function MovablePart({
       dlog('axis:fallback-world', { currentDragAxis });
       findBestAlignCandidate(worldDir, currentDragAxis);
     } else {
-      // 解析不到轴时，保留上一候选，避免短促抖动造成的熄灭
-      // （findBestAlignCandidate 内部也有粘滞/宽限控制）
+      // 瑙ｆ瀽涓嶅埌杞存椂锛屼繚鐣欎笂涓€鍊欓€夛紝閬垮厤鐭績鎶栧姩閫犳垚鐨勭唲鐏?
+      // 锛坒indBestAlignCandidate 鍐呴儴涔熸湁绮樻粸/瀹介檺鎺у埗锛?
     }
   };
 
@@ -1249,7 +1250,7 @@ export default function MovablePart({
     textAlign: "center",
   };
 
-  // ✅ 工具：把事件彻底拦下
+  // 鉁?宸ュ叿锛氭妸浜嬩欢褰诲簳鎷︿笅
   const eat = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -1260,21 +1261,21 @@ export default function MovablePart({
     }
   };
 
-  // ✅ HUD 聚焦期间上锁；失焦/关闭时解锁
+  // 鉁?HUD 鑱氱劍鏈熼棿涓婇攣锛涘け鐒?鍏抽棴鏃惰В閿?
   const lock = (e) => { eat(e); setUiLock(true); };
   const unlock = (e) => { eat(e); setUiLock(false); };
 
-  // ===== 计算高亮薄盒 =====
+  // ===== 璁＄畻楂樹寒钖勭洅 =====
   const targetHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
     const { targetObj, targetDir, targetFace, targetAxisLabel } = bestAlignCandidate;
     const { p, q, axes } = getWorldTransform({ ref: null, obj: targetObj });
     const half = projectedHalfExtentAlongAxis(targetDir, targetObj.dims, axes);
     const sign = targetFace[0] === '+' ? 1 : -1;
-    const offset = 0.1; // 防穿模
+    const offset = 0.1; // 闃茬┛妯?
     const center = p.clone().add(targetDir.clone().multiplyScalar(sign * (half + offset)));
 
-    // 根据目标轴选择正确的薄盒尺寸（在目标的本地空间定义，再由 quaternion 对齐）
+    // 鏍规嵁鐩爣杞撮€夋嫨姝ｇ‘鐨勮杽鐩掑昂瀵革紙鍦ㄧ洰鏍囩殑鏈湴绌洪棿瀹氫箟锛屽啀鐢?quaternion 瀵归綈锛?
     const thickness = 0.2;
     let size;
     if (targetAxisLabel === 'X') size = [thickness, targetObj.dims.h, targetObj.dims.d];
@@ -1582,7 +1583,7 @@ export default function MovablePart({
           onMouseDown={() => {
             startDrag();
             lastAlignCandidateRef.current = null;
-            // 添加全局 pointerup 兜底：某些平台 TransformControls 不总是触发 dragging=false
+            // 娣诲姞鍏ㄥ眬 pointerup 鍏滃簳锛氭煇浜涘钩鍙?TransformControls 涓嶆€绘槸瑙﹀彂 dragging=false
             if (upListenerRef.current) {
               window.removeEventListener('pointerup', upListenerRef.current);
               upListenerRef.current = null;
@@ -1598,9 +1599,9 @@ export default function MovablePart({
             isDraggingRef.current = dragging;
             setDragging?.(dragging);
             if (!dragging) {
-              // 优先用控件回调触发一次结束逻辑
+              // 浼樺厛鐢ㄦ帶浠跺洖璋冭Е鍙戜竴娆＄粨鏉熼€昏緫
               handleDragEnd();
-              // 清理全局 pointerup 监听
+              // 娓呯悊鍏ㄥ眬 pointerup 鐩戝惉
               if (upListenerRef.current) {
                 window.removeEventListener('pointerup', upListenerRef.current);
                 upListenerRef.current = null;
@@ -1613,7 +1614,7 @@ export default function MovablePart({
         />
       )}
 
-      {/* ✅ Hover Highlight (World Space) */}
+      {/* 鉁?Hover Highlight (World Space) */}
       {(alignMode || mode === "scale") && hoveredFaceDetails && (
         <mesh
           ref={hoverFaceMeshRef}
@@ -1632,7 +1633,7 @@ export default function MovablePart({
         </mesh>
       )}
 
-      {/* ✅ Active Highlight (World Space) */}
+      {/* 鉁?Active Highlight (World Space) */}
       {(alignMode || mode === "scale") && activeFaceDetails && (
         <mesh
           position={activeFaceDetails.center}
@@ -1650,7 +1651,7 @@ export default function MovablePart({
         </mesh>
       )}
 
-      {/* ✅ Alignment Candidate Highlights (World Space) */}
+      {/* 鉁?Alignment Candidate Highlights (World Space) */}
       {bestAlignCandidate && (
         <group>
           {targetHighlightDetails && (
@@ -1707,7 +1708,7 @@ export default function MovablePart({
                 pointerEvents: "none",
               }}
             >
-              {bestAlignCandidate.selfFace} → {bestAlignCandidate.targetFace}
+              {bestAlignCandidate.selfFace} 鈫?{bestAlignCandidate.targetFace}
             </div>
           </Html>
         </group>

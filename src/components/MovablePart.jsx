@@ -205,12 +205,6 @@ export default function MovablePart({
   const stretchStateRef = useRef(null);
   const { gl, camera } = useThree();
 
-  useEffect(() => {
-    if (obj.type === 'gpu-bracket') {
-      console.log("[MovablePart] GPU Bracket Update:", { id: obj.id, pos: obj.pos, rot: obj.rot });
-    }
-  }, [obj]);
-
   // Fix: Stabilize setObj to prevent handleStretchPointerMove from changing and triggering useEffect cleanup
   const setObjRef = useRef(setObj);
   useEffect(() => {
@@ -700,26 +694,29 @@ export default function MovablePart({
     );
   }
 
-  // === 基于“任意世界方向”的面（用于本地轴拖拽后的世界方向） ===
-  function getFacesAlongDir({ obj, ref, dir }) {
-    const { p, q, axes } = getWorldTransform({ ref, obj });
-    const n = dir.clone().normalize();
-    const half = projectedHalfExtentAlongAxis(n, obj.dims, axes);
-    const centerPlus = p.clone().add(n.clone().multiplyScalar(half));
-    const centerMinus = p.clone().add(n.clone().multiplyScalar(-half));
-    const s = p.dot(n);
+  function getFacesAlongDir({ obj: targetObj, ref, dir }) {
+    const dirN = dir.clone().normalize();
+    const { p, axes } = getWorldTransform({ ref, obj: targetObj });
+    const half = projectedHalfExtentAlongAxis(dirN, targetObj.dims, axes);
+    const centerCoord = p.dot(dirN);
+
+    // 取与 dirN 投影最大的本地轴，确定面名
+    const projections = [
+      { label: "X", axis: axes.ax, proj: Math.abs(dirN.dot(axes.ax)) },
+      { label: "Y", axis: axes.ay, proj: Math.abs(dirN.dot(axes.ay)) },
+      { label: "Z", axis: axes.az, proj: Math.abs(dirN.dot(axes.az)) },
+    ].sort((a, b) => b.proj - a.proj);
+    const primary = projections[0];
+    const sign = Math.sign(dirN.dot(primary.axis)) || 1;
+    const facePosName = (sign >= 0 ? "+" : "-") + primary.label;
+    const faceNegName = (sign >= 0 ? "-" : "+") + primary.label;
+
     return [
-      { name: '+D', coord: s + half, center: centerPlus, p, q, n },
-      { name: '-D', coord: s - half, center: centerMinus, p, q, n },
+      { name: facePosName, coord: centerCoord + half },
+      { name: faceNegName, coord: centerCoord - half },
     ];
   }
 
-  function getLocalAxisDir(tf, axisLabel) {
-    if (axisLabel === 'X') return tf.axes.ax.clone();
-    if (axisLabel === 'Y') return tf.axes.ay.clone();
-    if (axisLabel === 'Z') return tf.axes.az.clone();
-    return null;
-  }
 
   // 根据移动向量在本地基上的投影，推断最可能的拖拽轴
   function inferAxisFromMovement(mv, tf) {
@@ -754,6 +751,15 @@ export default function MovablePart({
   const findBestAlignCandidate = (worldDir, axisLabel) => {
     const dirN = worldDir.clone().normalize();
     dlog("findBestAlignCandidate:start", { axisLabel, worldDir: dirN.toArray() });
+    const gpuObjects = Array.isArray(allObjects)
+      ? allObjects.filter((o) => o?.type === "gpu" || o?.type === "gpu-bracket")
+      : [];
+    dlog("findBestAlignCandidate:targets", {
+      axisLabel,
+      total: allObjects?.length ?? 0,
+      gpuCount: gpuObjects.length,
+      gpuIds: gpuObjects.map((o) => o.id),
+    });
 
     const selfFaces = getFacesAlongDir({ obj, ref: groupRef, dir: dirN });
     let bestCandidate = null;
@@ -765,10 +771,24 @@ export default function MovablePart({
       const picked = pickTargetBasis(targetTF, dirN);
       const targetDir = picked.dir; // 已归一化
       const targetAxisLabel = picked.label; // 'X' | 'Y' | 'Z'
+      const isGpuTarget = targetObj.type === "gpu" || targetObj.type === "gpu-bracket";
+      if (isGpuTarget) {
+        dlog("gpu:target-basis", {
+          targetId: targetObj.id,
+          targetType: targetObj.type,
+          axisLabel,
+          targetAxisLabel,
+          selfDir: dirN.toArray(),
+          targetDir: targetDir.toArray(),
+        });
+      }
 
       // ⛔ 角度不平行则跳过（仅当 |cosθ| >= cos(tol) 才认为可对齐）
       const parallelCos = Math.abs(dirN.dot(targetDir));
       if (parallelCos < PARALLEL_COS) {
+        if (isGpuTarget) {
+          dlog("gpu:skip:not-parallel", { targetId: targetObj.id, targetType: targetObj.type, parallelCos, need: PARALLEL_COS, axisLabel });
+        }
         dlog("skip:not-parallel", { targetId: targetObj.id, parallelCos, need: PARALLEL_COS });
         continue;
       }
@@ -794,6 +814,9 @@ export default function MovablePart({
               targetAxisLabel,
             };
             dlog("candidate:update", { targetId: targetObj.id, distance, axisLabel, targetAxisLabel });
+            if (isGpuTarget) {
+              dlog("gpu:candidate", { targetId: targetObj.id, targetType: targetObj.type, distance, selfFace: selfFace.name, targetFace: targetFace.name, selfCoord: selfFace.coord, targetCoord: targetFace.coord, sameOrientation });
+            }
           }
         }
       }
@@ -804,6 +827,12 @@ export default function MovablePart({
     const prev = lastAlignCandidateRef.current;
 
     if (!bestCandidate) {
+      if (gpuObjects.length > 0) {
+        dlog("gpu:no-hit", {
+          gpuIds: gpuObjects.map((o) => o.id),
+          reason: "no new candidate (parallel/distance filter)",
+        });
+      }
       if (prev && noHitFramesRef.current < GRACE_FRAMES) {
         finalCandidate = prev; // 宽限期内沿用上一个
         noHitFramesRef.current += 1;
@@ -829,6 +858,9 @@ export default function MovablePart({
 
     setBestAlignCandidate(finalCandidate);
     dlog("candidate:final", finalCandidate);
+    if (finalCandidate?.targetObj?.type === "gpu" || finalCandidate?.targetObj?.type === "gpu-bracket") {
+      dlog("gpu:candidate:final", { targetId: finalCandidate.targetObj.id, targetType: finalCandidate.targetObj.type, distance: finalCandidate.distance, selfFace: finalCandidate.selfFace, targetFace: finalCandidate.targetFace, axisLabel: finalCandidate.axisLabel, targetAxisLabel: finalCandidate.targetAxisLabel });
+    }
     if (finalCandidate) lastAlignCandidateRef.current = finalCandidate;
   };
 
@@ -837,37 +869,77 @@ export default function MovablePart({
     const { selfFace, targetFace, targetObj, selfDir, targetDir } = candidate;
     const dir = selfDir.clone().normalize();
 
-    const selfTF = getWorldTransform({ ref: groupRef, obj });
-    const targetTF = getWorldTransform({ ref: null, obj: targetObj });
+    const selfFacesNow = getFacesAlongDir({ obj, ref: groupRef, dir });
+    const targetFacesNow = getFacesAlongDir({ obj: targetObj, ref: null, dir: targetDir });
+    const selfFaceInfo = selfFacesNow.find((f) => f.name === selfFace);
+    const targetFaceInfo = targetFacesNow.find((f) => f.name === targetFace);
 
-    const selfHalf = projectedHalfExtentAlongAxis(dir, obj.dims, selfTF.axes);
-    const targetHalf = projectedHalfExtentAlongAxis(targetDir, targetObj.dims, targetTF.axes);
+    if (!selfFaceInfo || !targetFaceInfo) {
+      dlog("align:missing-face", {
+        selfFace,
+        targetFace,
+        selfFaceInfo: !!selfFaceInfo,
+        targetFaceInfo: !!targetFaceInfo,
+      });
+      return null;
+    }
 
-    const selfSign = selfFace[0] === '+' ? +1 : -1;
-    const targetSign = targetFace[0] === '+' ? +1 : -1;
-
-    // 若目标法线与当前拖拽方向反向，统一到 selfDir 的标量系
     const sameOrientation = Math.sign(targetDir.dot(dir)) || 1;
-    const targetFaceCoordRaw = targetTF.p.dot(targetDir) + targetSign * targetHalf;
-    const targetFaceCoord = sameOrientation * targetFaceCoordRaw;
+    const targetCoordAligned = sameOrientation * targetFaceInfo.coord;
+    const delta = targetCoordAligned - selfFaceInfo.coord;
 
-    const cur = groupRef.current.position.clone();
-    const s = cur.dot(dir);
-    const newCenterCoord = targetFaceCoord - selfSign * selfHalf;
-    const newPos = cur.add(dir.multiplyScalar(newCenterCoord - s));
-    const out = newPos.toArray();
-    dlog("calculateAlignPosition", { selfFace, targetFace, selfHalf, targetHalf, targetFaceCoord, newPos: out });
-    return out;
+    const selfTF = getWorldTransform({ ref: groupRef, obj });
+    const targetPos = selfTF.p.clone().add(dir.clone().multiplyScalar(delta));
+
+    if (targetObj.type === "gpu" || targetObj.type === "gpu-bracket") {
+      dlog("align:gpu-debug", {
+        targetId: targetObj.id,
+        targetType: targetObj.type,
+        selfFace,
+        targetFace,
+        dir: dir.toArray(),
+        targetDir: targetDir.toArray(),
+        sameOrientation,
+        delta,
+        selfCoord: selfFaceInfo.coord,
+        targetCoord: targetFaceInfo.coord,
+        targetPos: targetPos.toArray(),
+      });
+    }
+
+    return {
+      targetPos,
+      delta,
+      sameOrientation,
+      selfCoord: selfFaceInfo.coord,
+      targetCoord: targetFaceInfo.coord,
+    };
   };
 
-  // 平滑吸附动画，避免瞬移（120ms 线性插值）
   const snapToCandidate = (candidate) => {
-    const targetPos = calculateAlignPosition(candidate);
+    if (!groupRef.current) return;
+    const result = calculateAlignPosition(candidate);
+    if (!result) return;
+    const { targetPos, delta, sameOrientation, selfCoord, targetCoord } = result;
     const ctrl = controlsRef.current;
     const from = groupRef.current.position.clone();
-    const to = new THREE.Vector3(targetPos[0], targetPos[1], targetPos[2]);
+    const to = targetPos;
     const start = performance.now();
     const dur = 120; // ms
+
+    dlog("snap", {
+      targetId: candidate.targetObj.id,
+      targetType: candidate.targetObj.type,
+      selfFace: candidate.selfFace,
+      targetFace: candidate.targetFace,
+      targetPos: to.toArray(),
+      delta,
+      sameOrientation,
+      selfCoord,
+      targetCoord,
+      dir: candidate.selfDir?.toArray?.(),
+      targetDir: candidate.targetDir?.toArray?.(),
+    });
 
     const prevEnabled = ctrl?.enabled;
     if (ctrl) ctrl.enabled = false;
@@ -1053,6 +1125,10 @@ export default function MovablePart({
     dlog("startDrag", { pos: p, rot: r });
   };
 
+  useEffect(() => {
+    dlog("init", { id: obj.id, type: obj.type, pos: obj.pos, rot: obj.rot });
+  }, []); // run once per instance
+
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
@@ -1083,8 +1159,25 @@ export default function MovablePart({
     }
     prevPosRef.current = p;
 
+    dlog("drag:update", {
+      shift: isShiftPressed,
+      axisFromCtrl: controlsRef.current?.axis,
+      pos: p,
+      rotDeg: [
+        +THREE.MathUtils.radToDeg(r[0]).toFixed(2),
+        +THREE.MathUtils.radToDeg(r[1]).toFixed(2),
+        +THREE.MathUtils.radToDeg(r[2]).toFixed(2),
+      ],
+    });
+
     // 未按住 Shift：不对齐
     if (!isShiftPressed) { setBestAlignCandidate(null); return; }
+    dlog("drag:update", {
+      shift: isShiftPressed,
+      mv: mv?.toArray?.(),
+      delta: d,
+      axisFromCtrl: controlsRef.current?.axis,
+    });
 
     // 备用：世界轴主导判断（退化用）
     const absDx = Math.abs(d.dx), absDy = Math.abs(d.dy), absDz = Math.abs(d.dz);
@@ -1236,33 +1329,12 @@ export default function MovablePart({
         .applyQuaternion(invQuat)
         .toArray();
     })();
-    console.log("[face-hover]", {
-      part: obj?.name || obj.id,
-      face: hoveredFace,
-      hoverLocal: sample.local ? sample.local.toArray() : null,
-      objectWorldCenter: worldCenter,
-      objectRotationDeg: rotDeg,
-      hoverWorldBase: sample.world ? sample.world.toArray() : null,
-      faceCenterLocal: localFaceCenter,
-      faceCenter: hoveredFaceDetails.center,
-      faceSize: hoveredFaceDetails.size,
-    });
     if (hoverFaceMeshRef.current) {
       const meshPos = new THREE.Vector3();
       const meshQuat = new THREE.Quaternion();
       hoverFaceMeshRef.current.getWorldPosition(meshPos);
       hoverFaceMeshRef.current.getWorldQuaternion(meshQuat);
       const meshEuler = new THREE.Euler().setFromQuaternion(meshQuat, "XYZ");
-      console.log("[face-mesh]", {
-        part: obj?.name || obj.id,
-        face: hoveredFace,
-        meshWorldCenter: meshPos.toArray(),
-        meshRotationDeg: [
-          THREE.MathUtils.radToDeg(meshEuler.x).toFixed(2),
-          THREE.MathUtils.radToDeg(meshEuler.y).toFixed(2),
-          THREE.MathUtils.radToDeg(meshEuler.z).toFixed(2),
-        ],
-      });
     }
   }, [hoveredFace, hoveredFaceDetails, obj]);
  
@@ -1345,6 +1417,14 @@ export default function MovablePart({
       }
 
       setHoveredFace(resolvedFace);
+      dlog("hover:face", {
+        partId: obj.id,
+        face: resolvedFace,
+        localPoint: localPoint.toArray(),
+        worldPos: worldPos.toArray(),
+        dims: obj.dims,
+        objRot: obj.rot,
+      });
     },
     [alignMode, mode, obj]
   );
@@ -1394,6 +1474,15 @@ export default function MovablePart({
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
+          dlog("pointer:down", {
+            shift: e.shiftKey || e?.nativeEvent?.shiftKey,
+            ctrl: e.ctrlKey,
+            meta: e.metaKey,
+            alignMode,
+            mode,
+            hoveredFace,
+            gizmoHovered,
+          });
           // If the gizmo is currently hovered, do NOT select this object (allow click to pass to gizmo)
           // But wait, TransformControls events are separate.
           // If we stop propagation here, does it hurt?
@@ -1412,6 +1501,7 @@ export default function MovablePart({
             hoveredFace &&
             hoveredFaceDetails
           ) {
+            dlog("pointer:begin-stretch", { face: hoveredFace });
             beginStretch(hoveredFace, hoveredFaceDetails, e);
             return;
           }
@@ -1421,9 +1511,11 @@ export default function MovablePart({
             // return;
             // In scale mode, we let beginStretch handle the click-vs-drag decision
             if (mode === "scale") {
+              dlog("pointer:begin-stretch-align", { face: hoveredFace });
               beginStretch(hoveredFace, hoveredFaceDetails, e);
               return;
             }
+            dlog("pointer:face-pick", { partId: obj.id, face: hoveredFace });
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
             onSelect?.(obj.id, false);
             return;

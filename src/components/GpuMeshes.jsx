@@ -47,12 +47,6 @@ const buildPcieBracketGeometry = (width, height) => {
 
 export function GPUBracketMesh({ obj, selected }) {
   const { dims } = obj;
-  // Anchor at GPU's top-left-back for human-friendly positioning
-  // Match previous placement (~x=-2, y=-h/2, z=0) by offsetting from the anchor.
-  const anchor = anchorPoint(obj.meta?.anchorBaseDims ?? dims, "top-left-back");
-  const bracketOffset = [dims.w / 2 - 2, -dims.h, dims.d / 2];
-  const bracketPos = addVec(anchor, bracketOffset);
-
   const bracketGeometry = useMemo(
     () => buildPcieBracketGeometry(dims.d, dims.h),
     [dims.d, dims.h]
@@ -63,7 +57,7 @@ export function GPUBracketMesh({ obj, selected }) {
       {bracketGeometry && (
         <mesh
           geometry={bracketGeometry}
-          position={bracketPos}
+          position={[0, -dims.h / 2, 0]}
           rotation={[0, Math.PI / 2, 0]}
         >
           <meshStandardMaterial

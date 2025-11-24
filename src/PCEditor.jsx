@@ -15,6 +15,7 @@ import { expandObjectsWithEmbedded } from "./utils/embeddedParts";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 
 const DUPLICATE_OFFSET = 25;
+const alog = (...args) => console.log("[Align]", ...args);
 
 const deepCloneObject = (value) => JSON.parse(JSON.stringify(value));
 const randomSuffix = () => Math.random().toString(36).slice(2, 8);
@@ -374,9 +375,9 @@ function EditorContent() {
     const pos = Array.isArray(obj.pos) ? obj.pos : [0, 0, 0];
     const rot = Array.isArray(obj.rot) ? obj.rot : [0, 0, 0];
     const dims = obj.dims || {};
-    const width = obj?.type === "gpu" ? dims.d ?? 0 : dims.w ?? 0;
+    const width = dims.w ?? 0;
     const height = dims.h ?? 0;
-    const depth = obj?.type === "gpu" ? dims.w ?? 0 : dims.d ?? 0;
+    const depth = dims.d ?? 0;
     const position = new THREE.Vector3(pos[0], pos[1], pos[2]);
     const quaternion = new THREE.Quaternion().setFromEuler(
       new THREE.Euler(rot[0], rot[1], rot[2], "XYZ")
@@ -425,6 +426,21 @@ function EditorContent() {
 
     const worldCenter = position.clone().add(localOffset.applyQuaternion(quaternion));
     const worldNormal = localNormal.applyQuaternion(quaternion).normalize();
+    if (obj.type === "gpu" || obj.type === "gpu-bracket") {
+      alog("face-transform:gpu", {
+        id: obj.id,
+        type: obj.type,
+        face: faceName,
+        pos,
+        rot,
+        dims,
+        width,
+        height,
+        depth,
+        center: worldCenter.toArray(),
+        normal: worldNormal.toArray(),
+      });
+    }
     return { center: worldCenter, normal: worldNormal };
   }, []);
 
@@ -471,10 +487,12 @@ function EditorContent() {
 
   const handleFacePick = useCallback(
     (faceInfo) => {
+      alog("pick", { faceInfo, pending: pendingAlignFace, mode: transformMode });
       if (!alignEnabled || !faceInfo) {
         return;
       }
       if (!pendingAlignFace && transformMode !== "ruler") {
+        alog("pick:first", faceInfo);
         setPendingAlignFace(faceInfo);
         setConnectorToast({
           type: "info",
@@ -613,6 +631,17 @@ function EditorContent() {
       const delta = direction.dot(
         anchorTransform.center.clone().sub(movingTransform.center)
       );
+      alog("pick:align", {
+        movingId: movingObj.id,
+        anchorId: anchorObj.id,
+        movingFace: pendingAlignFace.face,
+        anchorFace: faceInfo.face,
+        movingCenter: movingTransform.center.toArray(),
+        anchorCenter: anchorTransform.center.toArray(),
+        direction: direction.toArray(),
+        delta,
+        parallel,
+      });
 
       if (transformMode === "scale") {
         // Stretch Alignment Logic

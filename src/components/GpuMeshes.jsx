@@ -47,9 +47,12 @@ const buildPcieBracketGeometry = (width, height) => {
 
 export function GPUBracketMesh({ obj, selected }) {
   const { dims } = obj;
+  const BRACKET_LENGTH = 120; // mm
+  const BRACKET_DROP = 30; // mm
+
   const bracketGeometry = useMemo(
-    () => buildPcieBracketGeometry(dims.d, dims.h),
-    [dims.d, dims.h]
+    () => buildPcieBracketGeometry(dims.d, BRACKET_LENGTH),
+    [dims.d]
   );
 
   return (
@@ -57,7 +60,7 @@ export function GPUBracketMesh({ obj, selected }) {
       {bracketGeometry && (
         <mesh
           geometry={bracketGeometry}
-          position={[0, -dims.h / 2, 0]}
+          position={[0, -dims.h / 2 - BRACKET_DROP, 0]}
           rotation={[0, Math.PI / 2, 0]}
         >
           <meshStandardMaterial

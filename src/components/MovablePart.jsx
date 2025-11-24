@@ -1025,9 +1025,6 @@ export default function MovablePart({
     }
 
     const dims = targetObj?.dims || {};
-    // For gpu-body, it's a standard box, so w=width, d=depth.
-    // Only keep the swap for 'gpu' if that was intended for the group box (though it seems odd if group box is w,h,d).
-    // Let's assume 'gpu' group also follows w,h,d.
     const width = dims.w ?? 0;
     const height = dims.h ?? 0;
     const depth = dims.d ?? 0;
@@ -1346,7 +1343,7 @@ export default function MovablePart({
 
   const resolveHoveredFace = useCallback(
     (event) => {
-      if ((!alignMode && mode !== "scale") || !groupRef.current) return;
+      if ((!alignMode && mode !== "scale" && mode !== "ruler") || !groupRef.current) return;
       const dims = obj.dims || {};
       const width = dims.w ?? 0;
       const height = dims.h ?? 0;
@@ -1458,10 +1455,11 @@ export default function MovablePart({
           e.stopPropagation();
           const faceSelectionActive =
             (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
-            (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey));
+            (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
+            (mode === "ruler" && (e.shiftKey || e?.nativeEvent?.shiftKey));
           if (faceSelectionActive) {
             resolveHoveredFace(e);
-          } else if (!stretchStateRef.current && (alignMode || mode === "scale") && hoveredFace) {
+          } else if (!stretchStateRef.current && (alignMode || mode === "scale" || mode === "ruler") && hoveredFace) {
             setHoveredFace(null);
           }
         }}
@@ -1469,7 +1467,7 @@ export default function MovablePart({
           if (stretchStateRef.current) {
             return;
           }
-          if (alignMode || mode === "scale") {
+          if (alignMode || mode === "scale" || mode === "ruler") {
             setHoveredFace(null);
           }
         }}
@@ -1517,6 +1515,11 @@ export default function MovablePart({
               return;
             }
             dlog("pointer:face-pick", { partId: obj.id, face: hoveredFace });
+            onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
+            onSelect?.(obj.id, false);
+            return;
+          }
+          if (mode === "ruler" && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
             onSelect?.(obj.id, false);
             return;

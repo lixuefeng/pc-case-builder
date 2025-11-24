@@ -143,8 +143,9 @@ export const buildGpuEmbeddedParts = (obj) => {
     key: "bracket",
     name: "PCIe Bracket",
     type: "gpu-bracket", // Special type for rendering
-    localCenter: [-dims.w / 2 + 0.8, 0, 0], // Approx position, 0.8 is half thickness of 1.6mm bracket
-    size: [1.6, dims.h, dims.d], // Bracket dimensions: Thickness, Height, Width (slot width)
+    // Place the bracket fully outside the GPU body: center is half-width beyond the body's -X face
+    localCenter: [-(dims.w / 2) - 1, 0, 0], // thickness 2mm => half = 1mm
+    size: [2, 120, 38.5], // Bracket dimensions: Thickness, Height, Width (slot width)
     color: "#e2e8f0",
   });
 

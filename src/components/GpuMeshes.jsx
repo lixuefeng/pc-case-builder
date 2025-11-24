@@ -11,7 +11,7 @@ const requireParam = (value, name) => {
 
 const buildPcieBracketGeometry = (width, height) => {
   const spec = {
-    thickness: 1.6,
+    thickness: 1, // 2mm bracket thickness
     width,
     height,
   };
@@ -49,6 +49,10 @@ export function GPUBracketMesh({ obj, selected }) {
   const { dims } = obj;
   const BRACKET_LENGTH = 120; // mm
   const BRACKET_DROP = 30; // mm
+  const BRACKET_THICKNESS = 2; // mm along X
+  const BODY_LENGTH = 265; // mm (GPU body length)
+  // Bracket is positioned by embeddedParts; keep mesh centered on its own origin
+  const BRACKET_OFFSET_X = 0.2;
 
   const bracketGeometry = useMemo(
     () => buildPcieBracketGeometry(dims.d, BRACKET_LENGTH),
@@ -60,7 +64,7 @@ export function GPUBracketMesh({ obj, selected }) {
       {bracketGeometry && (
         <mesh
           geometry={bracketGeometry}
-          position={[0, -dims.h / 2 - BRACKET_DROP, 0]}
+          position={[BRACKET_OFFSET_X, -dims.h / 2 - BRACKET_DROP, 0]}
           rotation={[0, Math.PI / 2, 0]}
         >
           <meshStandardMaterial
@@ -76,6 +80,7 @@ export function GPUBracketMesh({ obj, selected }) {
 
 export function GPUMesh({ obj, selected }) {
   const { dims, color, meta = {} } = obj;
+  const BODY_LENGTH = 265; // mm
   const coolerColor = selected ? "#ef4444" : color || "#475569";
   // Anchor choices: top-left-back for bracket, bottom-left-back for fingers (PCB side)
   const bottomLeftBack = useMemo(() => anchorPoint(dims, "bottom-left-back"), [dims]);
@@ -100,7 +105,7 @@ export function GPUMesh({ obj, selected }) {
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh>
-        <boxGeometry args={[dims.w, dims.h, dims.d]} />
+        <boxGeometry args={[BODY_LENGTH, dims.h, dims.d]} />
         <meshStandardMaterial
           color={coolerColor}
           metalness={0.6}

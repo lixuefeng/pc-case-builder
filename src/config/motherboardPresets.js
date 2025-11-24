@@ -75,7 +75,7 @@ export const MOTHERBOARD_LAYOUT_BUILDERS = {
       pcieSlots: [
         {
           key: "pcie16",
-          size: { w: 7.2, h: 11, d: 89 },
+          size: { w: 7.2, h: 11, d: 89.5 },
           fromLeft: 3,
           fromTop: 42,
           color: "#1e293b",

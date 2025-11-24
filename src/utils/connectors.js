@@ -5,6 +5,16 @@ const deepCloneConnectors = (connectors) =>
     ? connectors.map((connector) => JSON.parse(JSON.stringify(connector)))
     : [];
 
+const sortById = (arr = []) =>
+  [...arr].sort((a, b) => String(a?.id || "").localeCompare(String(b?.id || "")));
+
+const connectorsEqual = (a, b) => {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  const norm = (list) => sortById(list).map((item) => JSON.parse(JSON.stringify(item)));
+  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+};
+
 const findPresetForObject = (obj) => {
   const family = PRESETS[obj?.type];
   if (!Array.isArray(family)) {
@@ -45,24 +55,26 @@ export const ensureObjectConnectors = (obj) => {
     return obj;
   }
 
+  const preset = findPresetForObject(obj);
+  const presetConnectors = preset?.connectors || [];
   const hasConnectors =
     Array.isArray(obj.connectors) && obj.connectors.length > 0;
 
-  if (hasConnectors) {
-    return obj;
+  // Nothing to hydrate from preset; leave unchanged
+  if (!presetConnectors.length) return obj;
+
+  const shouldReplace =
+    !hasConnectors || !connectorsEqual(obj.connectors, presetConnectors);
+
+  if (shouldReplace) {
+    return {
+      ...obj,
+      connectors: deepCloneConnectors(presetConnectors),
+    };
   }
 
-  const preset = findPresetForObject(obj);
-  const presetConnectors = preset?.connectors || [];
-  if (!presetConnectors.length && Array.isArray(obj.connectors)) {
-    // Nothing to hydrate but connectors array already exists.
-    return obj;
-  }
-
-  return {
-    ...obj,
-    connectors: deepCloneConnectors(presetConnectors),
-  };
+  // Already has connectors; keep as-is
+  return obj;
 };
 
 export const ensureSceneConnectors = (objects) => {

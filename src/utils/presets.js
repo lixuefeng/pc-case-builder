@@ -1,12 +1,24 @@
 // utils/presets.js presets and hole maps
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
+import { anchorPoint, addVec } from "./anchors";
+
+const requireParam = (value, name) => {
+  if (value === undefined || value === null) {
+    throw new Error(`Missing preset parameter: ${name}`);
+  }
+  return value;
+};
+
 const createMotherboardConnectors = (preset) => {
   const { key, dims, meta = {} } = preset;
   if (!dims) return [];
 
   const connectors = [];
   const holeMap = Array.isArray(meta.holeMap) ? meta.holeMap : [];
+  const topLeftBack = anchorPoint(dims, "top-left-back");
+
+  const posFromTopLeftBack = (offset) => addVec(topLeftBack, offset);
 
   holeMap.forEach(([x, z], index) => {
     connectors.push({
@@ -15,7 +27,7 @@ const createMotherboardConnectors = (preset) => {
       type: "screw-m3",
       slotType: "mb-mount",
       size: 3,
-      pos: [x - dims.w / 2, -dims.h / 2, z - dims.d / 2],
+      pos: posFromTopLeftBack([x, -dims.h, z]), // drop to board mid-plane
       normal: [0, -1, 0],
       up: [0, 0, 1],
     });
@@ -26,38 +38,38 @@ const createMotherboardConnectors = (preset) => {
     label,
     x,
     z,
-    length = 90,
-    type = "pcie-slot",
+    length,
+    type,
   }) => {
+    const span = requireParam(length, `${id}.length`);
+    const slotType = requireParam(type, `${id}.type`);
     connectors.push({
       id,
       label,
-      type,
-      slotType: type,
-      pos: [x, dims.h / 2, z],
+      type: slotType,
+      slotType,
+      pos: posFromTopLeftBack([x, 0, z]),
       normal: [0, 1, 0],
       up: [0, 0, 1],
-      span: length,
+      span,
     });
   };
 
   if (key === "itx") {
-    const pcieCenter = [
-      -dims.w / 2 + 2.5 + 3,
-      dims.h / 2,
-      -dims.d / 2 + 42 + 89.5 / 2,
-    ];
+    const ramFromRight = requireParam(meta?.ramSlots?.fromRight, "meta.ramSlots.fromRight");
+    const ramFromTop = requireParam(meta?.ramSlots?.fromTop, "meta.ramSlots.fromTop");
+
     addSurfaceConnector({
       id: `${key}-pcie-x16`,
       label: "PCIe x16 Slot",
-      x: pcieCenter[0],
-      z: pcieCenter[2],
+      x: 6.6, // Aligned with visual slot center (3mm fromLeft + 7.2mm width / 2)
+      z: 42 + 89.5 / 2,
       length: 89.5,
+      type: "pcie-slot",
     });
 
-    const ramX =
-      dims.w / 2 - (meta?.ramSlots?.fromRight ?? 14) - 127 / 2;
-    const ramZStart = -dims.d / 2 + (meta?.ramSlots?.fromTop ?? 139) + 6 / 2;
+    const ramX = dims.w - ramFromRight - 127 / 2;
+    const ramZStart = ramFromTop + 6 / 2;
     const ramSpacing = 9;
 
     ["A", "B"].forEach((slot, idx) => {
@@ -72,11 +84,11 @@ const createMotherboardConnectors = (preset) => {
     });
   } else {
     const pcieOffsets = {
-      matx: { x: -dims.w / 2 + 15, z: -dims.d / 2 + dims.d * 0.32 },
-      atx: { x: -dims.w / 2 + 18, z: -dims.d / 2 + dims.d * 0.34 },
+      matx: { x: 15, z: dims.d * 0.32 },
+      atx: { x: 18, z: dims.d * 0.34 },
     };
     const { x, z } = pcieOffsets[key] || {
-      x: -dims.w / 2 + 15,
+      x: 15,
       z: 0,
     };
     addSurfaceConnector({
@@ -84,11 +96,13 @@ const createMotherboardConnectors = (preset) => {
       label: "PCIe x16 Slot",
       x,
       z,
+      length: 89.5,
+      type: "pcie-slot",
     });
 
     const ramCount = key === "atx" ? 4 : 2;
-    const ramX = dims.w / 2 - 20;
-    const ramBase = dims.d / 2 - 60;
+    const ramX = dims.w - 20;
+    const ramBase = dims.d - 60;
     const ramSpacing = 10;
 
     for (let i = 0; i < ramCount; i += 1) {
@@ -111,24 +125,29 @@ const createGpuConnectors = (preset) => {
   if (!dims) return [];
   const pcie = meta.pcie || {};
 
-  const fingerLength = pcie.fingerLength ?? 89;
-  const fingerThickness = pcie.fingerThickness ?? 1.6;
-  const fingerDepth = pcie.fingerDepth ?? 5;
-  const fingerOffsetFromBracket = pcie.fingerOffsetFromBracket ?? 11;
-  const fingerDrop = pcie.fingerDrop ?? 0;
+  const fingerLength = requireParam(pcie.fingerLength, "pcie.fingerLength");
+  const fingerHeight = requireParam(pcie.fingerHeight, "pcie.fingerHeight");
+  const fingerThickness = requireParam(pcie.fingerThickness, "pcie.fingerThickness");
+  const fingerOffsetFromBracket = requireParam(
+    pcie.fingerOffsetFromBracket,
+    "pcie.fingerOffsetFromBracket"
+  ); // align with mesh offset from left edge
+  const fingerDrop = requireParam(pcie.fingerDrop, "pcie.fingerDrop");
+  const anchor = anchorPoint(dims, "bottom-left-back");
 
   const connectors = [
     {
       id: `${key}-pcie-fingers`,
       label: "PCIe Fingers",
       type: "pcie-fingers",
-      pos: [
-        dims.d / 2 - fingerDepth / 2,
-        -dims.h / 2 + fingerThickness / 2 + fingerDrop,
-        dims.w / 2 - fingerLength / 2 - fingerOffsetFromBracket,
-      ],
-      normal: [1, 0, 0],
-      up: [0, 0, -1],
+      pos: addVec(anchor, [
+        fingerOffsetFromBracket + fingerLength / 2,
+        -fingerHeight + fingerDrop, // Relative to bottom anchor. fingerDrop now controls the insertion height/offset.
+        3, // 3mm from the "back" (PCB) face
+      ]),
+      // Rotate so the contact edge aligns with slot, facing +Y slot normal and +Z up
+      normal: [0, -1, 0], // Points DOWN to plug into motherboard
+      up: [1, 0, 0],      // Try X-axis alignment
       span: fingerLength,
     },
   ];
@@ -139,8 +158,8 @@ const createGpuConnectors = (preset) => {
 const createRamConnectors = (preset) => {
   const { key, dims, meta = {} } = preset;
   if (!dims) return [];
-  const fingerThickness = meta.fingerThickness ?? 1;
-  const fingerOffset = meta.fingerOffset ?? 0;
+  const fingerThickness = requireParam(meta.fingerThickness, "meta.fingerThickness");
+  const fingerOffset = requireParam(meta.fingerOffset, "meta.fingerOffset");
 
   return [
     {
@@ -234,24 +253,15 @@ export const PRESETS = {
       meta: {
         presetKey: "std",
         layoutVersion: 2,
-      },
-      connectors: [
-        {
-          id: "std-pcie-fingers",
-          label: "PCIe Gold Fingers",
-          type: "pcie-fingers",
-          // Position Calculation:
-          // Fingers Center X = -85 (relative to group, calculated as -dims.w/2 + 5 + 87/2)
-          // Fingers Bottom Y = -50 (relative to group)
-          // Insertion Depth = 5.5mm
-          // Connector Y = Fingers Bottom Y + Insertion Depth = -50 + 5.5 = -44.5
-          // Z = -18 (3mm from left edge)
-          pos: [-85, -52.5, -18],
-          normal: [0, -1, 0], // Points down
-          up: [1, 0, 0],
-          span: 87,
+        pcie: {
+          fingerLength: 89,
+          fingerHeight: 12.5,
+          fingerThickness: 1.6,
+          fingerOffsetFromBracket: 42,
+          fingerDrop: -5, // 7mm offset to raise GPU body 5.5mm above PCB (12.5 - 7 = 5.5 insertion)
         },
-      ],
+      },
+      connectors: [],
     },
   ],
   psu: [
@@ -275,14 +285,14 @@ export const PRESETS = {
       key: "dimm",
       label: "RAM (1) 133×31×7",
       dims: { w: 133, h: 31, d: 7 },
-      meta: { count: 1 },
+      meta: { count: 1, fingerThickness: 1, fingerOffset: 0 },
       connectors: [],
     },
     {
       key: "dimm2",
       label: "RAM (2) 133×31×7×2",
       dims: { w: 133, h: 31, d: 14 },
-      meta: { count: 2 },
+      meta: { count: 2, fingerThickness: 1, fingerOffset: 0 },
       connectors: [],
     },
   ],

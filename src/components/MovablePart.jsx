@@ -1,5 +1,5 @@
 ﻿
-// components/MovablePart.jsx 鈥?閫変腑/绉诲姩/鏃嬭浆 + HUD锛堟棆杞畨鍏ㄧ殑楂樹寒/鍚搁檮 + 璋冭瘯鏃ュ織锛?
+// components/MovablePart.jsx
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
 import { useThree, useFrame } from "@react-three/fiber";
@@ -185,8 +185,8 @@ export default function MovablePart({
   setObj,
   onSelect,
   palette,
-  allObjects = [], // 鐢ㄤ簬闈㈡娴?
-  setDragging, // 鍛婄煡鐖剁粍浠舵帶鍒?OrbitControls
+  allObjects = [],
+  setDragging,
   connections = [],
   alignMode = false,
   onFacePick,
@@ -206,7 +206,6 @@ export default function MovablePart({
   const stretchStateRef = useRef(null);
   const { gl, camera } = useThree();
 
-  // Fix: Stabilize setObj to prevent handleStretchPointerMove from changing and triggering useEffect cleanup
   const setObjRef = useRef(setObj);
   useEffect(() => {
     setObjRef.current = setObj;
@@ -278,7 +277,6 @@ export default function MovablePart({
     });
   }, [showTransformControls, selected]);
 
-  // 鉁?UI 閿侊細褰撳湪 HUD 涓婁氦浜掓椂锛岀鐢?TransformControls + OrbitControls
   const [uiLock, setUiLock] = useState(false);
 
   const connectedConnectorIds = useMemo(() => {
@@ -379,7 +377,6 @@ export default function MovablePart({
 
       groupRef.current.position.copy(newPosVec);
 
-      // Use ref to avoid dependency change
       setObjRef.current((prev) => ({
         ...prev,
         dims: newDims,
@@ -398,7 +395,7 @@ export default function MovablePart({
         newPos: newPosVec.toArray(),
       });
     },
-    [] // Removed setObj dependency
+    []
   );
 
   const handleStretchPointerMove = useCallback(
@@ -412,8 +409,6 @@ export default function MovablePart({
       const state = stretchStateRef.current;
       if (!state || !state.axisDirection || !state.axisOrigin) return;
       if (event.buttons === 0) {
-        // Relaxed check: just ignore this event, don't kill the drag
-        // requestFinish("pointermove-buttons-zero");
         return;
       }
       const rect = gl.domElement.getBoundingClientRect();
@@ -428,8 +423,6 @@ export default function MovablePart({
           expected: pointerId,
           received: event.pointerId,
         });
-        // Relaxed check: just ignore other pointers
-        // requestFinish("pointer-id-mismatch");
         return;
       }
       const axisOffset = computeAxisOffsetFromRay(
@@ -450,14 +443,12 @@ export default function MovablePart({
         axisDir: axisDir.toArray(),
         axisOrigin: axisOrigin.toArray(),
       });
-      // Check for drag threshold to distinguish click from drag
       if (!state.hasTriggeredDrag) {
         const dist = Math.sqrt(
           Math.pow(event.clientX - state.startScreenPos.x, 2) +
           Math.pow(event.clientY - state.startScreenPos.y, 2)
         );
         if (dist < 5) {
-          // Hasn't moved enough to count as drag
           return;
         }
         state.hasTriggeredDrag = true;
@@ -502,7 +493,6 @@ export default function MovablePart({
     stretchStateRef.current = null;
     setUiLock(false);
 
-    // If it wasn't a drag, treat it as a click (pick face)
     if (!wasDrag && onFacePick && faceName && objectId) {
       if (DEBUG_LOG) console.log("[stretch/finish] treated as click", { objectId, faceName });
       onFacePick({ partId: objectId, face: faceName, shiftKey: isShiftPressed });
@@ -631,20 +621,17 @@ export default function MovablePart({
 
 
   const dragStartRef = useRef({ pos: [0, 0, 0], rot: [0, 0, 0] });
-  const prevPosRef = useRef(null); // 涓婁竴甯т笘鐣屼綅缃紝鐢ㄦ潵鎺ㄦ柇鐪熷疄鎷栨嫿杞?
+  const prevPosRef = useRef(null);
   const [delta, setDelta] = useState({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
 
-  // 鉁?鏅鸿兘瀵归綈鐘舵€?
   const [isShiftPressed, setIsShiftPressed] = useState(false);
   const [bestAlignCandidate, setBestAlignCandidate] = useState(null);
-  // 璁板綍鎷栨嫿杩囩▼涓殑鏈€鍚庝竴涓彲鐢ㄥ€欓€夛紝鐢ㄤ簬鏉炬墜鏃跺惛闄?
   const lastAlignCandidateRef = useRef(null);
   const isDraggingRef = useRef(false);
-  const noHitFramesRef = useRef(0); // 杩炵画鏃犲€欓€夌殑甯ф暟锛堢敤浜庡闄愶級
-  const upListenerRef = useRef(null); // 鍏ㄥ眬 pointerup 鍏滃簳鐩戝惉
+  const noHitFramesRef = useRef(0);
+  const upListenerRef = useRef(null);
   const lastHoverSampleRef = useRef({ local: null, world: null });
 
-  // 鈱笍 浠呭鐞?Shift
   useEffect(() => {
     const handleKeyDown = (e) => { if (e.key === 'Shift') setIsShiftPressed(true); };
     const handleKeyUp = (e) => { if (e.key === 'Shift') { setIsShiftPressed(false); setBestAlignCandidate(null); } };
@@ -656,17 +643,14 @@ export default function MovablePart({
     };
   }, []);
 
-  // === 鍚搁檮骞惰鎬у宸紙浠呭綋涓ら潰杩戜技骞宠鎵嶉珮浜?鍚搁檮锛?===
-  const ALIGN_ANG_TOL_DEG = 5; // 鍏佽 5掳 浠ュ唴鐨勫す瑙掕宸?
+  const ALIGN_ANG_TOL_DEG = 5;
   const PARALLEL_COS = Math.cos(THREE.MathUtils.degToRad(ALIGN_ANG_TOL_DEG));
-  const DIST_THRESHOLD = 50; // 50mm 妫€娴嬭窛绂?
-  const MIN_MOVE_EPS = 0.25; // 鏈抚鏈€灏忕Щ鍔ㄩ槇鍊硷紝閬垮厤绗竴甯?axis 璇垽
-  // 鈥斺€斺€?鎶楁姈/绮樻粸鍙傛暟锛堟姂鍒堕珮浜棯鐑侊級 鈥斺€斺€?
-  const HYST_MM = 3;           // 鍊欓€夊垏鎹㈢殑鏈€灏忔敼杩涳紙灏忎簬3mm涓嶅垏锛?
-  const IMPROVE_MM = 2;        // 鏂板€欓€夐渶瑕佽嚦灏戜紭浜庝笂涓€涓?mm鎵嶆浛鎹?
-  const GRACE_FRAMES = 6;      // 涓㈠け鍊欓€夊悗锛屼繚鐣欐棫鍊欓€夌殑瀹介檺甯ф暟
+  const DIST_THRESHOLD = 50;
+  const MIN_MOVE_EPS = 0.25;
+  const HYST_MM = 3;
+  const IMPROVE_MM = 2;
+  const GRACE_FRAMES = 6;
 
-  // ===== 宸ュ叿锛氫笘鐣屼綅濮裤€佽酱涓?OBB 鎶曞奖 =====
   function getWorldTransform({ ref, obj }) {
     const p = new THREE.Vector3();
     const q = new THREE.Quaternion();
@@ -684,7 +668,6 @@ export default function MovablePart({
     return { p, q, axes: { ax, ay, az } };
   }
 
-  // OBB 鍦ㄤ笘鐣岃酱 a 涓婄殑鎶曞奖鍗婂緞
   function projectedHalfExtentAlongAxis(worldAxis, dims, axes) {
     const { ax, ay, az } = axes;
     const w2 = (dims?.w ?? 0) / 2, h2 = (dims?.h ?? 0) / 2, d2 = (dims?.d ?? 0) / 2;
@@ -701,7 +684,6 @@ export default function MovablePart({
     const half = projectedHalfExtentAlongAxis(dirN, targetObj.dims, axes);
     const centerCoord = p.dot(dirN);
 
-    // 鍙栦笌 dirN 鎶曞奖鏈€澶х殑鏈湴杞达紝纭畾闈㈠悕
     const projections = [
       { label: "X", axis: axes.ax, proj: Math.abs(dirN.dot(axes.ax)) },
       { label: "Y", axis: axes.ay, proj: Math.abs(dirN.dot(axes.ay)) },
@@ -718,8 +700,6 @@ export default function MovablePart({
     ];
   }
 
-
-  // 鏍规嵁绉诲姩鍚戦噺鍦ㄦ湰鍦板熀涓婄殑鎶曞奖锛屾帹鏂渶鍙兘鐨勬嫋鎷借酱
   function inferAxisFromMovement(mv, tf) {
     if (!mv) return { axis: null, proj: { X: 0, Y: 0, Z: 0 }, len: 0 };
     const { ax, ay, az } = tf.axes;
@@ -748,7 +728,6 @@ export default function MovablePart({
     return { dir: best.v.clone().normalize(), label: best.label };
   }
 
-  // 鏌ユ壘鏈€浣冲榻愬€欓€夛紙鍩轰簬褰撳墠鎷栨嫿鏈湴杞存姇褰卞埌涓栫晫鍚庣殑鏂瑰悜锛?
   const findBestAlignCandidate = (worldDir, axisLabel) => {
     const dirN = worldDir.clone().normalize();
     dlog("findBestAlignCandidate:start", { axisLabel, worldDir: dirN.toArray() });
@@ -770,8 +749,8 @@ export default function MovablePart({
       if (targetObj.id === obj.id || !targetObj.visible) continue;
       const targetTF = getWorldTransform({ ref: null, obj: targetObj });
       const picked = pickTargetBasis(targetTF, dirN);
-      const targetDir = picked.dir; // 宸插綊涓€鍖?
-      const targetAxisLabel = picked.label; // 'X' | 'Y' | 'Z'
+      const targetDir = picked.dir; 
+      const targetAxisLabel = picked.label; 
       const isGpuTarget = targetObj.type === "gpu" || targetObj.type === "gpu-bracket";
       if (isGpuTarget) {
         dlog("gpu:target-basis", {
@@ -784,7 +763,6 @@ export default function MovablePart({
         });
       }
 
-      // 鉀?瑙掑害涓嶅钩琛屽垯璺宠繃锛堜粎褰?|cos胃| >= cos(tol) 鎵嶈涓哄彲瀵归綈锛?
       const parallelCos = Math.abs(dirN.dot(targetDir));
       if (parallelCos < PARALLEL_COS) {
         if (isGpuTarget) {
@@ -798,7 +776,6 @@ export default function MovablePart({
 
       for (const selfFace of selfFaces) {
         for (const targetFace of targetFaces) {
-          // 缁熶竴鏍囬噺鏂瑰悜锛氳嫢 targetDir 涓?selfDir 鍙嶅悜锛屽垯鎶婄洰鏍囦晶鏍囬噺缈昏浆鍒板悓涓€鍧愭爣绯?
           const sameOrientation = Math.sign(targetDir.dot(dirN)) || 1;
           const targetCoordAligned = sameOrientation * targetFace.coord;
           const distance = Math.abs(selfFace.coord - targetCoordAligned);
@@ -823,7 +800,6 @@ export default function MovablePart({
       }
     }
 
-    // 鈥斺€?绮樻粸/鎶楁姈锛氭病鏈夋柊鍊欓€夋椂锛岀煭鏃堕棿淇濈暀鏃у€欓€夛紱鏈夋柊鍊欓€夋椂锛屽彧鏈夋槑鏄炬洿濂芥墠鏇挎崲 鈥斺€?
     let finalCandidate = bestAlignCandidate;
     const prev = lastAlignCandidateRef.current;
 
@@ -835,7 +811,7 @@ export default function MovablePart({
         });
       }
       if (prev && noHitFramesRef.current < GRACE_FRAMES) {
-        finalCandidate = prev; // 瀹介檺鏈熷唴娌跨敤涓婁竴涓?
+        finalCandidate = prev; 
         noHitFramesRef.current += 1;
         dlog('candidate:stick(prev)', { noHitFrames: noHitFramesRef.current });
       } else {
@@ -845,7 +821,6 @@ export default function MovablePart({
     } else {
       noHitFramesRef.current = 0;
       if (prev && prev.targetObj?.id === bestCandidate.targetObj?.id && prev.targetAxisLabel === bestCandidate.targetAxisLabel) {
-        // 鑻ユ柊鍊欓€夋病鏈夆€滄樉钁楁洿濂解€濓紙灏忎簬 IMPROVE_MM锛夛紝缁х画娌跨敤鏃у€欓€夛紝閬垮厤鏉ュ洖璺?
         if (bestCandidate.distance > prev.distance - IMPROVE_MM) {
           finalCandidate = prev;
           dlog('candidate:keep(prev)', { prevDist: prev.distance, newDist: bestCandidate.distance });
@@ -865,7 +840,6 @@ export default function MovablePart({
     if (finalCandidate) lastAlignCandidateRef.current = finalCandidate;
   };
 
-  // 鏃嬭浆瀹夊叏鐨勫惛闄勮绠楋細娌垮綋鍓嶆嫋鎷芥柟鍚戝仛涓€缁存浛鎹?
   const calculateAlignPosition = (candidate) => {
     const { selfFace, targetFace, targetObj, selfDir, targetDir } = candidate;
     const dir = selfDir.clone().normalize();
@@ -926,7 +900,7 @@ export default function MovablePart({
     const from = groupRef.current.position.clone();
     const to = targetPos;
     const start = performance.now();
-    const dur = 120; // ms
+    const dur = 120; 
 
     dlog("snap", {
       targetId: candidate.targetObj.id,
@@ -966,7 +940,6 @@ export default function MovablePart({
     requestAnimationFrame(step);
   };
 
-  // 缁熶竴鐨勨€滄嫋鎷界粨鏉熲€濆鐞嗭細onDraggingChange(false) 涓庡叏灞€ pointerup 閮戒細璋冪敤
   const handleDragEnd = () => {
     const candidate = bestAlignCandidate || lastAlignCandidateRef.current;
     dlog("onDragEnd", {
@@ -977,7 +950,6 @@ export default function MovablePart({
     });
 
     if (candidate) {
-      // 鍙褰撳墠/鏈€杩戝瓨鍦ㄩ珮浜€欓€夛紝灏卞惛闄勶紙涓嶅啀寮哄埗瑕佹眰 Shift锛?
       snapToCandidate(candidate);
     } else {
       const p = groupRef.current.position.clone().toArray();
@@ -993,7 +965,6 @@ export default function MovablePart({
     lastAlignCandidateRef.current = null;
   };
 
-  // 鏍规嵁闈㈠悕寰楀埌楂樹寒钖勭洅鐨勪笘鐣屼腑蹇?灏哄/鏈濆悜
   const getFaceDetails = ({ obj, ref, faceName }) => {
     let targetObj = obj;
     let targetFace = faceName;
@@ -1002,7 +973,6 @@ export default function MovablePart({
     if (faceName && faceName.includes("#")) {
       const [childId, face] = faceName.split("#");
       targetFace = face;
-      // Find child in obj.children (assuming flat structure for now)
       const child = obj.children?.find((c) => c.id === childId);
       if (child) {
         targetObj = child;
@@ -1010,17 +980,13 @@ export default function MovablePart({
       }
     }
 
-    const { p, q } = getWorldTransform({ ref, obj }); // Group Transform
+    const { p, q } = getWorldTransform({ ref, obj }); 
 
     if (isChild) {
-      // Compose Child Transform
       const childPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
       const childEuler = new THREE.Euler(...(targetObj.rot || [0, 0, 0]));
       const childQuat = new THREE.Quaternion().setFromEuler(childEuler);
-
-      // WorldPos = GroupPos + GroupQuat * ChildPos
       p.add(childPos.applyQuaternion(q));
-      // WorldQuat = GroupQuat * ChildQuat
       q.multiply(childQuat);
     }
 
@@ -1029,9 +995,8 @@ export default function MovablePart({
     const height = dims.h ?? 0;
     const depth = dims.d ?? 0;
     const thickness = 0.2;
-    const surfacePadding = 0.02; // 娌块潰娉曠嚎杞诲井澶栫Щ锛岄伩鍏嶉棯鐑?
+    const surfacePadding = 0.02; 
 
-    // Use targetFace instead of faceName for the switch
     const currentFaceName = targetFace;
 
     let localOffset;
@@ -1117,7 +1082,7 @@ export default function MovablePart({
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
     dragStartRef.current = { pos: p, rot: r };
-    prevPosRef.current = p; // 鍒濆鍖栦笂涓€甯т綅缃?
+    prevPosRef.current = p; 
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
     isDraggingRef.current = true;
     dlog("startDrag", { pos: p, rot: r });
@@ -1125,7 +1090,7 @@ export default function MovablePart({
 
   useEffect(() => {
     dlog("init", { id: obj.id, type: obj.type, pos: obj.pos, rot: obj.rot });
-  }, []); // run once per instance
+  }, []); 
 
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
@@ -1146,7 +1111,6 @@ export default function MovablePart({
     };
     setDelta(d);
 
-    // 璁＄畻褰撳墠甯хЩ鍔ㄥ悜閲忥紙涓婁竴甯?-> 褰撳墠甯э級
     let mv = null;
     if (prevPosRef.current) {
       mv = new THREE.Vector3(
@@ -1168,7 +1132,6 @@ export default function MovablePart({
       ],
     });
 
-    // 鏈寜浣?Shift锛氫笉瀵归綈
     if (!isShiftPressed) { setBestAlignCandidate(null); return; }
     dlog("drag:update", {
       shift: isShiftPressed,
@@ -1177,24 +1140,20 @@ export default function MovablePart({
       axisFromCtrl: controlsRef.current?.axis,
     });
 
-    // 澶囩敤锛氫笘鐣岃酱涓诲鍒ゆ柇锛堥€€鍖栫敤锛?
     const absDx = Math.abs(d.dx), absDy = Math.abs(d.dy), absDz = Math.abs(d.dz);
     let currentDragAxis = null;
     if (absDx > absDy && absDx > absDz) currentDragAxis = 'X';
     else if (absDy > absDx && absDy > absDz) currentDragAxis = 'Y';
     else if (absDz > absDx && absDz > absDy) currentDragAxis = 'Z';
 
-    // 绛夌Щ鍔ㄨ秴杩囬槇鍊煎啀瑙ｆ瀽杞达紝閬垮厤绗竴甯ц鍒?
     const selfTF = getWorldTransform({ ref: groupRef, obj });
     const mvLen = mv ? mv.length() : 0;
     if (mvLen < MIN_MOVE_EPS) {
       dlog('axis:wait-move', { mvLen });
-      // 淇濇寔鐜版湁鍊欓€夛紝閬垮厤浣庨€?鍋滈】甯у鑷寸殑闂儊
       return;
     }
 
-    // 瑙ｆ瀽杞达細鎺т欢杞翠紭鍏堬紝蹇呰鏃剁敤绉诲姩鍚戦噺绾犻敊
-    const axisFromCtrlRaw = controlsRef.current?.axis || null; // 'X'|'Y'|'Z'|'XY'|'YZ'|'XZ'|null
+    const axisFromCtrlRaw = controlsRef.current?.axis || null; 
     let resolvedAxis = (axisFromCtrlRaw === 'X' || axisFromCtrlRaw === 'Y' || axisFromCtrlRaw === 'Z') ? axisFromCtrlRaw : null;
 
     const { axis: inferred, proj } = inferAxisFromMovement(mv, selfTF);
@@ -1203,8 +1162,7 @@ export default function MovablePart({
     if (!resolvedAxis) {
       resolvedAxis = inferred || currentDragAxis;
     } else {
-      // 浠呭綋鎺ㄦ柇杞存姇褰辨樉钁楁洿澶ф椂鎵嶈鐩栨帶浠惰酱
-      const margin = 1.25; // 25%
+      const margin = 1.25; 
       const ctrlProj = proj[resolvedAxis] ?? 0;
       const infProj = inferred ? (proj[inferred] ?? 0) : 0;
       if (inferred && inferred !== resolvedAxis && infProj > ctrlProj * margin) {
@@ -1215,7 +1173,6 @@ export default function MovablePart({
       }
     }
 
-    // 鏍规嵁瑙ｆ瀽鐨勮酱鎵惧€欓€夛紙涓嶅钩琛?瓒呰窛浼氳杩囨护锛?
     if (resolvedAxis === 'X' || resolvedAxis === 'Y' || resolvedAxis === 'Z') {
       const worldDir = getLocalAxisDir(selfTF, resolvedAxis);
       dlog('axis:resolved', { axisFromCtrlRaw, resolvedAxis, mv: mv?.toArray?.() });
@@ -1229,10 +1186,7 @@ export default function MovablePart({
             : new THREE.Vector3(0, 0, 1);
       dlog('axis:fallback-world', { currentDragAxis });
       findBestAlignCandidate(worldDir, currentDragAxis);
-    } else {
-      // 瑙ｆ瀽涓嶅埌杞存椂锛屼繚鐣欎笂涓€鍊欓€夛紝閬垮厤鐭績鎶栧姩閫犳垚鐨勭唲鐏?
-      // 锛坒indBestAlignCandidate 鍐呴儴涔熸湁绮樻粸/瀹介檺鎺у埗锛?
-    }
+    } 
   };
 
   const hudInputStyle = {
@@ -1247,7 +1201,6 @@ export default function MovablePart({
     textAlign: "center",
   };
 
-  // 鉁?宸ュ叿锛氭妸浜嬩欢褰诲簳鎷︿笅
   const eat = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -1258,21 +1211,18 @@ export default function MovablePart({
     }
   };
 
-  // 鉁?HUD 鑱氱劍鏈熼棿涓婇攣锛涘け鐒?鍏抽棴鏃惰В閿?
   const lock = (e) => { eat(e); setUiLock(true); };
   const unlock = (e) => { eat(e); setUiLock(false); };
 
-  // ===== 璁＄畻楂樹寒钖勭洅 =====
   const targetHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
     const { targetObj, targetDir, targetFace, targetAxisLabel } = bestAlignCandidate;
     const { p, q, axes } = getWorldTransform({ ref: null, obj: targetObj });
     const half = projectedHalfExtentAlongAxis(targetDir, targetObj.dims, axes);
     const sign = targetFace[0] === '+' ? 1 : -1;
-    const offset = 0.1; // 闃茬┛妯?
+    const offset = 0.1; 
     const center = p.clone().add(targetDir.clone().multiplyScalar(sign * (half + offset)));
 
-    // 鏍规嵁鐩爣杞撮€夋嫨姝ｇ‘鐨勮杽鐩掑昂瀵革紙鍦ㄧ洰鏍囩殑鏈湴绌洪棿瀹氫箟锛屽啀鐢?quaternion 瀵归綈锛?
     const thickness = 0.2;
     let size;
     if (targetAxisLabel === 'X') size = [thickness, targetObj.dims.h, targetObj.dims.d];
@@ -1291,7 +1241,7 @@ export default function MovablePart({
   const selfHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
     const axis = bestAlignCandidate.axisLabel;
-    const face = bestAlignCandidate.selfFace[0] + axis; // '+X' / '-Y' / ...
+    const face = bestAlignCandidate.selfFace[0] + axis; 
     return getFaceDetails({ obj, ref: groupRef, faceName: face });
   }, [bestAlignCandidate, obj]);
 
@@ -1353,12 +1303,9 @@ export default function MovablePart({
         return;
       }
 
-      // Handle Group Objects (Composite Faces)
       if (obj.type === "group") {
-        const hit = event; // R3F event contains intersection info
+        const hit = event; 
         if (!hit.object || !hit.face) return;
-
-        // Find the child object ID
         return;
       }
 
@@ -1427,17 +1374,12 @@ export default function MovablePart({
     [alignMode, mode, obj]
   );
 
-  // Monitor Gizmo Hover State
   useFrame(() => {
     if (selected && showTransformControls && controlsRef.current && setGizmoHovered) {
-      // TransformControls (drei) exposes the internal Three.js instance via ref
-      // The internal instance has an 'axis' property which is non-null when hovering
       const axis = controlsRef.current.axis;
       if (axis && !gizmoHovered) {
         setGizmoHovered(true);
       } else if (!axis && gizmoHovered) {
-        // Only set to false if WE were the ones who set it (or just aggressively set false if no axis)
-        // Since only one object is selected at a time, this is safe.
         setGizmoHovered(false);
       }
     }
@@ -1482,10 +1424,6 @@ export default function MovablePart({
             hoveredFace,
             gizmoHovered,
           });
-          // If the gizmo is currently hovered, do NOT select this object (allow click to pass to gizmo)
-          // But wait, TransformControls events are separate.
-          // If we stop propagation here, does it hurt?
-          // The issue is that clicking here triggers onSelect, which might deselect the current object.
           if (gizmoHovered) {
              return;
           }
@@ -1505,10 +1443,6 @@ export default function MovablePart({
             return;
           }
           if (alignMode && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
-            // onFacePick?.({ partId: obj.id, face: hoveredFace });
-            // onSelect?.(obj.id, false);
-            // return;
-            // In scale mode, we let beginStretch handle the click-vs-drag decision
             if (mode === "scale") {
               dlog("pointer:begin-stretch-align", { face: hoveredFace });
               beginStretch(hoveredFace, hoveredFaceDetails, e);
@@ -1570,7 +1504,7 @@ export default function MovablePart({
           object={groupRef.current}
           mode={mode}
           space="local"
-          depthTest={false} // Always render on top to ensure clickability
+          depthTest={false} 
           enabled={!uiLock}
           onObjectChange={() => {
             if (!groupRef.current) return;
@@ -1586,7 +1520,6 @@ export default function MovablePart({
           onMouseDown={() => {
             startDrag();
             lastAlignCandidateRef.current = null;
-            // 娣诲姞鍏ㄥ眬 pointerup 鍏滃簳锛氭煇浜涘钩鍙?TransformControls 涓嶆€绘槸瑙﹀彂 dragging=false
             if (upListenerRef.current) {
               window.removeEventListener('pointerup', upListenerRef.current);
               upListenerRef.current = null;
@@ -1602,9 +1535,7 @@ export default function MovablePart({
             isDraggingRef.current = dragging;
             setDragging?.(dragging);
             if (!dragging) {
-              // 浼樺厛鐢ㄦ帶浠跺洖璋冭Е鍙戜竴娆＄粨鏉熼€昏緫
               handleDragEnd();
-              // 娓呯悊鍏ㄥ眬 pointerup 鐩戝惉
               if (upListenerRef.current) {
                 window.removeEventListener('pointerup', upListenerRef.current);
                 upListenerRef.current = null;
@@ -1617,7 +1548,6 @@ export default function MovablePart({
         />
       )}
 
-      {/* 鉁?Hover Highlight (World Space) */}
       {(alignMode || mode === "scale") && hoveredFaceDetails && (
         <mesh
           ref={hoverFaceMeshRef}
@@ -1636,7 +1566,6 @@ export default function MovablePart({
         </mesh>
       )}
 
-      {/* 鉁?Active Highlight (World Space) */}
       {(alignMode || mode === "scale") && activeFaceDetails && (
         <mesh
           position={activeFaceDetails.center}
@@ -1654,7 +1583,6 @@ export default function MovablePart({
         </mesh>
       )}
 
-      {/* 鉁?Alignment Candidate Highlights (World Space) */}
       {bestAlignCandidate && (
         <group>
           {targetHighlightDetails && (

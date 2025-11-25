@@ -64,7 +64,6 @@ export function GPUBracketMesh({ obj, selected }) {
       {bracketGeometry && (
         <mesh
           geometry={bracketGeometry}
-          position={[BRACKET_OFFSET_X, -dims.h / 2 - BRACKET_DROP, 0]}
           rotation={[0, Math.PI / 2, 0]}
         >
           <meshStandardMaterial

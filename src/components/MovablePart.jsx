@@ -1494,12 +1494,13 @@ export default function MovablePart({
             }
             dlog("pointer:face-pick", { partId: obj.id, face: hoveredFace });
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
-            onSelect?.(obj.id, false);
             return;
           }
           if (mode === "ruler" && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
-            onSelect?.(obj.id, false);
+            return;
+          }
+          if (e.shiftKey || e?.nativeEvent?.shiftKey) {
             return;
           }
           const multi = e.ctrlKey || e.metaKey;

@@ -31,6 +31,26 @@ const getConnectorBaseColor = (connector) => {
   return CONNECTOR_TYPE_COLORS[connector.type] || "#facc15";
 };
 
+// Debug flag for connector interactions; set true to trace hover/click.
+const DEBUG_CONNECTOR = false;
+const clogConnector = (...args) => {
+  if (DEBUG_CONNECTOR) console.log("[Connector]", ...args);
+};
+
+// Small raycast bias so connectors win over nearby blocking geometry along the same ray.
+const CONNECTOR_RAYCAST_PRIORITY = 10000; // mm-equivalent distance bias
+const applyConnectorRaycastBias = (mesh, raycaster, intersects) => {
+  if (!mesh) return;
+  const startLen = intersects.length;
+  THREE.Mesh.prototype.raycast.call(mesh, raycaster, intersects);
+  for (let i = startLen; i < intersects.length; i += 1) {
+    const hit = intersects[i];
+    if (hit.object === mesh) {
+      hit.distance = Math.max(0, hit.distance - CONNECTOR_RAYCAST_PRIORITY);
+    }
+  }
+};
+
 const buildConnectorQuaternion = (connector) => {
   const normal = Array.isArray(connector?.normal)
     ? new THREE.Vector3(connector.normal[0], connector.normal[1], connector.normal[2])
@@ -85,8 +105,10 @@ const pointInsideIoCutout = (obj, localPoint, tolerance = 1) => {
   );
 };
 
-const ConnectorMarker = ({ connector, isUsed, onPick }) => {
+const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => {
   const [hovered, setHovered] = useState(false);
+  const stemRef = useRef(null);
+  const headRef = useRef(null);
 
   const quaternion = useMemo(() => buildConnectorQuaternion(connector), [connector]);
   const position = Array.isArray(connector?.pos) && connector.pos.length === 3
@@ -103,11 +125,15 @@ const ConnectorMarker = ({ connector, isUsed, onPick }) => {
   const handlePointerEnter = (event) => {
     event.stopPropagation();
     setHovered(true);
+    setConnectorHovered?.(true);
+    clogConnector("enter", connector?.id);
   };
 
   const handlePointerLeave = (event) => {
     event.stopPropagation();
     setHovered(false);
+    setConnectorHovered?.(false);
+    clogConnector("leave", connector?.id);
   };
 
   const handlePointerDown = (event) => {
@@ -115,17 +141,24 @@ const ConnectorMarker = ({ connector, isUsed, onPick }) => {
     if (typeof onPick === "function") {
       onPick(connector);
     }
+    setConnectorHovered?.(true);
+    clogConnector("down", connector?.id);
   };
 
   return (
     <group position={position} quaternion={quaternion} frustumCulled={false}>
       <mesh
-        position={[0, 0, stemLength / 2]}
+        position={[0, 0, -stemLength / 2]} // Keep connector origin at head; stem extends backward
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
+        raycast={(raycaster, intersects) =>
+          applyConnectorRaycastBias(stemRef.current, raycaster, intersects)
+        }
         renderOrder={1000}
         frustumCulled={false}
+        userData={{ ...(connector?.userData || {}), isConnector: true }}
+        ref={stemRef}
       >
         <cylinderGeometry args={[radius * 0.25, radius * 0.25, stemLength, 10]} />
         <meshBasicMaterial
@@ -137,12 +170,17 @@ const ConnectorMarker = ({ connector, isUsed, onPick }) => {
         />
       </mesh>
       <mesh
-        position={[0, 0, stemLength]}
+        position={[0, 0, 0]} // Sphere centered at connector origin
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
+        raycast={(raycaster, intersects) =>
+          applyConnectorRaycastBias(headRef.current, raycaster, intersects)
+        }
         renderOrder={1001}
         frustumCulled={false}
+        userData={{ ...(connector?.userData || {}), isConnector: true }}
+        ref={headRef}
       >
         <sphereGeometry args={[radius, 16, 16]} />
         <meshBasicMaterial
@@ -197,6 +235,8 @@ export default function MovablePart({
   showTransformControls = false,
   gizmoHovered,
   setGizmoHovered,
+  connectorHovered = false,
+  setConnectorHovered,
 }) {
   const t = palette;
   const groupRef = useRef();
@@ -1423,9 +1463,13 @@ export default function MovablePart({
             mode,
             hoveredFace,
             gizmoHovered,
+            connectorHovered,
           });
           if (gizmoHovered) {
              return;
+          }
+          if (connectorHovered) {
+            return;
           }
 
           if (isEmbedded && !alignMode) {
@@ -1493,6 +1537,7 @@ export default function MovablePart({
                 onPick={(picked) => {
                   onConnectorPick?.({ partId: obj.id, connectorId: picked?.id });
                 }}
+                setConnectorHovered={setConnectorHovered}
               />
             );
           })}

@@ -3,6 +3,7 @@ import {
   buildMotherboardLayout,
   getMotherboardIoCutoutBounds,
 } from "../config/motherboardPresets";
+import { GPU_BRACKET_SPEC } from "./gpuBracketSpec";
 
 const computeCenterFromEdges = (dims, size, feature) => {
   let x = 0;
@@ -139,17 +140,20 @@ export const buildGpuEmbeddedParts = (obj) => {
   // In presets.js, bracket holes are at bracketHoleZ = -dims.w / 2 + 10.
   // So the bracket is at the -dims.w / 2 end.
 
+  const bracketCenterX = -(dims.w / 2) + GPU_BRACKET_SPEC.xOffset;
+  const bracketCenterY =
+    -dims.h / 2 - GPU_BRACKET_SPEC.dropBelowBody + GPU_BRACKET_SPEC.height / 2;
+
   parts.push({
     key: "bracket",
     name: "PCIe Bracket",
-    type: "gpu-bracket", // Special type for rendering
-    // Place the bracket fully outside the GPU body: center is half-width beyond the body's -X face
-    // Visual offset from GpuMeshes.jsx: [0.2, -dims.h / 2 - 30, 0]
-    // Original logical X: -(dims.w / 2) - 1
-    // New logical X: -(dims.w / 2) - 1 + 0.2 = -(dims.w / 2) - 0.8
-    // New logical Y: -dims.h / 2 - 30
-    localCenter: [-(dims.w / 2) - 0.8, -dims.h / 2 - 30, 0],
-    size: [2, 120, 38.5], // Bracket dimensions: Thickness, Height, Width (slot width)
+    type: "gpu-bracket",
+    localCenter: [bracketCenterX, bracketCenterY, 0],
+    size: [
+      GPU_BRACKET_SPEC.thickness,
+      GPU_BRACKET_SPEC.height,
+      GPU_BRACKET_SPEC.width,
+    ],
     color: "#e2e8f0",
   });
 

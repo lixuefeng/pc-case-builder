@@ -53,6 +53,24 @@ Do NOT output any code without approval.
 
 ---
 
+## 5. Environment Constraint: Development is on Windows without Python
+- Assume **no Python environment is available**.  
+- Prefer **Node.js** or platform-neutral solutions whenever possible.  
+- Only propose Python if explicitly requested.
+
+---
+
+## 6. Add proper comments with full context
+- All produced code must include **clear, meaningful comments**.  
+- Comments must explain:
+  - Why the change exists  
+  - What problem it addresses  
+  - Any assumptions  
+  - Expected side effects  
+  - How future agents or developers should extend it  
+- Comments must provide enough background that another AI agent can continue the work safely.
+
+
 ## Global Requirements
 You must:
 - Follow all rules strictly  

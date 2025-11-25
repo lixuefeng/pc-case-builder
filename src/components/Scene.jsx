@@ -27,6 +27,7 @@ export default function Scene({
   const [isAltPressed, setIsAltPressed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [gizmoHovered, setGizmoHovered] = useState(false);
+  const [connectorHovered, setConnectorHovered] = useState(false);
 
   // 修复：恢复对 Alt 键的全局监听，以控制视角
   useEffect(() => {
@@ -164,6 +165,8 @@ export default function Scene({
             showTransformControls={showTransformControls}
             gizmoHovered={gizmoHovered}
             setGizmoHovered={setGizmoHovered}
+            connectorHovered={connectorHovered}
+            setConnectorHovered={setConnectorHovered}
           />
         ))}
         <RulerMarkers measurements={measurements} />

@@ -1,25 +1,13 @@
 import React, { useMemo } from "react";
 import * as THREE from "three";
-import { anchorPoint, addVec } from "../utils/anchors";
+import { buildGpuFingerPlacement } from "../utils/gpuPcieSpec";
+import { GPU_BRACKET_SPEC } from "../utils/gpuBracketSpec";
 
-const requireParam = (value, name) => {
-  if (value === undefined || value === null) {
-    throw new Error(`Missing GPU parameter: ${name}`);
-  }
-  return value;
-};
-
-const buildPcieBracketGeometry = (width, height) => {
-  const spec = {
-    thickness: 1, // 2mm bracket thickness
-    width,
-    height,
-  };
-
-  const x0 = -spec.width / 2;
-  const x1 = spec.width / 2;
+const buildPcieBracketGeometry = ({ width, height, thickness }) => {
+  const x0 = -width / 2;
+  const x1 = width / 2;
   const yBottom = 0;
-  const yTop = spec.height;
+  const yTop = height;
 
   const shape = new THREE.Shape();
   shape.moveTo(x0, yBottom);
@@ -28,35 +16,34 @@ const buildPcieBracketGeometry = (width, height) => {
   shape.lineTo(x0, yTop);
   shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: spec.thickness,
+    depth: thickness,
     bevelEnabled: false,
     curveSegments: 16,
   });
 
-  geo.translate(-spec.thickness / 2, 0, 0);
+  geo.translate(-thickness / 2, 0, 0);
 
   geo.computeBoundingBox();
   const b = geo.boundingBox;
   const cx = (b.min.x + b.max.x) / 2;
+  const cy = (b.min.y + b.max.y) / 2;
   const cz = (b.min.z + b.max.z) / 2;
 
-  geo.translate(-cx, -b.min.y, -cz);
+  geo.translate(-cx, -cy, -cz);
   geo.computeVertexNormals();
   return geo;
 };
 
 export function GPUBracketMesh({ obj, selected }) {
-  const { dims } = obj;
-  const BRACKET_LENGTH = 120; // mm
-  const BRACKET_DROP = 30; // mm
-  const BRACKET_THICKNESS = 2; // mm along X
-  const BODY_LENGTH = 265; // mm (GPU body length)
-  // Bracket is positioned by embeddedParts; keep mesh centered on its own origin
-  const BRACKET_OFFSET_X = 0.2;
 
   const bracketGeometry = useMemo(
-    () => buildPcieBracketGeometry(dims.d, BRACKET_LENGTH),
-    [dims.d]
+    () =>
+      buildPcieBracketGeometry({
+        width: GPU_BRACKET_SPEC.width,
+        height: GPU_BRACKET_SPEC.height,
+        thickness: GPU_BRACKET_SPEC.thickness,
+      }),
+    []
   );
 
   return (
@@ -81,25 +68,11 @@ export function GPUMesh({ obj, selected }) {
   const { dims, color, meta = {} } = obj;
   const BODY_LENGTH = 265; // mm
   const coolerColor = selected ? "#ef4444" : color || "#475569";
-  // Anchor choices: top-left-back for bracket, bottom-left-back for fingers (PCB side)
-  const bottomLeftBack = useMemo(() => anchorPoint(dims, "bottom-left-back"), [dims]);
 
-  const pcie = meta.pcie || {};
-  const fingersLength = requireParam(pcie.fingerLength, "meta.pcie.fingerLength");
-  const fingersHeight = requireParam(pcie.fingerHeight, "meta.pcie.fingerHeight");
-  const fingersThickness = requireParam(pcie.fingerThickness, "meta.pcie.fingerThickness");
-  const fingerOffsetFromBracket = requireParam(
-    pcie.fingerOffsetFromBracket,
-    "meta.pcie.fingerOffsetFromBracket"
+  const fingerPlacement = useMemo(
+    () => buildGpuFingerPlacement({ dims, pcie: meta.pcie || {} }),
+    [dims, meta.pcie]
   );
-  const fingerDrop = requireParam(pcie.fingerDrop, "meta.pcie.fingerDrop");
-
-  // Place gold fingers relative to bottom-left-back anchor (PCB side)
-  const fingersPos = addVec(bottomLeftBack, [
-    fingersLength / 2 + fingerOffsetFromBracket, // move right from the left edge
-    -fingersHeight / 2 + fingerDrop, // drop below the PCB plane
-    3, // 3mm from the "back" (PCB) face
-  ]);
 
   return (
     <group userData={{ objectId: obj.id }}>
@@ -112,8 +85,14 @@ export function GPUMesh({ obj, selected }) {
         />
       </mesh>
 
-      <mesh position={fingersPos}>
-        <boxGeometry args={[fingersLength, fingersHeight, fingersThickness]} />
+      <mesh position={fingerPlacement.center}>
+        <boxGeometry
+          args={[
+            fingerPlacement.length,
+            fingerPlacement.height,
+            fingerPlacement.thickness,
+          ]}
+        />
         <meshStandardMaterial color="#fbbf24" metalness={0.8} roughness={0.2} />
       </mesh>
     </group>

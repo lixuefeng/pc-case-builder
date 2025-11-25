@@ -2,6 +2,7 @@
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
 import { anchorPoint, addVec } from "./anchors";
+import { buildGpuFingerPlacement } from "./gpuPcieSpec";
 
 const requireParam = (value, name) => {
   if (value === undefined || value === null) {
@@ -9,6 +10,11 @@ const requireParam = (value, name) => {
   }
   return value;
 };
+
+const PCIE_SLOT_SPEC = Object.freeze({
+  slotHeightMm: 11, // assumed PCIe slot height above motherboard surface
+  contactOffsetMm: 5, // desired insertion depth from slot top
+});
 
 const createMotherboardConnectors = (preset) => {
   const { key, dims, meta = {} } = preset;
@@ -37,6 +43,7 @@ const createMotherboardConnectors = (preset) => {
     id,
     label,
     x,
+    y = 0,
     z,
     length,
     type,
@@ -48,7 +55,7 @@ const createMotherboardConnectors = (preset) => {
       label,
       type: slotType,
       slotType,
-      pos: posFromTopLeftBack([x, 0, z]),
+      pos: posFromTopLeftBack([x, y, z]),
       normal: [0, 1, 0],
       up: [0, 0, 1],
       span,
@@ -58,6 +65,7 @@ const createMotherboardConnectors = (preset) => {
   if (key === "itx") {
     const ramFromRight = requireParam(meta?.ramSlots?.fromRight, "meta.ramSlots.fromRight");
     const ramFromTop = requireParam(meta?.ramSlots?.fromTop, "meta.ramSlots.fromTop");
+    const slotY = (dims.h / 2) + PCIE_SLOT_SPEC.slotHeightMm - PCIE_SLOT_SPEC.contactOffsetMm;
 
     addSurfaceConnector({
       id: `${key}-pcie-x16`,
@@ -66,6 +74,7 @@ const createMotherboardConnectors = (preset) => {
       z: 42 + 89.5 / 2,
       length: 89.5,
       type: "pcie-slot",
+      y: slotY,
     });
 
     const ramX = dims.w - ramFromRight - 127 / 2;
@@ -91,6 +100,7 @@ const createMotherboardConnectors = (preset) => {
       x: 15,
       z: 0,
     };
+    const slotY = (dims.h / 2) + PCIE_SLOT_SPEC.slotHeightMm - PCIE_SLOT_SPEC.contactOffsetMm;
     addSurfaceConnector({
       id: `${key}-pcie-x16`,
       label: "PCIe x16 Slot",
@@ -98,6 +108,7 @@ const createMotherboardConnectors = (preset) => {
       z,
       length: 89.5,
       type: "pcie-slot",
+      y: slotY,
     });
 
     const ramCount = key === "atx" ? 4 : 2;
@@ -123,36 +134,20 @@ const createMotherboardConnectors = (preset) => {
 const createGpuConnectors = (preset) => {
   const { key, dims, meta = {} } = preset;
   if (!dims) return [];
-  const pcie = meta.pcie || {};
+  const fingerPlacement = buildGpuFingerPlacement({ dims, pcie: meta.pcie || {} });
 
-  const fingerLength = requireParam(pcie.fingerLength, "pcie.fingerLength");
-  const fingerHeight = requireParam(pcie.fingerHeight, "pcie.fingerHeight");
-  const fingerThickness = requireParam(pcie.fingerThickness, "pcie.fingerThickness");
-  const fingerOffsetFromBracket = requireParam(
-    pcie.fingerOffsetFromBracket,
-    "pcie.fingerOffsetFromBracket"
-  ); // align with mesh offset from left edge
-  const fingerDrop = requireParam(pcie.fingerDrop, "pcie.fingerDrop");
-  const anchor = anchorPoint(dims, "bottom-left-back");
-
-  const connectors = [
+  return [
     {
       id: `${key}-pcie-fingers`,
       label: "PCIe Fingers",
       type: "pcie-fingers",
-      pos: addVec(anchor, [
-        fingerOffsetFromBracket + fingerLength / 2,
-        -fingerHeight + fingerDrop, // Relative to bottom anchor. fingerDrop now controls the insertion height/offset.
-        3, // 3mm from the "back" (PCB) face
-      ]),
-      // Rotate so the contact edge aligns with slot, facing +Y slot normal and +Z up
-      normal: [0, -1, 0], // Points DOWN to plug into motherboard
-      up: [1, 0, 0],      // Try X-axis alignment
-      span: fingerLength,
+      // Lowered connector point encodes desired insertion depth without moving the mesh
+      pos: fingerPlacement.connectorPos,
+      normal: [0, -1, 0],
+      up: [1, 0, 0],
+      span: fingerPlacement.length,
     },
   ];
-
-  return connectors;
 };
 
 const createRamConnectors = (preset) => {
@@ -259,6 +254,7 @@ export const PRESETS = {
           fingerThickness: 1.6,
           fingerOffsetFromBracket: 42,
           fingerDrop: -5, // 7mm offset to raise GPU body 5.5mm above PCB (12.5 - 7 = 5.5 insertion)
+          __debugLog: true,
         },
       },
       connectors: [],

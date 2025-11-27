@@ -23,6 +23,7 @@ export const translations = {
 
         "label.library": "添加物体 (Library)",
         "label.hierarchy": "层级 (Hierarchy)",
+        "label.projects": "项目 (Projects)",
         "label.inspector": "属性检查器",
         "label.objects": "物体列表",
         "label.noObjects": "暂无物体",
@@ -91,10 +92,11 @@ export const translations = {
 
         "label.library": "Library",
         "label.hierarchy": "Hierarchy",
+        "label.projects": "Projects",
         "label.inspector": "Inspector",
-        "label.objects": "Objects List",
+        "label.objects": "Objects",
         "label.noObjects": "No objects",
-        "label.addPart": "Add PC Part",
+        "label.addPart": "Add Part",
 
         "category.pcParts": "PC Parts",
         "category.structures": "Structures",

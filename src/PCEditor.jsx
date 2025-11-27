@@ -87,6 +87,10 @@ function EditorContent() {
     selectedIds,
     setSelectedIds,
     connections,
+    projects,
+    currentProjectId,
+    copyToClipboard,
+    pasteFromClipboard,
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const [connectorToast, setConnectorToast] = useState(null);
@@ -99,6 +103,9 @@ function EditorContent() {
   const [snapEnabled, setSnapEnabled] = useState(false); // New snap state
   const [rulerPoints, setRulerPoints] = useState([]); // Ruler state
   const [measurements, setMeasurements] = useState([]); // Persistent measurements
+  
+  // Lifted state for LeftSidebar tabs
+  const [activeLeftTab, setActiveLeftTab] = useState("library");
 
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
@@ -107,6 +114,11 @@ function EditorContent() {
     () => objects.find((o) => o.id === selectedIds[selectedIds.length - 1]),
     [objects, selectedIds]
   );
+
+  const currentProjectName = useMemo(() => {
+    const p = projects.find(p => p.id === currentProjectId);
+    return p ? p.name : "";
+  }, [projects, currentProjectId]);
 
   useEffect(() => {
     if (!connectorToast) {
@@ -134,6 +146,31 @@ function EditorContent() {
       setRulerPoints([]);
     }
   }, [alignEnabled, transformMode]);
+
+  // Keyboard Shortcuts for Clipboard
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if typing in input
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "c") {
+          e.preventDefault();
+          if (selectedIds.length > 0) {
+            copyToClipboard(selectedIds);
+            setConnectorToast({ type: "info", text: "Copied to Global Clipboard", ttl: 1500 });
+          }
+        } else if (e.key === "v") {
+          e.preventDefault();
+          pasteFromClipboard();
+          setConnectorToast({ type: "success", text: "Pasted from Global Clipboard", ttl: 1500 });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIds, copyToClipboard, pasteFromClipboard]);
 
   const handleExport = () => {
     const dataStr = JSON.stringify(objects, null, 2);
@@ -250,7 +287,7 @@ function EditorContent() {
 
     const selectedObjects = objects.filter((o) => selectedIds.includes(o.id));
 
-    // 1. 计算包围盒和中心�?
+    // 1. 计算包围盒和中心?
     const box = new THREE.Box3();
     selectedObjects.forEach((obj) => {
       const { w, d, h } = obj.dims;
@@ -278,7 +315,7 @@ function EditorContent() {
       dims: { w: size.x, h: size.y, d: size.z },
       children: selectedObjects.map((obj) => ({
         ...obj,
-        // 存储相对于组中心的原始位�?
+        // 存储相对于组中心的原始位?
         pos: [obj.pos[0] - center.x, obj.pos[1] - center.y, obj.pos[2] - center.z],
       })),
       visible: true,
@@ -909,6 +946,8 @@ function EditorContent() {
         setSnapEnabled={setSnapEnabled}
         measurements={measurements}
         onClearMeasurements={clearMeasurements}
+        onOpenProjectManager={() => setActiveLeftTab("projects")}
+        currentProjectName={currentProjectName}
       />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
@@ -921,6 +960,8 @@ function EditorContent() {
           onGroup={handleGroup}
           onUngroup={handleUngroup}
           onDuplicate={handleDuplicate}
+          activeTab={activeLeftTab}
+          onTabChange={setActiveLeftTab}
         />
 
         {/* Main Viewport */}
@@ -975,6 +1016,3 @@ export default function PCEditor() {
     </LanguageProvider>
   );
 }
-
-
-

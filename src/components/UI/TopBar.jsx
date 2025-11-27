@@ -18,6 +18,8 @@ const TopBar = ({
   setSnapEnabled,
   measurements = [],
   onClearMeasurements,
+  onOpenProjectManager,
+  currentProjectName,
 }) => {
   const { language, setLanguage, t } = useLanguage();
 
@@ -71,6 +73,13 @@ const TopBar = ({
       <div style={{ fontWeight: 700, marginRight: 16, color: "#fff" }}>
         {t("app.title")}
       </div>
+
+      {/* Project Management */}
+      <button style={btnStyle} onClick={onOpenProjectManager}>
+        📂 {currentProjectName || "Projects"}
+      </button>
+
+      <div style={dividerStyle} />
 
       {/* File Operations */}
       <button style={btnStyle} onClick={onImport}>

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import AddObjectForm from "./AddObjectForm";
 import FrameBuilderPanel from "./FrameBuilderPanel";
 import ObjectsList from "./ObjectsList";
+import ProjectManager from "./ProjectManager";
 
 import { useLanguage } from "../../i18n/LanguageContext";
 
@@ -13,9 +14,10 @@ const LeftSidebar = ({
   onGroup,
   onUngroup,
   onDuplicate,
+  activeTab,
+  onTabChange,
 }) => {
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState("library"); // "library" | "hierarchy"
 
   const tabStyle = (isActive) => ({
     flex: 1,
@@ -44,15 +46,21 @@ const LeftSidebar = ({
       <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb" }}>
         <div
           style={tabStyle(activeTab === "library")}
-          onClick={() => setActiveTab("library")}
+          onClick={() => onTabChange("library")}
         >
           {t("label.library")}
         </div>
         <div
           style={tabStyle(activeTab === "hierarchy")}
-          onClick={() => setActiveTab("hierarchy")}
+          onClick={() => onTabChange("hierarchy")}
         >
           {t("label.hierarchy")}
+        </div>
+        <div
+          style={tabStyle(activeTab === "projects")}
+          onClick={() => onTabChange("projects")}
+        >
+          {t("label.projects") || "Projects"}
         </div>
       </div>
 
@@ -75,6 +83,10 @@ const LeftSidebar = ({
             onUngroup={onUngroup}
             onDuplicate={onDuplicate}
           />
+        )}
+
+        {activeTab === "projects" && (
+          <ProjectManager onClose={() => {}} />
         )}
       </div>
     </div>

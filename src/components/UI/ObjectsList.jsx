@@ -1,16 +1,14 @@
-// components/UI/ObjectsList.jsx — 物体列表
 import React from "react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
-
-
-const input = {
+const inputStyle = {
   width: "100%",
   padding: "6px 8px",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  background: "#fff",
+  border: "1px solid #cbd5e1",
+  borderRadius: 6,
+  fontSize: 13,
   color: "#0f172a",
-  fontSize: 14,
+  background: "#fff",
   outline: "none",
 };
 
@@ -20,19 +18,19 @@ const BtnGhost = ({ children, onClick, disabled = false }) => (
     disabled={disabled}
     style={{
       padding: "6px 10px",
-      borderRadius: 10,
-      border: "1px solid #e5e7eb",
+      borderRadius: 6,
+      border: "1px solid #cbd5e1",
       background: "#fff",
       color: disabled ? "#94a3b8" : "#0f172a",
       cursor: disabled ? "not-allowed" : "pointer",
       opacity: disabled ? 0.6 : 1,
+      fontSize: 12,
+      fontWeight: 500,
     }}
   >
     {children}
   </button>
 );
-
-import { useLanguage } from "../../i18n/LanguageContext";
 
 export default function ObjectsList({
   objects,
@@ -71,14 +69,16 @@ export default function ObjectsList({
           const groups = {
             [t("category.pcParts")]: [],
             [t("category.structures")]: [],
+            [t("category.shared")]: [],
             [t("category.groups")]: [],
             [t("category.others")]: []
           };
 
           objects.forEach(o => {
-            if (o.type === "structure") groups[t("category.structures")].push(o);
+            if (o.meta?.category === "shared") groups[t("category.shared")].push(o);
+            else if (o.type === "structure") groups[t("category.structures")].push(o);
             else if (o.type === "group") groups[t("category.groups")].push(o);
-            else if (["motherboard", "gpu", "psu", "ram", "box", "cpu-cooler"].includes(o.type)) groups[t("category.pcParts")].push(o);
+            else if (["motherboard", "gpu", "psu", "ram", "cpu-cooler", "reference"].includes(o.type)) groups[t("category.pcParts")].push(o);
             else groups[t("category.others")].push(o);
           });
 
@@ -108,7 +108,7 @@ export default function ObjectsList({
                         type="checkbox"
                         checked={o.visible}
                         onChange={() => toggleVisible(o.id)}
-                        title="显示/隐藏"
+                        title="Show/Hide"
                         style={{ cursor: "pointer" }}
                       />
                       <div
@@ -123,7 +123,7 @@ export default function ObjectsList({
                       >
                         <input
                           style={{
-                            ...input,
+                            ...inputStyle,
                             border: "none",
                             background: "transparent",
                             padding: 0,
@@ -131,6 +131,7 @@ export default function ObjectsList({
                             fontSize: 13,
                             width: "100%",
                             cursor: selectedIds.includes(o.id) ? "text" : "pointer",
+                            color: selectedIds.includes(o.id) ? "#2563eb" : "#0f172a",
                           }}
                           value={o.name}
                           onChange={(e) => rename(o.id, e.target.value)}

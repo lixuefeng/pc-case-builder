@@ -46,6 +46,9 @@ export function ChildMeshRenderer({ obj }) {
     case "gpu-bracket":
       return <GPUBracketMesh obj={obj} selected={false} />;
     case "structure":
+      if (obj.meta?.shape === "sphere") return <SphereMesh obj={obj} selected={false} />;
+      if (obj.meta?.shape === "cylinder") return <CylinderMesh obj={obj} selected={false} />;
+      return <PartBox obj={obj} selected={false} />;
     default:
       return <PartBox obj={obj} selected={false} />;
   }
@@ -87,6 +90,38 @@ export function PartBox({ obj, selected }) {
         <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
           color={selected ? "#ef4444" : color || defaultColor}
+          opacity={1}
+          transparent={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+export function SphereMesh({ obj, selected }) {
+  const { dims, color } = obj;
+  return (
+    <group userData={{ objectId: obj.id }}>
+      <mesh scale={[dims.w, dims.h, dims.d]}>
+        <sphereGeometry args={[0.5, 32, 32]} />
+        <meshStandardMaterial
+          color={selected ? "#ef4444" : color || "#d1d5db"}
+          opacity={1}
+          transparent={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+export function CylinderMesh({ obj, selected }) {
+  const { dims, color } = obj;
+  return (
+    <group userData={{ objectId: obj.id }}>
+      <mesh scale={[dims.w, dims.h, dims.d]}>
+        <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
+        <meshStandardMaterial
+          color={selected ? "#ef4444" : color || "#d1d5db"}
           opacity={1}
           transparent={false}
         />
@@ -144,8 +179,6 @@ export function ImportedMesh({ obj, selected }) {
     </mesh>
   );
 }
-
-
 
 export function ReferenceMesh({ obj, selected }) {
   const { dims, color, key } = obj;
@@ -278,4 +311,3 @@ export function CPUCoolerMesh({ obj, selected }) {
     </group>
   );
 }
-

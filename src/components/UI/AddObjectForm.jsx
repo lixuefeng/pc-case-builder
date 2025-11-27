@@ -1,39 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { PRESETS } from "../../utils/presets";
-
-
-
-const labelSm = { color: "#64748b", fontSize: 12, marginBottom: 6 };
-const input = {
-  width: "100%",
-  padding: "8px 10px",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  background: "#fff",
-  color: "#0f172a",
-  fontSize: 14,
-  outline: "none",
-};
-
-const Btn = ({ children, onClick, variant = "primary" }) => {
-  const base = {
-    padding: "10px 14px",
-    borderRadius: 10,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-    border: "1px solid transparent",
-  };
-  const styles =
-    variant === "secondary"
-      ? { background: "#eef2ff", color: "#0f172a", border: "1px solid #c7d2fe" }
-      : { background: "#2563eb", color: "#fff" };
-  return (
-    <button style={{ ...base, ...styles }} onClick={onClick}>
-      {children}
-    </button>
-  );
-};
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const instantiateConnectors = (type, preset) => {
   if (!preset) return [];
@@ -73,19 +40,34 @@ const instantiateConnectors = (type, preset) => {
   return [];
 };
 
-import { useLanguage } from "../../i18n/LanguageContext";
-
 export default function AddObjectForm({ onAdd }) {
   const { t } = useLanguage();
+  const [activeCategory, setActiveCategory] = useState("pcParts");
   const [type, setType] = useState("motherboard");
   const [presetKey, setPresetKey] = useState("itx");
   const [name, setName] = useState("");
   const [orientation, setOrientation] = useState("horizontal");
 
+  // Map categories to preset types
+  const CATEGORY_MAP = {
+    pcParts: ["motherboard", "gpu", "psu", "ram", "cpu-cooler", "reference"],
+    structures: ["structure"],
+    shared: ["shared"],
+  };
+
+  // Update type when category changes
   useEffect(() => {
-    const firstPreset = (PRESETS[type] || [])[0];
-    if (firstPreset) {
-      setPresetKey(firstPreset.key);
+    const types = CATEGORY_MAP[activeCategory];
+    if (types && types.length > 0) {
+      setType(types[0]);
+    }
+  }, [activeCategory]);
+
+  // Update preset when type changes
+  useEffect(() => {
+    const presets = PRESETS[type] || [];
+    if (presets.length > 0) {
+      setPresetKey(presets[0].key);
     }
   }, [type]);
 
@@ -106,17 +88,17 @@ export default function AddObjectForm({ onAdd }) {
       return children.map((child, index) => ({
         ...child,
         id: `${parentId}_child_${index}_${Math.floor(Math.random() * 1e5)}`,
-        children: generateChildIds(child.children, parentId), // Recurse if needed
+        children: generateChildIds(child.children, parentId),
       }));
     };
 
     const obj = {
       id,
       key: preset.key,
-      type: preset.type || type, // Use preset type if defined (e.g. group), else selected type
+      type: preset.type || type,
       name: name || preset.label,
       dims: { ...preset.dims },
-      pos: [0, preset.dims.h / 2, 0], // place on the ground plane by default
+      pos: [0, preset.dims.h / 2, 0],
       rot: [0, 0, 0],
       color: preset.color || undefined,
       visible: true,
@@ -129,56 +111,144 @@ export default function AddObjectForm({ onAdd }) {
     setName("");
   };
 
+  // Styles
+  const containerStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    color: "#0f172a",
+  };
+
+  const labelStyle = {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#64748b",
+    marginBottom: 4,
+    display: "block",
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "6px 8px",
+    border: "1px solid #cbd5e1",
+    borderRadius: 6,
+    fontSize: 13,
+    color: "#0f172a",
+    background: "#fff",
+    outline: "none",
+  };
+
+  const btnStyle = {
+    padding: "6px 12px",
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 500,
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    cursor: "pointer",
+  };
+
+  const categoryTabStyle = (isActive) => ({
+    flex: 1,
+    padding: "6px 0",
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+    background: isActive ? "#eff6ff" : "transparent",
+    color: isActive ? "#2563eb" : "#64748b",
+    borderBottom: isActive ? "2px solid #2563eb" : "1px solid #e2e8f0",
+    transition: "all 0.2s",
+  });
+
   return (
-    <div style={{ padding: "0 4px" }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>
-        {t("label.addPart")}
+    <div style={containerStyle}>
+      {/* Category Tabs */}
+      <div style={{ display: "flex", marginBottom: 4 }}>
+        <div
+          style={categoryTabStyle(activeCategory === "pcParts")}
+          onClick={() => setActiveCategory("pcParts")}
+        >
+          {t("category.pcParts")}
+        </div>
+        <div
+          style={categoryTabStyle(activeCategory === "structures")}
+          onClick={() => setActiveCategory("structures")}
+        >
+          {t("category.structures")}
+        </div>
+        <div
+          style={categoryTabStyle(activeCategory === "shared")}
+          onClick={() => setActiveCategory("shared")}
+        >
+          {t("category.shared")}
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center" }}>
-        <label style={labelSm}>{t("form.type")}</label>
-        <select value={type} onChange={(e) => setType(e.target.value)} style={input}>
-          <option value="motherboard">Motherboard</option>
-          <option value="gpu">GPU</option>
-          <option value="psu">PSU</option>
-          <option value="ram">RAM</option>
-          <option value="box">Box</option>
-          <option value="cpu-cooler">{t("type.cpuCooler") || "CPU Cooler"}</option>
-          <option value="reference">Reference</option>
+      {/* Type Selector */}
+      <div>
+        <label style={labelStyle}>{t("form.type")}</label>
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          style={inputStyle}
+        >
+          {CATEGORY_MAP[activeCategory].map((tKey) => (
+            <option key={tKey} value={tKey}>
+              {t(`type.${tKey}`) || tKey.charAt(0).toUpperCase() + tKey.slice(1)}
+            </option>
+          ))}
         </select>
+      </div>
 
-        <label style={labelSm}>{t("form.preset")}</label>
-        <select value={presetKey} onChange={(e) => setPresetKey(e.target.value)} style={input}>
+      {/* Preset Selector */}
+      <div>
+        <label style={labelStyle}>{t("form.preset")}</label>
+        <select
+          value={presetKey}
+          onChange={(e) => setPresetKey(e.target.value)}
+          style={inputStyle}
+        >
           {presets.map((p) => (
             <option key={p.key} value={p.key}>
               {p.label}
             </option>
           ))}
         </select>
-
-        {type === "motherboard" && (
-          <>
-            <label style={labelSm}>{t("form.orientation")}</label>
-            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={input}>
-              <option value="horizontal">{t("form.orientation.horizontal")}</option>
-              <option value="vertical">{t("form.orientation.vertical")}</option>
-            </select>
-          </>
-        )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 10, alignItems: "center", marginTop: 8 }}>
-        <label style={labelSm}>{t("prop.name")}</label>
+      {/* Orientation (Motherboard only) */}
+      {type === "motherboard" && (
+        <div>
+          <label style={labelStyle}>{t("form.orientation")}</label>
+          <select
+            value={orientation}
+            onChange={(e) => setOrientation(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="horizontal">{t("form.orientation.horizontal")}</option>
+            <option value="vertical">{t("form.orientation.vertical")}</option>
+          </select>
+        </div>
+      )}
+
+      {/* Name Input */}
+      <div>
+        <label style={labelStyle}>{t("prop.name")}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("form.namePlaceholder")}
-          style={input}
+          style={inputStyle}
         />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
-        <Btn onClick={handleAdd}>{t("action.add")}</Btn>
+      {/* Add Button */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+        <button onClick={handleAdd} style={btnStyle}>
+          {t("action.add")}
+        </button>
       </div>
     </div>
   );

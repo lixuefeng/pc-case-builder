@@ -1,4 +1,4 @@
-﻿
+
 // components/MovablePart.jsx
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
@@ -1683,13 +1683,15 @@ export default function MovablePart({
                 fontSize: "12px",
                 fontWeight: "bold",
                 pointerEvents: "none",
-              }}
-            >
-              {bestAlignCandidate.selfFace} 鈫?{bestAlignCandidate.targetFace}
-            </div>
-          </Html>
-        </group>
-      )}
+            }}
+          >
+            {/* ASCII arrow avoids non-ASCII parse issues in build tools. */}
+            {bestAlignCandidate.selfFace} -&gt; {bestAlignCandidate.targetFace}
+          </div>
+        </Html>
+      </group>
+    )}
     </>
   );
 }
+

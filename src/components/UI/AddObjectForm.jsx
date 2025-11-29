@@ -47,11 +47,12 @@ export default function AddObjectForm({ onAdd }) {
   const [presetKey, setPresetKey] = useState("itx");
   const [name, setName] = useState("");
   const [orientation, setOrientation] = useState("horizontal");
+  const [customDims, setCustomDims] = useState({ w: 100, h: 20, d: 20 });
 
   // Map categories to preset types
   const CATEGORY_MAP = {
     pcParts: ["motherboard", "gpu", "psu", "ram", "cpu-cooler", "reference"],
-    structures: ["structure"],
+    primitives: ["structure"],
     shared: ["shared"],
   };
 
@@ -97,8 +98,10 @@ export default function AddObjectForm({ onAdd }) {
       key: preset.key,
       type: preset.type || type,
       name: name || preset.label,
-      dims: { ...preset.dims },
-      pos: [0, preset.dims.h / 2, 0],
+      dims: (type === "structure" && (preset.key === "custom-block" || preset.key === "cube-50")) 
+        ? { ...customDims } 
+        : { ...preset.dims },
+      pos: [0, (type === "structure" ? customDims.h : preset.dims.h) / 2, 0],
       rot: [0, 0, 0],
       color: preset.color || undefined,
       visible: true,
@@ -173,10 +176,10 @@ export default function AddObjectForm({ onAdd }) {
           {t("category.pcParts")}
         </div>
         <div
-          style={categoryTabStyle(activeCategory === "structures")}
-          onClick={() => setActiveCategory("structures")}
+          style={categoryTabStyle(activeCategory === "primitives")}
+          onClick={() => setActiveCategory("primitives")}
         >
-          {t("category.structures")}
+          {t("category.primitives") || "Primitives"}
         </div>
         <div
           style={categoryTabStyle(activeCategory === "shared")}
@@ -230,6 +233,36 @@ export default function AddObjectForm({ onAdd }) {
             <option value="horizontal">{t("form.orientation.horizontal")}</option>
             <option value="vertical">{t("form.orientation.vertical")}</option>
           </select>
+        </div>
+      )}
+
+      {/* Custom Dimensions for Structure/Primitives */}
+      {type === "structure" && (presetKey === "custom-block" || presetKey === "cube-50") && (
+        <div>
+          <label style={labelStyle}>Dimensions (W x H x D)</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            <input
+              type="number"
+              value={customDims.w}
+              onChange={(e) => setCustomDims({ ...customDims, w: Number(e.target.value) })}
+              style={inputStyle}
+              placeholder="W"
+            />
+            <input
+              type="number"
+              value={customDims.h}
+              onChange={(e) => setCustomDims({ ...customDims, h: Number(e.target.value) })}
+              style={inputStyle}
+              placeholder="H"
+            />
+            <input
+              type="number"
+              value={customDims.d}
+              onChange={(e) => setCustomDims({ ...customDims, d: Number(e.target.value) })}
+              style={inputStyle}
+              placeholder="D"
+            />
+          </div>
         </div>
       )}
 

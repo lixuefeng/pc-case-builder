@@ -78,3 +78,16 @@ You must:
 - Never hide assumptions (especially defaults or branching logic)  
 - Never sacrifice engineering quality for convenience  
 
+
+---
+
+## 7. Structural Integrity Check
+- Before modifying code, analyze the surrounding context (parent containers, conditional rendering, closures).
+- Ensure that removing or replacing code does not break the outer structure.
+- Verify that the change preserves existing logic flows unless explicitly intended to change them.
+
+---
+
+## 8. Intent Documentation as Guardrails
+- When writing complex logic or structural conditions (like tab rendering), add explicit comments explaining the *intent*.
+- These comments should serve as warnings/guardrails for future edits (e.g., "Guard: Ensure content only shows when activeTab is 'library'").

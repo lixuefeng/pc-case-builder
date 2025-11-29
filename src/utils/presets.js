@@ -292,35 +292,50 @@ export const PRESETS = {
       connectors: [],
     },
   ],
-        "cpu-cooler": [
-          {
-            key: "tower-120",
-            label: "Tower Cooler 120mm",
-            dims: { w: 125, h: 160, d: 80 },
-            meta: { type: "tower" },
-            connectors: [],
-          },
-          {
-            key: "custom-160",
-            label: "Custom Cooler 160x120x8",
+  "cpu-cooler": [
+    {
+      key: "tower-120",
+      label: "Tower Cooler 120mm",
+      dims: { w: 125, h: 160, d: 80 },
+      meta: { type: "tower" },
+      connectors: [],
+    },
+    {
+      key: "custom-160",
+      label: "Custom Cooler 160x120x8",
       dims: { w: 120, h: 160, d: 8 }, // User specified 160mm(H?) 120mm(W?) 8mm(D?) - assuming H=160, W=120, D=8 based on request, though D=8 is very thin.
       meta: { type: "custom" },
       connectors: [],
     },
   ],
-  box: [
-    { key: "cube50", label: "Box 50×50×50", dims: { w: 50, h: 50, d: 50 } },
+  structure: [
+    {
+      key: "cube-50",
+      label: "Cube 50mm",
+      type: "structure",
+      dims: { w: 50, h: 50, d: 50 },
+      meta: { shape: "cube" },
+      connectors: [],
+    },
+    {
+      key: "custom-block",
+      label: "Custom Block",
+      type: "structure",
+      dims: { w: 100, h: 20, d: 20 }, // Default dims, will be overridden by form
+      meta: { shape: "cube", isCustom: true },
+      connectors: [],
+    },
   ],
   reference: [
     {
       key: "coke-can",
       label: "Coke Can (330ml)",
       dims: { w: 66, h: 115, d: 66 },
-            color: "#ef4444",
-            meta: { type: "reference" },
-            connectors: [],
-          },
-        ],
+      color: "#ef4444",
+      meta: { type: "reference" },
+      connectors: [],
+    },
+  ],
 };
 
 PRESETS.motherboard.forEach((preset) => {

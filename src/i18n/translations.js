@@ -30,6 +30,7 @@
     "label.addPart": "添加装机零件",
 
     "category.pcParts": "装机零件",
+    "category.primitives": "基础几何体",
     "category.structures": "结构件",
     "category.shared": "共享配件",
     "category.groups": "编组",
@@ -114,7 +115,8 @@
     "label.addPart": "Add Part",
 
     "category.pcParts": "PC Parts",
-    "category.structures": "Primitives",
+    "category.primitives": "Primitives",
+    "category.structures": "Structures",
     "category.shared": "Shared Parts",
     "category.groups": "Groups",
     "category.others": "Others",

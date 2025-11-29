@@ -1,6 +1,5 @@
 import React from "react";
 import AddObjectForm from "./AddObjectForm";
-import FrameBuilderPanel from "./FrameBuilderPanel";
 import ObjectsList from "./ObjectsList";
 import ProjectManager from "./ProjectManager";
 
@@ -96,10 +95,11 @@ const LeftSidebar = ({
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        {/* Tab Content: Library */}
+        {/* Guard: Ensure content only shows when activeTab is 'library' */}
         {activeTab === "library" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <AddObjectForm onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
-            <FrameBuilderPanel onAdd={(obj) => setObjects((prev) => [...prev, obj])} />
           </div>
         )}
 

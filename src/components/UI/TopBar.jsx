@@ -18,8 +18,6 @@ const TopBar = ({
   setSnapEnabled,
   measurements = [],
   onClearMeasurements,
-  onOpenProjectManager,
-  currentProjectName,
 }) => {
   const { language, setLanguage, t } = useLanguage();
 
@@ -74,12 +72,7 @@ const TopBar = ({
         {t("app.title")}
       </div>
 
-      {/* Project Management */}
-      <button style={btnStyle} onClick={onOpenProjectManager}>
-        📂 {currentProjectName || "Projects"}
-      </button>
 
-      <div style={dividerStyle} />
 
       {/* File Operations */}
       <button style={btnStyle} onClick={onImport}>
@@ -116,21 +109,21 @@ const TopBar = ({
           onClick={() => setTransformMode("translate")}
           title={t("mode.translate")}
         >
-          {t("mode.translate")}
+          ✥ {t("mode.translate")}
         </button>
         <button
           style={transformMode === "rotate" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("rotate")}
           title={t("mode.rotate")}
         >
-          {t("mode.rotate")}
+          🔄 {t("mode.rotate")}
         </button>
         <button
           style={transformMode === "scale" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("scale")}
           title={t("mode.scale")}
         >
-          {t("mode.scale")}
+          ↔️ {t("mode.scale")}
         </button>
         <button
           style={transformMode === "ruler" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}

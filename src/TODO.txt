@@ -29,4 +29,9 @@ Main features:
 - Integration: Printed directly on the beam/tray (merged geometry).
 - Logic: Project motherboard holes to underlying parts. 
 
+[FUTURE] Advanced Joinery (Mortise & Tenon):
+- Concept: Insert one part into another (cutout/pocket) before screwing for stability. Locating Bosses / Shear Bosses
+- Benefits: Shear resistance, self-alignment.
+- Tech Challenge: Re-calculating connection surfaces for screw placement.
+
 

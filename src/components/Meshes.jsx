@@ -55,6 +55,9 @@ export function ChildMeshRenderer({ obj }) {
 }
 
 export function GroupMesh({ obj, selected }) {
+  if (!obj) return null;
+  const children = Array.isArray(obj.children) ? obj.children : [];
+  
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh raycast={() => null}>
@@ -71,11 +74,14 @@ export function GroupMesh({ obj, selected }) {
           opacity={selected ? 0.2 : 0.1}
         />
       </mesh>
-      {obj.children.map((child) => (
-        <group key={child.id} position={child.pos} rotation={child.rot}>
-          <ChildMeshRenderer obj={child} />
-        </group>
-      ))}
+      {children.map((child) => {
+        if (!child || !child.id) return null;
+        return (
+          <group key={child.id} position={child.pos || [0, 0, 0]} rotation={child.rot || [0, 0, 0]}>
+            <ChildMeshRenderer obj={child} />
+          </group>
+        );
+      })}
     </group>
   );
 }

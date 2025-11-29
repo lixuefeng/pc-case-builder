@@ -22,6 +22,10 @@ export default function Scene({
   onChangeTransformMode,
   showTransformControls = false,
   measurements = [],
+  onDrillHover,
+  drillGhost,
+  drillCandidates = [],
+  onHoleDelete,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -56,7 +60,16 @@ export default function Scene({
   const alignmentCandidates = useMemo(() => {
     const result = [];
     
-    const traverse = (obj, parentWorldPos = null, parentWorldQuat = null) => {
+    const traverse = (obj, parentWorldPos = null, parentWorldQuat = null, visited = new Set()) => {
+      // Safety checks
+      if (!obj || !obj.id) return;
+      if (visited.has(obj.id)) {
+        // Circular reference detected, skip to prevent infinite loop
+        console.warn(`Circular reference detected for object ${obj.id}, skipping`);
+        return;
+      }
+      visited.add(obj.id);
+      
       // Calculate world transform for current object
       let worldPos, worldQuat, worldRot;
 
@@ -96,11 +109,19 @@ export default function Scene({
       });
 
       if (Array.isArray(obj.children)) {
-        obj.children.forEach(child => traverse(child, worldPos, worldQuat));
+        obj.children.forEach(child => {
+          if (child && child.id) {
+            traverse(child, worldPos, worldQuat, visited);
+          }
+        });
       }
     };
 
-    renderObjects.forEach(obj => traverse(obj));
+    renderObjects.forEach(obj => {
+      if (obj && obj.id) {
+        traverse(obj); // Each root object gets its own visited set
+      }
+    });
     return result;
   }, [renderObjects]);
 
@@ -167,9 +188,27 @@ export default function Scene({
             setGizmoHovered={setGizmoHovered}
             connectorHovered={connectorHovered}
             setConnectorHovered={setConnectorHovered}
+            onDrillHover={onDrillHover}
+            onHoleDelete={onHoleDelete}
           />
         ))}
         <RulerMarkers measurements={measurements} />
+
+        {/* Drill Ghost */}
+        {transformMode === "drill" && drillGhost && (
+          <mesh position={drillGhost.position} raycast={() => null}>
+            <sphereGeometry args={[1, 16, 16]} />
+            <meshBasicMaterial color={drillGhost.snapped ? "#10b981" : "#ef4444"} transparent opacity={0.8} depthTest={false} />
+          </mesh>
+        )}
+
+        {/* Drill Candidates (Blue Markers) */}
+        {transformMode === "drill" && drillCandidates.map((cand, i) => (
+          <mesh key={i} position={cand} raycast={() => null}>
+            <sphereGeometry args={[1.5, 16, 16]} />
+            <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} depthTest={false} />
+          </mesh>
+        ))}
       </group>
       <OrbitControls
         ref={orbitRef}

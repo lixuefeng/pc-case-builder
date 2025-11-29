@@ -40,6 +40,15 @@ const clogConnector = (...args) => {
 // Small raycast bias so connectors win over nearby blocking geometry along the same ray.
 const CONNECTOR_RAYCAST_PRIORITY = 10000; // mm-equivalent distance bias
 const applyConnectorRaycastBias = (mesh, raycaster, intersects) => {
+  // if (!mesh) return; // Allow null mesh for just bias logic if needed, but standard raycast needs mesh.
+  // Actually, for HoleMarker we can just use the mesh instance from the ref or 'this' context if we were in a class,
+  // but here we are in a functional component.
+  // The 'mesh' arg is used to call the prototype raycast.
+  // If we pass null, we assume the caller handles the raycast call or we are just using the function for the bias logic?
+  // Wait, the original function calls `THREE.Mesh.prototype.raycast.call(mesh, ...)`
+  // So we MUST pass the mesh.
+  
+  // Let's modify this helper to be more robust or just use a ref in HoleMarker.
   if (!mesh) return;
   const startLen = intersects.length;
   THREE.Mesh.prototype.raycast.call(mesh, raycaster, intersects);
@@ -217,6 +226,112 @@ const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => 
   );
 };
 
+const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace, onDrillHover }) => {
+  const [hovered, setHovered] = useState(false);
+  const headRef = useRef(null);
+  const shaftRef = useRef(null);
+  const position = new THREE.Vector3(...(hole.position || [0, 0, 0]));
+  const direction = new THREE.Vector3(...(hole.direction || [0, 0, 1])).normalize();
+  // M3 Counterbore Specs
+  const headDia = 6;
+  const headDepth = 5;
+  const shaftDia = 3;
+  const totalDepth = hole.depth || 20;
+
+  // Align cylinder to direction. Cylinder default is Y-axis.
+  // If direction is Normal (OUT), we want the hole to go IN (along -Y in local space).
+  const quaternion = useMemo(() => {
+    const q = new THREE.Quaternion();
+    const defaultUp = new THREE.Vector3(0, 1, 0);
+    q.setFromUnitVectors(defaultUp, direction);
+    return q;
+  }, [direction]);
+
+  const headColor = hovered && canDelete ? "#f87171" : "#ef4444";
+  const shaftColor = hovered && canDelete ? "#dc2626" : "#b91c1c";
+  const opacity = hovered && canDelete ? 0.9 : 0.6;
+
+  const handlePointerEnter = (e) => {
+    if (canDelete) {
+      console.log("[HoleMarker] Hover enter", hole.id);
+      e.stopPropagation();
+      setHovered(true);
+      document.body.style.cursor = "pointer";
+      setHoveredFace?.(null);
+      onDrillHover?.(null);
+    }
+  };
+
+  const handlePointerLeave = (e) => {
+    if (canDelete) {
+      e.stopPropagation();
+      setHovered(false);
+      document.body.style.cursor = "default";
+    }
+  };
+
+  const handlePointerMove = (e) => {
+    if (canDelete) {
+      e.stopPropagation();
+    }
+  };
+
+  const handlePointerDown = (e) => {
+    if (canDelete && onDelete) {
+      e.stopPropagation();
+      onDelete(partId, hole.id);
+    }
+  };
+
+  useEffect(() => {
+    console.log("[HoleMarker] Mount/Update", hole.id, hole.position);
+  }, [hole]);
+
+  return (
+    <group 
+      position={position} 
+      quaternion={quaternion}
+    >
+      {/* Head: Goes from 0 to -5mm */}
+      <mesh 
+        ref={headRef}
+        position={[0, -headDepth / 2, 0]}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onPointerMove={handlePointerMove}
+        onPointerDown={handlePointerDown}
+        raycast={(raycaster, intersects) =>
+          applyConnectorRaycastBias(headRef.current, raycaster, intersects)
+        }
+        renderOrder={1002}
+        frustumCulled={false}
+        userData={{ isHole: true, holeId: hole.id, partId }}
+      >
+        <cylinderGeometry args={[headDia / 2, headDia / 2, headDepth, 32]} />
+        <meshBasicMaterial color={headColor} transparent opacity={opacity} depthTest={false} />
+      </mesh>
+      {/* Shaft: Goes from -5mm to -TotalDepth */}
+      <mesh 
+        ref={shaftRef}
+        position={[0, -headDepth - (totalDepth - headDepth) / 2, 0]}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onPointerMove={handlePointerMove}
+        onPointerDown={handlePointerDown}
+        raycast={(raycaster, intersects) =>
+          applyConnectorRaycastBias(shaftRef.current, raycaster, intersects)
+        }
+        renderOrder={1003}
+        frustumCulled={false}
+        userData={{ isHole: true, holeId: hole.id, partId }}
+      >
+        <cylinderGeometry args={[shaftDia / 2, shaftDia / 2, totalDepth - headDepth, 32]} />
+        <meshBasicMaterial color={shaftColor} transparent opacity={opacity} depthTest={false} />
+      </mesh>
+    </group>
+  );
+};
+
 export default function MovablePart({
   obj,
   selected,
@@ -237,6 +352,8 @@ export default function MovablePart({
   setGizmoHovered,
   connectorHovered = false,
   setConnectorHovered,
+  onDrillHover,
+  onHoleDelete,
 }) {
   const t = palette;
   const groupRef = useRef();
@@ -1333,7 +1450,7 @@ export default function MovablePart({
 
   const resolveHoveredFace = useCallback(
     (event) => {
-      if ((!alignMode && mode !== "scale" && mode !== "ruler") || !groupRef.current) return;
+      if ((!alignMode && mode !== "scale" && mode !== "ruler" && mode !== "drill") || !groupRef.current) return;
       const dims = obj.dims || {};
       const width = dims.w ?? 0;
       const height = dims.h ?? 0;
@@ -1373,9 +1490,14 @@ export default function MovablePart({
       const localPoint =
         localRay.intersectBox(localBox, hitPoint) ||
         event.point.clone().sub(worldPos).applyQuaternion(invQuat);
+      // 记录：局部空间的命中点，以及对应的世界坐标命中点（而不是物体中心）
+      const worldHitPoint = localPoint
+        .clone()
+        .applyQuaternion(worldQuat)
+        .add(worldPos);
       lastHoverSampleRef.current = {
         local: localPoint.clone(),
-        world: worldPos.clone(),
+        world: worldHitPoint,
       };
 
       const clamped = {
@@ -1435,22 +1557,42 @@ export default function MovablePart({
         userData={{ objectId: obj.id }}
         onPointerMove={(e) => {
           e.stopPropagation();
+          // Skip face hover if the event is from a hole
+          const isHoleEvent = e.target?.userData?.isHole || e.object?.userData?.isHole;
+          if (isHoleEvent && mode === "drill") {
+            return;
+          }
           const faceSelectionActive =
             (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
             (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
-            (mode === "ruler" && (e.shiftKey || e?.nativeEvent?.shiftKey));
+            (mode === "ruler" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
+            (mode === "drill");
           if (faceSelectionActive) {
             resolveHoveredFace(e);
-          } else if (!stretchStateRef.current && (alignMode || mode === "scale" || mode === "ruler") && hoveredFace) {
+          } else if (!stretchStateRef.current && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill") && hoveredFace) {
             setHoveredFace(null);
+          }
+          if (mode === "drill" && hoveredFace && onDrillHover) {
+             onDrillHover({
+               partId: obj.id,
+               face: hoveredFace,
+               point: lastHoverSampleRef.current?.world?.toArray(),
+               normal: hoveredFaceDetails?.normal,
+               faceCenter: hoveredFaceDetails?.center,
+               faceSize: hoveredFaceDetails?.size,
+               quaternion: hoveredFaceDetails?.quaternion?.toArray()
+             });
           }
         }}
         onPointerLeave={() => {
           if (stretchStateRef.current) {
             return;
           }
-          if (alignMode || mode === "scale" || mode === "ruler") {
+          if (alignMode || mode === "scale" || mode === "ruler" || mode === "drill") {
             setHoveredFace(null);
+          }
+          if (mode === "drill" && onDrillHover) {
+             onDrillHover(null);
           }
         }}
         onPointerDown={(e) => {
@@ -1474,6 +1616,22 @@ export default function MovablePart({
 
           if (isEmbedded && !alignMode) {
             return;
+          }
+          // Drill mode should be handled first, before alignMode logic
+          if (mode === "drill" && hoveredFace) {
+             console.log("[MovablePart] onPointerDown drill", {
+               partId: obj.id, 
+               face: hoveredFace, 
+               point: lastHoverSampleRef.current?.world?.toArray(),
+             });
+             onFacePick?.({ 
+               partId: obj.id, 
+               face: hoveredFace, 
+               point: lastHoverSampleRef.current?.world?.toArray(),
+               localPoint: lastHoverSampleRef.current?.local?.toArray(),
+               normal: hoveredFaceDetails?.normal
+             });
+             return;
           }
           if (
             !alignMode &&
@@ -1542,6 +1700,17 @@ export default function MovablePart({
               />
             );
           })}
+        {Array.isArray(obj.holes) && obj.holes.map((hole) => (
+          <HoleMarker 
+            key={hole.id} 
+            hole={hole}
+            partId={obj.id}
+            onDelete={onHoleDelete}
+            canDelete={mode === "drill"}
+            setHoveredFace={setHoveredFace}
+            onDrillHover={onDrillHover}
+          />
+        ))}
       </group>
 
       {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && (
@@ -1600,6 +1769,7 @@ export default function MovablePart({
           position={hoveredFaceDetails.center}
           quaternion={hoveredFaceDetails.quaternion}
           frustumCulled={false}
+          raycast={() => null}
         >
           <boxGeometry args={hoveredFaceDetails.size} />
           <meshStandardMaterial
@@ -1617,6 +1787,7 @@ export default function MovablePart({
           position={activeFaceDetails.center}
           quaternion={activeFaceDetails.quaternion}
           frustumCulled={false}
+          raycast={() => null}
         >
           <boxGeometry args={activeFaceDetails.size} />
           <meshStandardMaterial

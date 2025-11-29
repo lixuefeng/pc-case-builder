@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLanguage } from "../../i18n/LanguageContext";
 
 const inputStyle = {
@@ -10,6 +10,18 @@ const inputStyle = {
   color: "#0f172a",
   background: "#fff",
   outline: "none",
+};
+
+// Shared card styling to align Hierarchy items with the Projects tab look.
+const CARD_STYLE = {
+  background: "#ffffff",
+  border: "#e5e7eb",
+  radius: 10,
+  padding: "10px 12px",
+  shadow: "0 1px 2px rgba(15, 23, 42, 0.06)",
+  hoverShadow: "0 4px 10px rgba(15, 23, 42, 0.08)",
+  hoverBg: "#f8fafc",
+  activeBorder: "#3b82f6",
 };
 
 const BtnGhost = ({ children, onClick, disabled = false }) => (
@@ -42,6 +54,8 @@ export default function ObjectsList({
   onDuplicate,
 }) {
   const { t } = useLanguage();
+  const [hoveredId, setHoveredId] = useState(null);
+
   const toggleVisible = (id) =>
     setObjects((prev) => prev.map((o) => (o.id === id ? { ...o, visible: !o.visible } : o)));
   const remove = (id) => setObjects((prev) => prev.filter((o) => o.id !== id));
@@ -50,7 +64,9 @@ export default function ObjectsList({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>{t("label.objects")}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 8 }}>
+        {t("label.objects")}
+      </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <BtnGhost onClick={() => onDuplicate?.(selectedIds)} disabled={selectedIds.length === 0}>
@@ -63,7 +79,9 @@ export default function ObjectsList({
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
-        {objects.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8" }}>{t("label.noObjects")}</div>}
+        {objects.length === 0 && (
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>{t("label.noObjects")}</div>
+        )}
 
         {(() => {
           const groups = {
@@ -71,14 +89,15 @@ export default function ObjectsList({
             [t("category.structures")]: [],
             [t("category.shared")]: [],
             [t("category.groups")]: [],
-            [t("category.others")]: []
+            [t("category.others")]: [],
           };
 
-          objects.forEach(o => {
+          objects.forEach((o) => {
             if (o.meta?.category === "shared") groups[t("category.shared")].push(o);
             else if (o.type === "structure") groups[t("category.structures")].push(o);
             else if (o.type === "group") groups[t("category.groups")].push(o);
-            else if (["motherboard", "gpu", "psu", "ram", "cpu-cooler", "reference"].includes(o.type)) groups[t("category.pcParts")].push(o);
+            else if (["motherboard", "gpu", "psu", "ram", "cpu-cooler", "reference"].includes(o.type))
+              groups[t("category.pcParts")].push(o);
             else groups[t("category.others")].push(o);
           });
 
@@ -86,77 +105,108 @@ export default function ObjectsList({
             if (items.length === 0) return null;
             return (
               <div key={category}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 6, paddingLeft: 4 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#64748b",
+                    marginBottom: 6,
+                    paddingLeft: 4,
+                  }}
+                >
                   {category}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {items.map((o) => (
-                    <div
-                      key={o.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "6px 8px",
-                        borderRadius: 6,
-                        border: `1px solid ${selectedIds.includes(o.id) ? "#3b82f680" : "transparent"}`,
-                        background: selectedIds.includes(o.id) ? "#eff6ff" : "transparent",
-                        color: "inherit",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={o.visible}
-                        onChange={() => toggleVisible(o.id)}
-                        title="Show/Hide"
-                        style={{ cursor: "pointer" }}
-                      />
+                  {items.map((o) => {
+                    const isSelected = selectedIds.includes(o.id);
+                    const isHover = hoveredId === o.id;
+                    return (
                       <div
-                        onClick={() => onSelect(o.id)}
+                        key={o.id}
                         style={{
-                          flex: 1,
                           display: "flex",
                           alignItems: "center",
-                          cursor: "pointer",
-                          overflow: "hidden",
+                          gap: 8,
+                          padding: CARD_STYLE.padding,
+                          borderRadius: CARD_STYLE.radius,
+                          border: `1px solid ${isSelected ? CARD_STYLE.activeBorder : CARD_STYLE.border}`,
+                          background: isSelected
+                            ? "#eef2ff"
+                            : isHover
+                              ? CARD_STYLE.hoverBg
+                              : CARD_STYLE.background,
+                          boxShadow: isHover ? CARD_STYLE.hoverShadow : CARD_STYLE.shadow,
+                          color: "inherit",
                         }}
+                        onMouseEnter={() => setHoveredId(o.id)}
+                        onMouseLeave={() => setHoveredId(null)}
                       >
                         <input
+                          type="checkbox"
+                          checked={o.visible}
+                          onChange={() => toggleVisible(o.id)}
+                          title="Show/Hide"
+                          style={{ cursor: "pointer" }}
+                        />
+                        <div
+                          onClick={() => onSelect(o.id)}
                           style={{
-                            ...inputStyle,
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            cursor: "pointer",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <input
+                            style={{
+                              ...inputStyle,
+                              border: "none",
+                              background: "transparent",
+                              padding: 0,
+                              fontWeight: 500,
+                              fontSize: 13,
+                              width: "100%",
+                              cursor: isSelected ? "text" : "pointer",
+                              color: isSelected ? "#2563eb" : "#0f172a",
+                            }}
+                            value={o.name}
+                            onChange={(e) => rename(o.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button
+                            onClick={() => onDuplicate?.([o.id])}
+                            title={t("action.copy")}
+                          style={{
                             border: "none",
                             background: "transparent",
-                            padding: 0,
-                            fontWeight: 500,
-                            fontSize: 13,
-                            width: "100%",
-                            cursor: selectedIds.includes(o.id) ? "text" : "pointer",
-                            color: selectedIds.includes(o.id) ? "#2563eb" : "#0f172a",
+                            cursor: "pointer",
+                            color: "#64748b",
+                            fontSize: 12,
                           }}
-                          value={o.name}
-                          onChange={(e) => rename(o.id, e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                      
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button 
-                          onClick={() => onDuplicate?.([o.id])}
-                          title={t("action.copy")}
-                          style={{ border: "none", background: "transparent", cursor: "pointer", color: "#64748b", fontSize: 12 }}
                         >
-                          📋
-                        </button>
-                        <button 
-                          onClick={() => remove(o.id)}
-                          title={t("action.delete")}
-                          style={{ border: "none", background: "transparent", cursor: "pointer", color: "#ef4444", fontSize: 12 }}
-                        >
-                          ✕
-                        </button>
+                            📋
+                          </button>
+                          <button
+                            onClick={() => remove(o.id)}
+                            title={t("action.delete")}
+                            style={{
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              color: "#ef4444",
+                              fontSize: 12,
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );

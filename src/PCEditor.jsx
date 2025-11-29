@@ -79,6 +79,31 @@ const duplicateObject = (sourceObject, offsetIndex = 1) => {
   return assignIds(clone, { applyOffset: true });
 };
 
+// 计算对象在某个世界方向上的“半投影长度”，用于判断该对象是否与某个平面相交
+const getWorldAxesForObject = (obj) => {
+  const rot = Array.isArray(obj.rot) ? obj.rot : [0, 0, 0];
+  const q = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(rot[0], rot[1], rot[2], "XYZ")
+  );
+  const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+  const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+  const az = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+  return { ax, ay, az };
+};
+
+const projectedHalfExtentAlongAxis = (worldAxis, dims, axes) => {
+  const { ax, ay, az } = axes;
+  const w2 = (dims?.w ?? 0) / 2;
+  const h2 = (dims?.h ?? 0) / 2;
+  const d2 = (dims?.d ?? 0) / 2;
+  const dir = worldAxis.clone().normalize();
+  return (
+    Math.abs(dir.dot(ax)) * w2 +
+    Math.abs(dir.dot(ay)) * h2 +
+    Math.abs(dir.dot(az)) * d2
+  );
+};
+
 function EditorContent() {
   const { t } = useLanguage();
   const {
@@ -128,7 +153,7 @@ function EditorContent() {
     return () => clearTimeout(timer);
   }, [connectorToast]);
 
-  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "ruler";
+  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "ruler" || transformMode === "drill";
 
   useEffect(() => {
     if (!alignEnabled) {
@@ -142,10 +167,148 @@ function EditorContent() {
       // If we are in a mode that allows it, we don't strictly need selectedIds to be non-empty to hold a pending face.
       // However, if the user clicks empty space, handleSelect(null) is called.
     }
-    if (transformMode !== "ruler") {
+    if (transformMode !== "ruler" && transformMode !== "drill") {
       setRulerPoints([]);
+      setDrillGhost(null);
+      setDrillCandidates([]);
     }
   }, [alignEnabled, transformMode]);
+
+  const [drillGhost, setDrillGhost] = useState(null);
+  const [drillCandidates, setDrillCandidates] = useState([]);
+  const snapThreshold = 10; // mm
+
+  const handleDrillHover = useCallback(
+    (info) => {
+      if (transformMode !== "drill" || !info?.point || !info?.normal) {
+        setDrillGhost(null);
+        setDrillCandidates([]);
+        return;
+      }
+
+      const { partId, point, normal, face, faceCenter, faceSize } = info;
+      const worldPoint = new THREE.Vector3(...point);
+      const worldNormalA = new THREE.Vector3(...normal).normalize(); // A 面法线
+
+      // 1️⃣ 找到当前 hover 的对象 X
+      const baseObj = expandedObjects.find((o) => o.id === partId);
+      if (!baseObj) {
+        setDrillGhost(null);
+        setDrillCandidates([]);
+        return;
+      }
+
+      // 2️⃣ 由 hover 面 A 推出对面 B 作为基准面
+      let baseFaceName = face;
+      if (face === "+X") baseFaceName = "-X";
+      else if (face === "-X") baseFaceName = "+X";
+      else if (face === "+Y") baseFaceName = "-Y";
+      else if (face === "-Y") baseFaceName = "+Y";
+      else if (face === "+Z") baseFaceName = "-Z";
+      else if (face === "-Z") baseFaceName = "+Z";
+      // 其它特殊面（如 io-cutout）暂时直接用 A 面
+
+      // 用已有工具分别算出 A / B 面的世界中心和法线
+      const baseFaceTransform = computeFaceTransform(baseObj, baseFaceName);
+      const aFaceTransform = computeFaceTransform(baseObj, face);
+
+      const planeNormalB = baseFaceTransform?.normal || worldNormalA;
+      const planePointB =
+        baseFaceTransform?.center ||
+        (faceCenter ? new THREE.Vector3(...faceCenter) : worldPoint);
+
+      const planeNormalA = aFaceTransform?.normal || worldNormalA;
+      const planePointA =
+        aFaceTransform?.center ||
+        (faceCenter ? new THREE.Vector3(...faceCenter) : worldPoint);
+
+      // 以 B 面构造平面（用于“谁在 B 面后面”的判断）
+      const planeB = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        planeNormalB.clone().normalize(),
+        planePointB
+      );
+      // 以 A 面构造平面（用于把蓝点放在 A 面上）
+      const planeA = new THREE.Plane().setFromNormalAndCoplanarPoint(
+        planeNormalA.clone().normalize(),
+        planePointA
+      );
+
+      const newCandidates = [];
+
+      // 用来限制候选点不要离 B 面中心太远（在面内的“半径”过滤）
+      const maxDim = faceSize
+        ? Math.max(faceSize[0], faceSize[1], faceSize[2])
+        : 1000;
+      const faceCenterVecB = planePointB.clone();
+
+      expandedObjects.forEach((obj) => {
+        if (obj.id === partId || obj.visible === false) return;
+
+        const objCenter = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+
+        // 根据对象自身的旋转和尺寸，估计它在 B 面法线方向上的“半厚度”
+        const axes = getWorldAxesForObject(obj);
+        const halfDepth = projectedHalfExtentAlongAxis(
+          planeNormalB,
+          obj.dims || {},
+          axes
+        );
+
+        if (halfDepth <= 0) return;
+
+        const signedDist = planeB.distanceToPoint(objCenter);
+
+        // 只有当对象的包围盒真正与 B 平面有交集时，才认为是“与 B 面附近相交”
+        const margin = 0.5; // 适当放宽一点，避免数值误差
+        if (Math.abs(signedDist) > halfDepth + margin) {
+          return;
+        }
+
+        // 先把对象中心投影到 B 面
+        const projectedOnB = new THREE.Vector3();
+        planeB.projectPoint(objCenter, projectedOnB);
+
+        // 再把这个点沿着 A 面法线投影到 A 面上
+        const projectedOnA = new THREE.Vector3();
+        planeA.projectPoint(projectedOnB, projectedOnA);
+
+        // 用 B 面上的中心做“半径过滤”，防止太远的物体也算进去
+        if (projectedOnB.distanceTo(faceCenterVecB) < maxDim / 1.5) {
+          // 真正的蓝点画在 A 面上
+          newCandidates.push(projectedOnA);
+        }
+      });
+
+      setDrillCandidates(newCandidates);
+
+      // Snap Logic：如果鼠标点靠近某个候选点，就把 ghost 吸附到该中心
+      let bestSnap = null;
+      let minDist = snapThreshold;
+
+      newCandidates.forEach((cand) => {
+        const d = worldPoint.distanceTo(cand);
+        if (d < minDist) {
+          minDist = d;
+          bestSnap = cand;
+        }
+      });
+
+      if (bestSnap) {
+        setDrillGhost({
+          position: bestSnap.toArray(),
+          direction: planeNormalA.toArray(),
+          snapped: true,
+        });
+      } else {
+        setDrillGhost({
+          position: point,
+          direction: normal,
+          snapped: false,
+        });
+      }
+    },
+    [expandedObjects, snapThreshold, transformMode]
+  );
 
   // Keyboard Shortcuts for Clipboard
   useEffect(() => {
@@ -528,12 +691,81 @@ function EditorContent() {
       if (!alignEnabled || !faceInfo) {
         return;
       }
-      if (!pendingAlignFace && transformMode !== "ruler") {
+      // Drill and ruler modes don't use the two-step pending face selection
+      if (!pendingAlignFace && transformMode !== "ruler" && transformMode !== "drill") {
         alog("pick:first", faceInfo);
         setPendingAlignFace(faceInfo);
         setConnectorToast({
           type: "info",
           text: "已选中要移动/调整的面。再选择对齐目标面。",
+        });
+        return;
+      }
+
+      if (transformMode === "drill") {
+        // Use ghost position if available (snapped), otherwise click point
+        const targetPoint = drillGhost?.snapped ? drillGhost.position : (faceInfo.point || [0,0,0]);
+        
+        if (!targetPoint) return;
+        
+        const obj = expandedObjects.find((o) => o.id === faceInfo.partId);
+        if (!obj) return;
+
+        // Convert World Point to Local Point
+        // We need the inverse transform of the object.
+        // Since we don't have the object's matrix here, we can approximate if rotation is simple,
+        // OR we can rely on the fact that 'faceInfo.point' was World, and we need to transform it.
+        // Wait, 'faceInfo.localPoint' was passed from MovablePart!
+        // But if we snapped, we have a new World Point. We need to convert it to local.
+        // This is tricky without the matrix.
+        // ALTERNATIVE: Pass the snap calculation DOWN to MovablePart? 
+        // Or pass the matrix UP?
+        // Let's assume for now we can't easily convert back without the matrix.
+        // Let's use the 'localPoint' from faceInfo if not snapped.
+        // If snapped, we might be slightly off if we don't convert correctly.
+        
+        // BETTER APPROACH:
+        // In MovablePart, we have the ref. We can expose a method or use the existing 'onFacePick' 
+        // to handle the conversion if we pass the snapped world point back?
+        // No, 'onFacePick' is called by MovablePart.
+        
+        // Let's try to compute local from world here using the object's pos/rot/dims.
+        // It's a bit manual but possible for simple transforms.
+        // Local = (World - Pos).applyQuaternion(InverseRot)
+        
+        const worldP = new THREE.Vector3(...targetPoint);
+        const pos = new THREE.Vector3(...(obj.pos || [0,0,0]));
+        const rot = new THREE.Euler(...(obj.rot || [0,0,0]));
+        const q = new THREE.Quaternion().setFromEuler(rot);
+        const invQ = q.invert();
+        const localP = worldP.clone().sub(pos).applyQuaternion(invQ);
+
+        // Create a new hole
+        const newHole = {
+          id: `hole_${Date.now()}`,
+          type: "counterbore", // Updated type
+          diameter: 3.2, 
+          position: localP.toArray(),
+          direction: faceInfo.normal || [0,0,1],
+          depth: 20, // Default depth
+        };
+
+        setObjects((prev) =>
+          prev.map((o) => {
+            if (o.id === obj.id) {
+              return {
+                ...o,
+                holes: [...(o.holes || []), newHole],
+              };
+            }
+            return o;
+          })
+        );
+        
+        setConnectorToast({
+          type: "success",
+          text: "Hole drilled!",
+          ttl: 2000,
         });
         return;
       }
@@ -749,6 +981,8 @@ function EditorContent() {
       computeFaceTransform,
       transformMode,
       rulerPoints,
+      drillGhost,
+      expandedObjects,
     ]
   );
 
@@ -918,6 +1152,21 @@ function EditorContent() {
     setSelectedIds([]);
   }, [selectedIds, setObjects, setSelectedIds]);
 
+  const handleHoleDelete = useCallback((partId, holeId) => {
+    setObjects((prev) =>
+      prev.map((obj) => {
+        if (obj.id !== partId) return obj;
+        const updatedHoles = (obj.holes || []).filter((h) => h.id !== holeId);
+        return { ...obj, holes: updatedHoles };
+      })
+    );
+    setConnectorToast({
+      type: "success",
+      text: "Hole deleted",
+      ttl: 1500,
+    });
+  }, [setObjects, setConnectorToast]);
+
   const clearMeasurements = useCallback(() => {
     setMeasurements([]);
     setRulerPoints([]);
@@ -975,6 +1224,7 @@ function EditorContent() {
             showHorizontalGrid={showHorizontalGrid}
             alignMode={alignEnabled}
             onFacePick={handleFacePick}
+            onDrillHover={handleDrillHover}
             onConnectorPick={handleConnectorPick}
             activeAlignFace={pendingAlignFace}
             transformMode={transformMode}
@@ -982,7 +1232,30 @@ function EditorContent() {
             showTransformControls={showGizmos}
             snapEnabled={snapEnabled}
             measurements={measurements}
+            drillGhost={drillGhost}
+            drillCandidates={drillCandidates}
+            onHoleDelete={handleHoleDelete}
           />
+
+      {/* Ruler Visualization */}
+      {transformMode === "ruler" && rulerPoints.length > 0 && (
+        <>
+          {rulerPoints.map((p, i) => (
+            <mesh key={i} position={p}>
+              <sphereGeometry args={[0.5, 16, 16]} />
+              <meshBasicMaterial color="#ef4444" depthTest={false} />
+            </mesh>
+          ))}
+          {rulerPoints.length === 2 && (
+             <Line
+                points={rulerPoints}
+                color="#ef4444"
+                lineWidth={2}
+                depthTest={false}
+             />
+          )}
+        </>
+      )}
 
         </div>
 

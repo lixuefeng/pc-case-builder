@@ -139,6 +139,13 @@ const TopBar = ({
         >
           📏 Ruler
         </button>
+        <button
+          style={transformMode === "drill" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
+          onClick={() => setTransformMode("drill")}
+          title="Drill Tool"
+        >
+          🔩 Drill
+        </button>
         {transformMode === "ruler" && measurements.length > 0 && (
           <button
             style={{ ...btnStyle, background: "#ef4444", borderColor: "#ef4444", marginLeft: 4 }}

@@ -186,17 +186,64 @@ function EditorContent() {
         return;
       }
 
+      // Helper to flatten objects and calculate world transforms
+      const flattenObjectsWithTransforms = (objs, parentWorldPos = null, parentWorldQuat = null) => {
+        let results = [];
+        objs.forEach(obj => {
+          if (!obj.visible) return;
+
+          // Calculate World Transform
+          const localPos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+          const localEuler = new THREE.Euler(...(obj.rot || [0, 0, 0]));
+          const localQuat = new THREE.Quaternion().setFromEuler(localEuler);
+
+          let worldPos, worldQuat;
+
+          if (parentWorldPos && parentWorldQuat) {
+            worldPos = parentWorldPos.clone().add(localPos.clone().applyQuaternion(parentWorldQuat));
+            worldQuat = parentWorldQuat.clone().multiply(localQuat);
+          } else {
+            worldPos = localPos;
+            worldQuat = localQuat;
+          }
+
+          // Add current object
+          results.push({
+            ...obj,
+            worldPos,
+            worldQuat
+          });
+
+          // Recurse children
+          if (Array.isArray(obj.children) && obj.children.length > 0) {
+            results = results.concat(flattenObjectsWithTransforms(obj.children, worldPos, worldQuat));
+          }
+        });
+        return results;
+      };
+
+      const flatObjects = flattenObjectsWithTransforms(expandedObjects);
+
+      // Debug: Entry
+      // console.log("handleDrillHover info:", info);
+
       const { partId, point, normal, face, faceCenter, faceSize } = info;
       const worldPoint = new THREE.Vector3(...point);
       const worldNormalA = new THREE.Vector3(...normal).normalize(); // A 面法线
 
-      // 1️⃣ 找到当前 hover 的对象 X
-      const baseObj = expandedObjects.find((o) => o.id === partId);
+      // 1️⃣ 找到当前 hover 的对象 X (Use flatObjects to find it!)
+      const baseObj = flatObjects.find((o) => o.id === partId);
       if (!baseObj) {
+        console.warn("Drill: baseObj not found for partId:", partId);
         setDrillGhost(null);
         setDrillCandidates([]);
         return;
       }
+
+      // ... (existing code) ...
+
+      // Debug: Face Info
+      // console.log("Drill Face Info:", { face, faceAInfo, basis });
 
       // 2️⃣ 由 hover 面 A 推出对面 B 作为基准面
       let baseFaceName = face;
@@ -241,13 +288,18 @@ function EditorContent() {
         : 1000;
       const faceCenterVecB = planePointB.clone();
 
-      expandedObjects.forEach((obj) => {
-        if (obj.id === partId || obj.visible === false) return;
+      flatObjects.forEach((obj) => {
+        if (obj.id === partId) return; // Skip self
 
-        const objCenter = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+        const objCenter = obj.worldPos; // Use pre-calculated World Pos
 
         // 根据对象自身的旋转和尺寸，估计它在 B 面法线方向上的“半厚度”
-        const axes = getWorldAxesForObject(obj);
+        // Use pre-calculated World Quat for axes
+        const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(obj.worldQuat);
+        const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(obj.worldQuat);
+        const az = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.worldQuat);
+        const axes = { ax, ay, az };
+        
         const halfDepth = projectedHalfExtentAlongAxis(
           planeNormalB,
           obj.dims || {},
@@ -272,16 +324,124 @@ function EditorContent() {
         const projectedOnA = new THREE.Vector3();
         planeA.projectPoint(projectedOnB, projectedOnA);
 
-        // 用 B 面上的中心做“半径过滤”，防止太远的物体也算进去
-        if (projectedOnB.distanceTo(faceCenterVecB) < maxDim / 1.5) {
-          // 真正的蓝点画在 A 面上
-          newCandidates.push(projectedOnA);
-        }
+      // 3️⃣ Calculate Intersection of Face A and Face B (Projected)
+      // We need to work in the 2D plane of Face A to find the overlap area.
+      
+      // Helper to get 2D dimensions and axes based on face name
+      const getFace2DInfo = (faceName, size3D) => {
+        if (!faceName || !size3D) return null;
+        if (faceName.includes("X")) return { dims: [size3D[1], size3D[2]], axesIndices: [1, 2] }; // Y, Z
+        if (faceName.includes("Y")) return { dims: [size3D[0], size3D[2]], axesIndices: [0, 2] }; // X, Z
+        if (faceName.includes("Z")) return { dims: [size3D[0], size3D[1]], axesIndices: [0, 1] }; // X, Y
+        return null; // Fallback or io-cutout
+      };
+
+      const faceAInfo = getFace2DInfo(face, faceSize);
+      // If we can't determine axes (e.g. io-cutout), fallback to simple projection
+      if (!faceAInfo || !info.quaternion) {
+         // Fallback to simple distance check (relaxed)
+         const candidateMaxDim = Math.max(obj.dims.w || 0, obj.dims.h || 0, obj.dims.d || 0);
+         const threshold = (maxDim / 2) + (candidateMaxDim / 2);
+         if (projectedOnB.distanceTo(faceCenterVecB) < threshold) {
+            newCandidates.push(projectedOnA);
+         }
+         return;
+      }
+
+      // Construct Basis for Face A
+      const qA = new THREE.Quaternion(...info.quaternion);
+      const basis = [
+        new THREE.Vector3(1, 0, 0).applyQuaternion(qA),
+        new THREE.Vector3(0, 1, 0).applyQuaternion(qA),
+        new THREE.Vector3(0, 0, 1).applyQuaternion(qA),
+      ];
+      const rightAxis = basis[faceAInfo.axesIndices[0]];
+      const upAxis = basis[faceAInfo.axesIndices[1]];
+
+      // Rect A (Local 2D centered at 0,0)
+      const halfWA = faceAInfo.dims[0] / 2;
+      const halfHA = faceAInfo.dims[1] / 2;
+      const minA = [-halfWA, -halfHA];
+      const maxA = [halfWA, halfHA];
+
+      // Rect B (Projected into Face A's 2D space)
+      // Calculate 8 corners of obj in World Space
+      const dimsB = obj.dims || { w: 10, h: 10, d: 10 };
+      const halfWB = (dimsB.w || 0) / 2;
+      const halfHB = (dimsB.h || 0) / 2;
+      const halfDB = (dimsB.d || 0) / 2;
+      
+      const cornersLocal = [
+        new THREE.Vector3(halfWB, halfHB, halfDB),
+        new THREE.Vector3(halfWB, halfHB, -halfDB),
+        new THREE.Vector3(halfWB, -halfHB, halfDB),
+        new THREE.Vector3(halfWB, -halfHB, -halfDB),
+        new THREE.Vector3(-halfWB, halfHB, halfDB),
+        new THREE.Vector3(-halfWB, halfHB, -halfDB),
+        new THREE.Vector3(-halfWB, -halfHB, halfDB),
+        new THREE.Vector3(-halfWB, -halfHB, -halfDB),
+      ];
+
+      // Use pre-calculated World Transforms
+      const posB = obj.worldPos;
+      const qB = obj.worldQuat;
+
+      let minB = [Infinity, Infinity];
+      let maxB = [-Infinity, -Infinity];
+
+      cornersLocal.forEach(p => {
+        // Local (relative to center) -> World
+        const pWorld = p.clone().applyQuaternion(qB).add(posB);
+        
+        // World -> Face A 2D Plane
+        const relP = pWorld.sub(planePointA);
+        const x = relP.dot(rightAxis);
+        const y = relP.dot(upAxis);
+
+        minB[0] = Math.min(minB[0], x);
+        minB[1] = Math.min(minB[1], y);
+        maxB[0] = Math.max(maxB[0], x);
+        maxB[1] = Math.max(maxB[1], y);
+      });
+
+      // Intersection
+      const overlapMin = [
+        Math.max(minA[0], minB[0]),
+        Math.max(minA[1], minB[1])
+      ];
+      const overlapMax = [
+        Math.min(maxA[0], maxB[0]),
+        Math.min(maxA[1], maxB[1])
+      ];
+
+      // Debug Logs
+      // console.log("Drill Debug:", {
+      //   id: obj.id,
+      //   minA, maxA,
+      //   minB, maxB,
+      //   overlapMin, overlapMax,
+      //   isOverlapping: overlapMin[0] < overlapMax[0] && overlapMin[1] < overlapMax[1]
+      // });
+
+      // Check if overlapping
+      if (overlapMin[0] < overlapMax[0] && overlapMin[1] < overlapMax[1]) {
+        // Center of overlap
+        const centerOverlap2D = [
+          (overlapMin[0] + overlapMax[0]) / 2,
+          (overlapMin[1] + overlapMax[1]) / 2
+        ];
+
+        // Unproject back to World Space (on Plane A)
+        const worldOverlap = planePointA.clone()
+          .add(rightAxis.clone().multiplyScalar(centerOverlap2D[0]))
+          .add(upAxis.clone().multiplyScalar(centerOverlap2D[1]));
+        
+        newCandidates.push(worldOverlap);
+      }
       });
 
       setDrillCandidates(newCandidates);
 
-      // Snap Logic：如果鼠标点靠近某个候选点，就把 ghost 吸附到该中心
       let bestSnap = null;
       let minDist = snapThreshold;
 
@@ -306,6 +466,7 @@ function EditorContent() {
           snapped: false,
         });
       }
+
     },
     [expandedObjects, snapThreshold, transformMode]
   );
@@ -735,10 +896,24 @@ function EditorContent() {
         
         const worldP = new THREE.Vector3(...targetPoint);
         const pos = new THREE.Vector3(...(obj.pos || [0,0,0]));
-        const rot = new THREE.Euler(...(obj.rot || [0,0,0]));
-        const q = new THREE.Quaternion().setFromEuler(rot);
-        const invQ = q.invert();
+        
+        // Use the World Quaternion passed from MovablePart if available (handles groups/parents)
+        // Otherwise fall back to object rotation (only works for top-level objects)
+        let invQ;
+        if (faceInfo.quaternion) {
+          const worldQ = new THREE.Quaternion(...faceInfo.quaternion);
+          invQ = worldQ.clone().invert();
+        } else {
+          const rot = new THREE.Euler(...(obj.rot || [0,0,0]));
+          const q = new THREE.Quaternion().setFromEuler(rot);
+          invQ = q.clone().invert();
+        }
+
         const localP = worldP.clone().sub(pos).applyQuaternion(invQ);
+
+        // Convert World Normal to Local Normal
+        const worldNormal = new THREE.Vector3(...(faceInfo.normal || [0, 0, 1]));
+        const localNormal = worldNormal.clone().applyQuaternion(invQ).normalize();
 
         // Create a new hole
         const newHole = {
@@ -746,7 +921,7 @@ function EditorContent() {
           type: "counterbore", // Updated type
           diameter: 3.2, 
           position: localP.toArray(),
-          direction: faceInfo.normal || [0,0,1],
+          direction: localNormal.toArray(),
           depth: 20, // Default depth
         };
 

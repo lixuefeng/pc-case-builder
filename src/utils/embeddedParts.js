@@ -116,18 +116,8 @@ export const buildMotherboardEmbeddedParts = (obj) => {
     parts.push(featureToEmbed(layout.chipset, dims, "chipset", "Chipset"));
   }
 
-  const ioCutout = getMotherboardIoCutoutBounds(dims);
-  if (ioCutout) {
-    parts.push({
-      key: "io-cutout",
-      name: "IO Cutout",
-      localCenter: ioCutout.center,
-      size: ioCutout.size,
-      color: "#fb923c",
-    });
-  }
-
-  return parts.filter(Boolean);
+  const finalParts = parts.filter(Boolean);
+  return finalParts;
 };
 
 export const buildGpuEmbeddedParts = (obj) => {

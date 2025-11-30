@@ -120,6 +120,8 @@ const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => 
   const headRef = useRef(null);
 
   const quaternion = useMemo(() => buildConnectorQuaternion(connector), [connector]);
+  
+
   const position = Array.isArray(connector?.pos) && connector.pos.length === 3
     ? connector.pos
     : [0, 0, 0];
@@ -243,7 +245,12 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
   const quaternion = useMemo(() => {
     const q = new THREE.Quaternion();
     const defaultUp = new THREE.Vector3(0, 1, 0);
-    q.setFromUnitVectors(defaultUp, direction);
+    if (direction.dot(defaultUp) < -0.99) {
+      // Handle opposite direction (180 deg rotation)
+      q.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+    } else {
+      q.setFromUnitVectors(defaultUp, direction);
+    }
     return q;
   }, [direction]);
 
@@ -1629,7 +1636,9 @@ export default function MovablePart({
                face: hoveredFace, 
                point: lastHoverSampleRef.current?.world?.toArray(),
                localPoint: lastHoverSampleRef.current?.local?.toArray(),
-               normal: hoveredFaceDetails?.normal
+               localPoint: lastHoverSampleRef.current?.local?.toArray(),
+               normal: hoveredFaceDetails?.normal,
+               quaternion: hoveredFaceDetails?.quaternion?.toArray()
              });
              return;
           }
@@ -1684,7 +1693,7 @@ export default function MovablePart({
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}
-        {Array.isArray(obj.connectors) && obj.connectors
+        {showTransformControls && Array.isArray(obj.connectors) && obj.connectors
           .filter((connector) => connector && connector.id)
           .map((connector) => {
             const isUsed = connectedConnectorIds.has(connector.id);

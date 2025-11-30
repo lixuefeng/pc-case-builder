@@ -106,10 +106,14 @@ export default function GridPlane({
 
   return (
     <group position={[0, offsetY, 0]}>
-      {showHorizontalGrid && <gridHelper args={[size, divisions, "#888", "#ddd"]} />}
-      <primitive object={axesHelper} position={[0, 0.05, 0]} />
-      {axisLabels}
-      {labels}
+      {showHorizontalGrid && (
+        <>
+          <gridHelper args={[size, divisions, "#888", "#ddd"]} />
+          <primitive object={axesHelper} position={[0, 0.05, 0]} />
+          {axisLabels}
+          {labels}
+        </>
+      )}
     </group>
   );
 }

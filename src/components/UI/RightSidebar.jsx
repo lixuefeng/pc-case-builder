@@ -147,21 +147,21 @@ const RightSidebar = ({
           <input
             type="number"
             style={inputStyle}
-            value={selectedObject.pos[0]}
+            value={selectedObject.pos?.[0] ?? 0}
             onChange={(e) => handlePosChange("x", e.target.value)}
             placeholder="X"
           />
           <input
             type="number"
             style={inputStyle}
-            value={selectedObject.pos[1]}
+            value={selectedObject.pos?.[1] ?? 0}
             onChange={(e) => handlePosChange("y", e.target.value)}
             placeholder="Y"
           />
           <input
             type="number"
             style={inputStyle}
-            value={selectedObject.pos[2]}
+            value={selectedObject.pos?.[2] ?? 0}
             onChange={(e) => handlePosChange("z", e.target.value)}
             placeholder="Z"
           />
@@ -172,21 +172,21 @@ const RightSidebar = ({
           <input
             type="number"
             style={inputStyle}
-            value={selectedObject.dims?.w || 0}
+            value={selectedObject.dims?.w ?? 0}
             onChange={(e) => handleDimChange("w", e.target.value)}
             placeholder="W"
           />
           <input
             type="number"
             style={inputStyle}
-            value={selectedObject.dims?.h || 0}
+            value={selectedObject.dims?.h ?? 0}
             onChange={(e) => handleDimChange("h", e.target.value)}
             placeholder="H"
           />
           <input
             type="number"
             style={inputStyle}
-            value={selectedObject.dims?.d || 0}
+            value={selectedObject.dims?.d ?? 0}
             onChange={(e) => handleDimChange("d", e.target.value)}
             placeholder="D"
           />

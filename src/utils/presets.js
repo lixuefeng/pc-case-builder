@@ -325,6 +325,22 @@ export const PRESETS = {
       meta: { shape: "cube", isCustom: true },
       connectors: [],
     },
+    {
+      key: "cylinder-50",
+      label: "Cylinder 50x50",
+      type: "cylinder",
+      dims: { w: 50, h: 50, d: 50 },
+      meta: { shape: "cylinder" },
+      connectors: [],
+    },
+    {
+      key: "cone-50",
+      label: "Cone 50x50",
+      type: "cone",
+      dims: { w: 50, h: 50, d: 50 },
+      meta: { shape: "cone" },
+      connectors: [],
+    },
   ],
   reference: [
     {

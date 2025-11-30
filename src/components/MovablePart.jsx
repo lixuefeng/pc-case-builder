@@ -11,6 +11,9 @@ import {
   ReferenceMesh,
   CPUCoolerMesh,
 } from "./Meshes.jsx";
+import CSGStandoff from "./CSGStandoff";
+import Cylinder from "./primitives/Cylinder";
+import Cone from "./primitives/Cone";
 import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 
 const DEBUG_LOG = false;
@@ -101,18 +104,7 @@ const IO_CUTOUT_FACE = "io-cutout";
 const ROTATION_SNAP_DEG = 45;
 const ROTATION_SNAP_TOL_DEG = 3;
 
-const pointInsideIoCutout = (obj, localPoint, tolerance = 1) => {
-  if (obj?.type !== "motherboard") return false;
-  const spec = getMotherboardIoCutoutBounds(obj.dims);
-  if (!spec) return false;
-  const [cx, cy, cz] = spec.center;
-  const [w, h, d] = spec.size;
-  return (
-    Math.abs(localPoint.x - cx) <= w / 2 + tolerance &&
-    Math.abs(localPoint.y - cy) <= h / 2 + tolerance &&
-    Math.abs(localPoint.z - cz) <= d / 2 + tolerance
-  );
-};
+
 
 const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => {
   const [hovered, setHovered] = useState(false);
@@ -1155,9 +1147,15 @@ export default function MovablePart({
     }
 
     const dims = targetObj?.dims || {};
-    const width = dims.w ?? 0;
-    const height = dims.h ?? 0;
-    const depth = dims.d ?? 0;
+    let width = dims.w ?? 0;
+    let height = dims.h ?? 0;
+    let depth = dims.d ?? 0;
+
+    if (targetObj?.type === "standoff") {
+      width = targetObj.outerDiameter || 6;
+      height = targetObj.height || 10;
+      depth = targetObj.outerDiameter || 6;
+    }
     const thickness = 0.2;
     const surfacePadding = 0.02; 
 
@@ -1458,10 +1456,19 @@ export default function MovablePart({
   const resolveHoveredFace = useCallback(
     (event) => {
       if ((!alignMode && mode !== "scale" && mode !== "ruler" && mode !== "drill") || !groupRef.current) return;
-      const dims = obj.dims || {};
-      const width = dims.w ?? 0;
-      const height = dims.h ?? 0;
-      const depth = dims.d ?? 0;
+      
+      let width, height, depth;
+      if (obj.type === "standoff") {
+        width = obj.outerDiameter || 6;
+        height = obj.height || 10;
+        depth = obj.outerDiameter || 6;
+      } else {
+        const dims = obj.dims || {};
+        width = dims.w ?? 0;
+        height = dims.h ?? 0;
+        depth = dims.d ?? 0;
+      }
+
       if (width === 0 || height === 0 || depth === 0) {
         setHoveredFace(null);
         return;
@@ -1502,6 +1509,7 @@ export default function MovablePart({
         .clone()
         .applyQuaternion(worldQuat)
         .add(worldPos);
+
       lastHoverSampleRef.current = {
         local: localPoint.clone(),
         world: worldHitPoint,
@@ -1526,9 +1534,7 @@ export default function MovablePart({
         cur.value < prev.value ? cur : prev
       ).face;
 
-      if (pointInsideIoCutout(obj, localPoint)) {
-        resolvedFace = IO_CUTOUT_FACE;
-      }
+
 
       setHoveredFace(resolvedFace);
       dlog("hover:face", {
@@ -1690,6 +1696,24 @@ export default function MovablePart({
           <CPUCoolerMesh obj={obj} selected={selected} />
         ) : obj.type === "gpu-bracket" ? (
           <GPUBracketMesh obj={obj} selected={selected} />
+        ) : obj.type === "standoff" ? (
+          <CSGStandoff {...obj} selected={selected} />
+        ) : obj.type === "cylinder" ? (
+          <Cylinder 
+            radius={obj.dims?.w ? obj.dims.w / 2 : 25} 
+            height={obj.dims?.h || 50} 
+            selected={selected}
+          >
+             <meshStandardMaterial color={selected ? "#ef4444" : "#cbd5e1"} />
+          </Cylinder>
+        ) : obj.type === "cone" ? (
+          <Cone 
+            radius={obj.dims?.w ? obj.dims.w / 2 : 25} 
+            height={obj.dims?.h || 50} 
+            selected={selected}
+          >
+             <meshStandardMaterial color={selected ? "#ef4444" : "#cbd5e1"} />
+          </Cone>
         ) : (
           <PartBox obj={obj} selected={selected} />
         )}

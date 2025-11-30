@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, Line } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
 import RulerMarkers from "./RulerMarkers";
@@ -26,6 +26,7 @@ export default function Scene({
   drillGhost,
   drillCandidates = [],
   onHoleDelete,
+  rulerPoints = [],
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -209,6 +210,27 @@ export default function Scene({
             <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} depthTest={false} />
           </mesh>
         ))}
+
+        {/* Ruler Visualization */}
+        {transformMode === "ruler" && rulerPoints.length > 0 && (
+          <>
+            {rulerPoints.map((p, i) => (
+              <mesh key={i} position={p}>
+                <sphereGeometry args={[0.5, 16, 16]} />
+                <meshBasicMaterial color="#ef4444" depthTest={false} />
+              </mesh>
+            ))}
+            {rulerPoints.length === 2 && (
+               <Line
+                  points={rulerPoints}
+                  color="#ef4444"
+                  lineWidth={2}
+                  depthTest={false}
+               />
+            )}
+          </>
+        )}
+
       </group>
       <OrbitControls
         ref={orbitRef}

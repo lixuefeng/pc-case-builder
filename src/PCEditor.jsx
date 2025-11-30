@@ -128,6 +128,9 @@ function EditorContent() {
   const [snapEnabled, setSnapEnabled] = useState(false); // New snap state
   const [rulerPoints, setRulerPoints] = useState([]); // Ruler state
   const [measurements, setMeasurements] = useState([]); // Persistent measurements
+  const [drillGhost, setDrillGhost] = useState(null);
+  const [drillCandidates, setDrillCandidates] = useState([]);
+  const rulerStartRef = React.useRef(null);
   
   // Lifted state for LeftSidebar tabs
   const [activeLeftTab, setActiveLeftTab] = useState("library");
@@ -169,13 +172,11 @@ function EditorContent() {
     }
     if (transformMode !== "ruler" && transformMode !== "drill") {
       setRulerPoints([]);
-      setDrillGhost(null);
       setDrillCandidates([]);
+      setDrillGhost(null);
     }
   }, [alignEnabled, transformMode]);
 
-  const [drillGhost, setDrillGhost] = useState(null);
-  const [drillCandidates, setDrillCandidates] = useState([]);
   const snapThreshold = 10; // mm
 
   const handleDrillHover = useCallback(
@@ -190,7 +191,7 @@ function EditorContent() {
       const flattenObjectsWithTransforms = (objs, parentWorldPos = null, parentWorldQuat = null) => {
         let results = [];
         objs.forEach(obj => {
-          if (!obj.visible) return;
+          if (obj.visible === false) return;
 
           // Calculate World Transform
           const localPos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
@@ -224,15 +225,16 @@ function EditorContent() {
 
       const flatObjects = flattenObjectsWithTransforms(expandedObjects);
 
-      // Debug: Entry
-      // console.log("handleDrillHover info:", info);
-
       const { partId, point, normal, face, faceCenter, faceSize } = info;
       const worldPoint = new THREE.Vector3(...point);
       const worldNormalA = new THREE.Vector3(...normal).normalize(); // A 面法线
 
       // 1️⃣ 找到当前 hover 的对象 X (Use flatObjects to find it!)
       const baseObj = flatObjects.find((o) => o.id === partId);
+      
+      // DEBUG: Log what we are hitting
+      console.log("Drill Hover Hit:", { partId, face, baseObjType: baseObj?.type, baseObjName: baseObj?.name, visible: baseObj?.visible });
+
       if (!baseObj) {
         console.warn("Drill: baseObj not found for partId:", partId);
         setDrillGhost(null);
@@ -241,9 +243,6 @@ function EditorContent() {
       }
 
       // ... (existing code) ...
-
-      // Debug: Face Info
-      // console.log("Drill Face Info:", { face, faceAInfo, basis });
 
       // 2️⃣ 由 hover 面 A 推出对面 B 作为基准面
       let baseFaceName = face;
@@ -413,15 +412,6 @@ function EditorContent() {
         Math.min(maxA[0], maxB[0]),
         Math.min(maxA[1], maxB[1])
       ];
-
-      // Debug Logs
-      // console.log("Drill Debug:", {
-      //   id: obj.id,
-      //   minA, maxA,
-      //   minB, maxB,
-      //   overlapMin, overlapMax,
-      //   isOverlapping: overlapMin[0] < overlapMax[0] && overlapMin[1] < overlapMax[1]
-      // });
 
       // Check if overlapping
       if (overlapMin[0] < overlapMax[0] && overlapMin[1] < overlapMax[1]) {
@@ -962,14 +952,21 @@ function EditorContent() {
             });
             return;
           }
-          setRulerPoints([newPoint]);
+
+          rulerStartRef.current = newPoint;
+          setRulerPoints([newPoint.center]);
+
           setConnectorToast({
             type: "info",
             text: "Start face selected. Click target face to measure.",
             ttl: 3000,
           });
         } else {
-          const p1 = rulerPoints[0];
+          const p1 = rulerStartRef.current;
+          if (!p1) {
+             setRulerPoints([]);
+             return;
+          }
           const p2 = newPoint;
 
           const n1 = p1.normal.clone();
@@ -978,49 +975,48 @@ function EditorContent() {
           let dist, p2Final, label;
 
           if (parallel > 0.99) {
-            // Parallel faces: Calculate perpendicular distance
             const v = p2.center.clone().sub(p1.center);
             dist = Math.abs(v.dot(n1));
 
             if (dist > 0.1) {
-              // Project p2 onto the line starting at p1 along n1
-              // actually we want a line from p1 to the plane of p2
-              // The closest point on plane 2 from p1 is p1 + n1 * dist (if n1 points to p2)
-              // Let's just visualize the perpendicular drop.
-              // We can keep p1 as is, and move p2 to be p1 + n * dist * sign
               const sign = Math.sign(v.dot(n1));
               p2Final = p1.center.clone().add(n1.clone().multiplyScalar(dist * sign));
               label = "Perpendicular Distance";
             } else {
-              // Coplanar (or very close): Use center-to-center
               dist = p1.center.distanceTo(p2.center);
               p2Final = p2.center;
-              label = "Center-to-Center Distance";
+              label = "Center to Center";
             }
           } else {
-            // Non-parallel: Use Euclidean distance
             dist = p1.center.distanceTo(p2.center);
             p2Final = p2.center;
-            label = "Distance";
+            label = "Center to Center";
           }
 
+          setRulerPoints([p1.center, p2Final]);
+          
           const dx = Math.abs(p1.center.x - p2.center.x);
           const dy = Math.abs(p1.center.y - p2.center.y);
           const dz = Math.abs(p1.center.z - p2.center.z);
 
-          const newMeasurement = {
-            p1: p1.center.toArray(),
-            p2: p2Final.toArray(),
-            distance: dist,
-          };
-          setMeasurements((prev) => [...prev, newMeasurement]);
-
+          setMeasurements((prev) => [
+            ...prev,
+            {
+              p1: p1.center.toArray(),
+              p2: p2Final.toArray(),
+              distance: dist,
+              label,
+            },
+          ]);
+          
           setConnectorToast({
             type: "success",
             text: `${label}: ${dist.toFixed(2)}mm (X: ${dx.toFixed(2)}, Y: ${dy.toFixed(2)}, Z: ${dz.toFixed(2)})`,
             ttl: 5000,
           });
-          setRulerPoints([]); // Reset for next measurement
+          
+          setRulerPoints([]); 
+          rulerStartRef.current = null;
         }
         return;
       }
@@ -1348,6 +1344,124 @@ function EditorContent() {
     setConnectorToast({ type: "info", text: "Measurements cleared.", ttl: 2000 });
   }, []);
 
+  const handleGenerateStandoffs = useCallback(() => {
+    if (!selectedObject) return;
+
+    const holes = selectedObject.connectors?.filter(c => c.type === 'screw-m3' || c.type === 'mb-mount') || [];
+    if (holes.length === 0) {
+      setConnectorToast({ type: "error", text: "No suitable holes found.", ttl: 2000 });
+      return;
+    }
+
+    // Helper to flatten objects (duplicated for now)
+    const flattenObjectsWithTransforms = (objs, parentWorldPos = null, parentWorldQuat = null) => {
+      let results = [];
+      objs.forEach(obj => {
+        if (!obj.visible) return;
+        const localPos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+        const localEuler = new THREE.Euler(...(obj.rot || [0, 0, 0]));
+        const localQuat = new THREE.Quaternion().setFromEuler(localEuler);
+        let worldPos, worldQuat;
+        if (parentWorldPos && parentWorldQuat) {
+          worldPos = parentWorldPos.clone().add(localPos.clone().applyQuaternion(parentWorldQuat));
+          worldQuat = parentWorldQuat.clone().multiply(localQuat);
+        } else {
+          worldPos = localPos;
+          worldQuat = localQuat;
+        }
+        results.push({ ...obj, worldPos, worldQuat });
+        if (Array.isArray(obj.children) && obj.children.length > 0) {
+          results = results.concat(flattenObjectsWithTransforms(obj.children, worldPos, worldQuat));
+        }
+      });
+      return results;
+    };
+
+    const flatObjects = flattenObjectsWithTransforms(expandedObjects);
+    const sourceObjFlat = flatObjects.find(o => o.id === selectedObject.id);
+    if (!sourceObjFlat) return;
+
+    const newStandoffs = [];
+    const raycaster = new THREE.Raycaster();
+
+    holes.forEach(hole => {
+      // Calculate hole world position and direction
+      const holeLocalPos = new THREE.Vector3(...hole.pos);
+      const holeLocalNormal = new THREE.Vector3(...(hole.normal || [0, -1, 0]));
+      
+      const holeWorldPos = holeLocalPos.clone().applyQuaternion(sourceObjFlat.worldQuat).add(sourceObjFlat.worldPos);
+      const holeWorldNormal = holeLocalNormal.clone().applyQuaternion(sourceObjFlat.worldQuat).normalize();
+      
+      // Raycast down (direction of normal)
+      raycaster.set(holeWorldPos, holeWorldNormal);
+      
+      let bestHit = null;
+      let minDistance = Infinity;
+
+      flatObjects.forEach(target => {
+        if (target.id === selectedObject.id) return; // Skip self
+        
+        // Create OBB for target
+        const invTargetQuat = target.worldQuat.clone().invert();
+        const rayOriginLocal = holeWorldPos.clone().sub(target.worldPos).applyQuaternion(invTargetQuat);
+        const rayDirLocal = holeWorldNormal.clone().applyQuaternion(invTargetQuat).normalize();
+        const localRay = new THREE.Ray(rayOriginLocal, rayDirLocal);
+        
+        const halfW = (target.dims?.w || 0) / 2;
+        const halfH = (target.dims?.h || 0) / 2;
+        const halfD = (target.dims?.d || 0) / 2;
+        const box = new THREE.Box3(
+          new THREE.Vector3(-halfW, -halfH, -halfD),
+          new THREE.Vector3(halfW, halfH, halfD)
+        );
+        
+        const intersection = localRay.intersectBox(box, new THREE.Vector3());
+        if (intersection) {
+           const dist = rayOriginLocal.distanceTo(intersection);
+           if (dist < minDistance && dist > 0.1) { // 0.1 tolerance
+             minDistance = dist;
+             bestHit = { target, point: intersection, dist };
+           }
+        }
+      });
+
+      if (bestHit) {
+        // Calculate World Hit Point
+        const worldHit = bestHit.point.clone().applyQuaternion(bestHit.target.worldQuat).add(bestHit.target.worldPos);
+        
+        // Standoff up is opposite to hole normal (which points down)
+        const up = new THREE.Vector3(0, 1, 0);
+        const targetUp = holeWorldNormal.clone().negate();
+        const q = new THREE.Quaternion().setFromUnitVectors(up, targetUp);
+        const euler = new THREE.Euler().setFromQuaternion(q);
+        
+        newStandoffs.push({
+          id: generateObjectId("standoff"),
+          type: "standoff",
+          name: "Standoff",
+          pos: worldHit.toArray(),
+          rot: [euler.x, euler.y, euler.z],
+          height: minDistance,
+          outerDiameter: 6,
+          holeDiameter: 3,
+          baseHeight: 3,
+          baseDiameter: 10,
+          dims: { w: 6, h: minDistance, d: 6 }
+        });
+      }
+    });
+
+    if (newStandoffs.length > 0) {
+      setObjects(prev => [...prev, ...newStandoffs]);
+      // Select the last generated standoff
+      setSelectedIds([newStandoffs[newStandoffs.length - 1].id]);
+      setConnectorToast({ type: "success", text: `Generated ${newStandoffs.length} standoffs.`, ttl: 2000 });
+    } else {
+      setConnectorToast({ type: "warning", text: "No target parts found below holes.", ttl: 2000 });
+    }
+
+  }, [selectedObject, expandedObjects, setObjects, setConnectorToast, setSelectedIds]);
+
 
 
   return (
@@ -1372,6 +1486,8 @@ function EditorContent() {
         onClearMeasurements={clearMeasurements}
         onOpenProjectManager={() => setActiveLeftTab("projects")}
         currentProjectName={currentProjectName}
+        onGenerateStandoffs={handleGenerateStandoffs}
+        selectedObject={selectedObject}
       />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
@@ -1410,27 +1526,10 @@ function EditorContent() {
             drillGhost={drillGhost}
             drillCandidates={drillCandidates}
             onHoleDelete={handleHoleDelete}
+            rulerPoints={rulerPoints}
           />
 
-      {/* Ruler Visualization */}
-      {transformMode === "ruler" && rulerPoints.length > 0 && (
-        <>
-          {rulerPoints.map((p, i) => (
-            <mesh key={i} position={p}>
-              <sphereGeometry args={[0.5, 16, 16]} />
-              <meshBasicMaterial color="#ef4444" depthTest={false} />
-            </mesh>
-          ))}
-          {rulerPoints.length === 2 && (
-             <Line
-                points={rulerPoints}
-                color="#ef4444"
-                lineWidth={2}
-                depthTest={false}
-             />
-          )}
-        </>
-      )}
+
 
         </div>
 

@@ -18,6 +18,8 @@ const TopBar = ({
   setSnapEnabled,
   measurements = [],
   onClearMeasurements,
+  onGenerateStandoffs,
+  selectedObject,
 }) => {
   const { language, setLanguage, t } = useLanguage();
 
@@ -139,6 +141,15 @@ const TopBar = ({
         >
           🔩 Drill
         </button>
+        {selectedObject && (selectedObject.type === 'motherboard' || (selectedObject.connectors && selectedObject.connectors.some(c => c.type === 'screw-m3' || c.type === 'mb-mount'))) && (
+           <button
+             style={{ ...btnStyle, border: "none", background: "transparent", color: "#fbbf24" }}
+             onClick={onGenerateStandoffs}
+             title="Generate Standoffs"
+           >
+             🏗️ Standoffs
+           </button>
+        )}
         {transformMode === "ruler" && measurements.length > 0 && (
           <button
             style={{ ...btnStyle, background: "#ef4444", borderColor: "#ef4444", marginLeft: 4 }}

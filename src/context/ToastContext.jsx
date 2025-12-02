@@ -9,10 +9,11 @@ export const ToastProvider = ({ children }) => {
     // message: { type: 'success' | 'warning' | 'error' | 'info', text: string, ttl?: number }
     setToast(message);
     
-    if (message?.ttl) {
+    const ttl = message?.ttl || 3000;
+    if (ttl) {
       setTimeout(() => {
         setToast((current) => (current === message ? null : current));
-      }, message.ttl);
+      }, ttl);
     }
   }, []);
 

@@ -1611,11 +1611,7 @@ export default function MovablePart({
           }
           // Drill mode should be handled first, before alignMode logic
           if (mode === "drill" && hoveredFace) {
-             console.log("[MovablePart] onPointerDown drill", {
-               partId: obj.id, 
-               face: hoveredFace, 
-               point: lastHoverSampleRef.current?.world?.toArray(),
-             });
+
              onFacePick?.({ 
                partId: obj.id, 
                face: hoveredFace, 

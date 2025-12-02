@@ -1,37 +1,15 @@
-Bug fixes:
-1. X still some of the components are not translated correctly for example: 制作机箱零件 该零件当前没有定义任何连接点。
-2. X when right panel pop up or disappear, the main gride would jump left or right. that's bad expreience.
-3. X pc part: box is not needed
-4. X GPU bottom clearence is not right, too low
-5. X after introduce panel hide, assembly is not working
-6. 
+TODO
+1. in library-primitives: allow customize cylinder/cone size. and they should no longer called 50*50
+2. in library-pc parts: allow customize ram size
+3. update 
+4. toast auto disappear after 3 seconds
+5. layout of library-primitives dimension is weird and ugly
+6. I can't remember why do we have type selection under primitives. besides structure what else should we have?
+7. remove custom block from primitives selections it's duplicated
 
 
-Main features:
-1. automatically add screw holes
-2. motherboard riser
-3. cusotmize connector
-4. cut object (make holes)
-5. round corner
-6. preset pc build
-7. database - backend for part sharing
-8. 
-
-[完成]
-现在我们来完善drill的功能。
-1. 关于螺丝的型号。我用m3 10mm的螺丝。来距离，他的螺丝帽是直径6mm，螺丝是3mm，所以我们drill的孔应该前一段是直径6mm，后面是3mm
-    这样螺丝头才能完全埋入，而且我们的beam是10mm，需要螺丝帽埋入5mm，来保证有足够的长度连接另一个零件。
-2. 现在的问题是drill的位置完全靠视觉来选择，这样孔的位置会不规范/统一。理论上，孔应该总是在零件的中心。加入我们交叉固定两个零件
-    那么孔的位置应该总是在另一个零件的中心。我们需要设计一个机制，来自动选择孔的位置。
-
-[Done] Standoff Generator:
-- Design: "Volcano" shape (conical base) for 3D printing strength.
-- Integration: Printed directly on the beam/tray (merged geometry).
-- Logic: Project motherboard holes to underlying parts. 
-
-[FUTURE] Advanced Joinery (Mortise & Tenon):
-- Concept: Insert one part into another (cutout/pocket) before screwing for stability. Locating Bosses / Shear Bosses
-- Benefits: Shear resistance, self-alignment.
-- Tech Challenge: Re-calculating connection surfaces for screw placement.
 
 
+
+New:
+1. customize screw size, we need to define hat diameter, hat height, screw diameter, screw height.

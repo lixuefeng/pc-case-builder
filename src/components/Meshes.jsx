@@ -48,7 +48,17 @@ export function ChildMeshRenderer({ obj }) {
       return <GPUMesh obj={obj} selected={false} />;
     case "gpu-bracket":
       return <GPUBracketMesh obj={obj} selected={false} />;
+    case "cube":
+      return <PartBox obj={obj} selected={false} />;
+    case "cylinder":
+      return <CylinderMesh obj={obj} selected={false} />;
+    case "cone":
+      // Re-using CylinderMesh for now, but we might want a dedicated ConeMesh later
+      // For now, CylinderMesh uses cylinderGeometry which supports radiusTop/Bottom
+      // But CylinderMesh hardcodes args... let's fix CylinderMesh first or make a ConeMesh
+      return <CylinderMesh obj={obj} selected={false} />;
     case "structure":
+      // Legacy support
       if (obj.meta?.shape === "sphere") return <SphereMesh obj={obj} selected={false} />;
       if (obj.meta?.shape === "cylinder") return <CylinderMesh obj={obj} selected={false} />;
       return <PartBox obj={obj} selected={false} />;
@@ -109,7 +119,7 @@ const getRelativeTransform = (targetObj, sourceObj) => {
 
 export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
   const { dims, color, type } = obj;
-  const defaultColor = type === "structure" ? "#d1d5db" : "#ffaa44";
+  const defaultColor = (type === "structure" || type === "cube") ? "#d1d5db" : "#ffaa44";
 
   // Validate dimensions to prevent crashes
   if (!dims || dims.w <= 0 || dims.h <= 0 || dims.d <= 0) {
@@ -190,11 +200,22 @@ export function SphereMesh({ obj, selected, selectionOrder }) {
 }
 
 export function CylinderMesh({ obj, selected, selectionOrder }) {
-  const { dims, color } = obj;
+  const { dims, color, type } = obj;
+  const isCone = type === 'cone' || obj.meta?.shape === 'cone';
+  
+  // dims.w is diameter, dims.h is height
+  // cylinderGeometry args: [radiusTop, radiusBottom, height, radialSegments]
+  // We use scale to apply dimensions, so geometry should be unit size
+  // Unit cylinder: radius 0.5 (diameter 1), height 1
+  // Unit cone: radiusTop 0, radiusBottom 0.5, height 1
+  
+  const radiusTop = isCone ? 0 : 0.5;
+  const radiusBottom = 0.5;
+  
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
-        <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
+        <cylinderGeometry args={[radiusTop, radiusBottom, 1, 32]} />
         <meshStandardMaterial
           color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#d1d5db"}
           opacity={1}

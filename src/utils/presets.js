@@ -308,34 +308,26 @@ export const PRESETS = {
       connectors: [],
     },
   ],
-  structure: [
+  primitives: [
     {
-      key: "cube-50",
-      label: "Cube 50mm",
-      type: "structure",
+      key: "cube",
+      label: "Cube",
+      type: "cube",
       dims: { w: 50, h: 50, d: 50 },
       meta: { shape: "cube" },
       connectors: [],
     },
     {
-      key: "custom-block",
-      label: "Custom Block",
-      type: "structure",
-      dims: { w: 100, h: 20, d: 20 }, // Default dims, will be overridden by form
-      meta: { shape: "cube", isCustom: true },
-      connectors: [],
-    },
-    {
-      key: "cylinder-50",
-      label: "Cylinder 50x50",
+      key: "cylinder",
+      label: "Cylinder",
       type: "cylinder",
       dims: { w: 50, h: 50, d: 50 },
       meta: { shape: "cylinder" },
       connectors: [],
     },
     {
-      key: "cone-50",
-      label: "Cone 50x50",
+      key: "cone",
+      label: "Cone",
       type: "cone",
       dims: { w: 50, h: 50, d: 50 },
       meta: { shape: "cone" },

@@ -52,7 +52,7 @@ export default function AddObjectForm({ onAdd }) {
   // Map categories to preset types
   const CATEGORY_MAP = {
     pcParts: ["motherboard", "gpu", "psu", "ram", "cpu-cooler", "reference"],
-    primitives: ["structure"],
+    primitives: ["primitives"],
     shared: ["shared"],
   };
 
@@ -73,6 +73,14 @@ export default function AddObjectForm({ onAdd }) {
   }, [type]);
 
   const presets = PRESETS[type] || [];
+
+  // Update customDims when preset changes
+  useEffect(() => {
+    const preset = presets.find((p) => p.key === presetKey);
+    if (preset && preset.dims) {
+      setCustomDims({ ...preset.dims });
+    }
+  }, [presetKey, presets]);
 
   const handleAdd = () => {
     const id = `obj_${Date.now()}_${Math.floor(Math.random() * 1e5)}`;
@@ -98,10 +106,10 @@ export default function AddObjectForm({ onAdd }) {
       key: preset.key,
       type: preset.type || type,
       name: name || preset.label,
-      dims: (type === "structure" && (preset.key === "custom-block" || preset.key === "cube-50")) 
+      dims: (preset.type === "cube" || type === "cube" || type === "cylinder" || type === "cone" || type === "ram" || type === "primitives") 
         ? { ...customDims } 
         : { ...preset.dims },
-      pos: [0, (type === "structure" ? customDims.h : preset.dims.h) / 2, 0],
+      pos: [0, ((preset.type === "cube" || type === "cube" || type === "cylinder" || type === "cone" || type === "ram" || type === "primitives") ? customDims.h : preset.dims.h) / 2, 0],
       rot: [0, 0, 0],
       color: preset.color || undefined,
       visible: true,
@@ -139,6 +147,7 @@ export default function AddObjectForm({ onAdd }) {
     color: "#0f172a",
     background: "#fff",
     outline: "none",
+    boxSizing: "border-box", // Fix overflow
   };
 
   const btnStyle = {
@@ -150,6 +159,7 @@ export default function AddObjectForm({ onAdd }) {
     color: "#fff",
     border: "none",
     cursor: "pointer",
+    margin: 0,
   };
 
   const categoryTabStyle = (isActive) => ({
@@ -190,20 +200,22 @@ export default function AddObjectForm({ onAdd }) {
       </div>
 
       {/* Type Selector */}
-      <div>
-        <label style={labelStyle}>{t("form.type")}</label>
-        <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          style={inputStyle}
-        >
-          {CATEGORY_MAP[activeCategory].map((tKey) => (
-            <option key={tKey} value={tKey}>
-              {t(`type.${tKey}`) || tKey.charAt(0).toUpperCase() + tKey.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
+      {CATEGORY_MAP[activeCategory].length > 1 && (
+        <div>
+          <label style={labelStyle}>{t("form.type")}</label>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            style={inputStyle}
+          >
+            {CATEGORY_MAP[activeCategory].map((tKey) => (
+              <option key={tKey} value={tKey}>
+                {t(`type.${tKey}`) || tKey.charAt(0).toUpperCase() + tKey.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Preset Selector */}
       <div>
@@ -236,35 +248,80 @@ export default function AddObjectForm({ onAdd }) {
         </div>
       )}
 
-      {/* Custom Dimensions for Structure/Primitives */}
-      {type === "structure" && (presetKey === "custom-block" || presetKey === "cube-50") && (
-        <div>
-          <label style={labelStyle}>Dimensions (W x H x D)</label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            <input
-              type="number"
-              value={customDims.w}
-              onChange={(e) => setCustomDims({ ...customDims, w: Number(e.target.value) })}
-              style={inputStyle}
-              placeholder="W"
-            />
-            <input
-              type="number"
-              value={customDims.h}
-              onChange={(e) => setCustomDims({ ...customDims, h: Number(e.target.value) })}
-              style={inputStyle}
-              placeholder="H"
-            />
-            <input
-              type="number"
-              value={customDims.d}
-              onChange={(e) => setCustomDims({ ...customDims, d: Number(e.target.value) })}
-              style={inputStyle}
-              placeholder="D"
-            />
-          </div>
-        </div>
-      )}
+      {/* Custom Dimensions for Structure/Primitives/RAM */}
+      {(() => {
+        const selectedPreset = presets.find(p => p.key === presetKey);
+        const effectiveType = selectedPreset?.type || type;
+        
+        if (effectiveType === "cube" || effectiveType === "cylinder" || effectiveType === "cone" || effectiveType === "ram" || type === "primitives") {
+          return (
+            <div>
+              <label style={labelStyle}>Dimensions (mm)</label>
+              {(effectiveType === "cylinder" || effectiveType === "cone") ? (
+                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 2 }}>Diameter</label>
+                    <input
+                      type="number"
+                      value={customDims.w} // w is diameter
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setCustomDims({ ...customDims, w: val, d: val });
+                      }}
+                      style={inputStyle}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 2 }}>Height</label>
+                    <input
+                      type="number"
+                      value={customDims.h}
+                      onChange={(e) => setCustomDims({ ...customDims, h: Number(e.target.value) })}
+                      style={inputStyle}
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 2 }}>Width</label>
+                    <input
+                      type="number"
+                      value={customDims.w}
+                      onChange={(e) => setCustomDims({ ...customDims, w: Number(e.target.value) })}
+                      style={inputStyle}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 2 }}>Height</label>
+                    <input
+                      type="number"
+                      value={customDims.h}
+                      onChange={(e) => setCustomDims({ ...customDims, h: Number(e.target.value) })}
+                      style={inputStyle}
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 10, color: "#94a3b8", display: "block", marginBottom: 2 }}>Depth</label>
+                    <input
+                      type="number"
+                      value={customDims.d}
+                      onChange={(e) => setCustomDims({ ...customDims, d: Number(e.target.value) })}
+                      style={inputStyle}
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Name Input */}
       <div>

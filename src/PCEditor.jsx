@@ -226,8 +226,8 @@ function EditorContent() {
       // 1️⃣ 找到当前 hover 的对象 X (Use flatObjects to find it!)
       const baseObj = flatObjects.find((o) => o.id === partId);
       
-      // DEBUG: Log what we are hitting
-      console.log("Drill Hover Hit:", { partId, face, baseObjType: baseObj?.type, baseObjName: baseObj?.name, visible: baseObj?.visible });
+
+
 
       if (!baseObj) {
         console.warn("Drill: baseObj not found for partId:", partId);

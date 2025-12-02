@@ -38,7 +38,23 @@ export function usePartModifiers(obj, connections = [], rawObjects = []) {
 
         // 1. Add baked/static modifiers from the object itself
         if (obj.csgOperations && Array.isArray(obj.csgOperations)) {
-            modifiers.push(...obj.csgOperations);
+            const validOps = obj.csgOperations.filter(op => {
+                // Check for valid dimensions
+                if (!op.dims || op.dims.w <= 0 || op.dims.h <= 0 || op.dims.d <= 0) {
+                    console.warn("Skipping invalid CSG op (bad dims):", op);
+                    return false;
+                }
+                // Check for valid transform
+                if (op.relativeTransform) {
+                    const { pos, rot } = op.relativeTransform;
+                    if (pos.some(isNaN) || rot.some(isNaN)) {
+                        console.warn("Skipping invalid CSG op (NaN transform):", op);
+                        return false;
+                    }
+                }
+                return true;
+            });
+            modifiers.push(...validOps);
         }
 
         // 2. Add dynamic modifiers from connections

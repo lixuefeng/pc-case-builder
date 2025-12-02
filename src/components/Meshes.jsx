@@ -111,20 +111,34 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
   const { dims, color, type } = obj;
   const defaultColor = type === "structure" ? "#d1d5db" : "#ffaa44";
 
+  // Validate dimensions to prevent crashes
+  if (!dims || dims.w <= 0 || dims.h <= 0 || dims.d <= 0) {
+    return null;
+  }
+
   // Use modifiers passed from parent (calculated via hook)
   const subtractingParts = modifiers;
 
-  if (subtractingParts.length > 0) {
+  // Filter valid parts first to avoid passing null children to Geometry
+  const validSubtractingParts = useMemo(() => {
+    return subtractingParts.filter(other => {
+       if (!other.relativeTransform) return false;
+       const scale = other.scale || [1, 1, 1];
+       // Filter out near-zero scales
+       if (scale.some(s => Math.abs(s) < 0.0001)) return false;
+       return true;
+    });
+  }, [subtractingParts]);
+
+  if (validSubtractingParts.length > 0) {
     return (
       <group userData={{ objectId: obj.id }}>
-        <mesh key={subtractingParts.map(p => p.id).join('-')}>
+        <mesh key={validSubtractingParts.map(p => p.id).join('-')}>
           <Geometry computeVertexNormals>
             <Base>
                <boxGeometry args={[dims.w, dims.h, dims.d]} />
             </Base>
-            {subtractingParts.map(other => {
-               if (!other.relativeTransform) return null;
-               
+            {validSubtractingParts.map(other => {
                let geo = null;
                let args = [];
                if (other.type === 'cylinder') {

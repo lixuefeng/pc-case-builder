@@ -23,6 +23,7 @@ const RightSidebar = ({
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [connectionType, setConnectionType] = React.useState("mortise-tenon");
+  const [connectionDepth, setConnectionDepth] = React.useState(5);
 
   // Multi-selection Logic
   if (selectedIds && selectedIds.length === 2) {
@@ -124,6 +125,33 @@ const RightSidebar = ({
               </button>
             </div>
 
+            {/* Depth Input (Only for Mortise & Tenon for now) */}
+            {connectionType === "mortise-tenon" && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelStyle}>Depth (mm)</label>
+                <input
+                  type="number"
+                  value={connectionDepth}
+                  onChange={(e) => { e.stopPropagation(); setConnectionDepth(Number(e.target.value)); }}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onKeyUp={(e) => e.stopPropagation()}
+                  onInput={(e) => e.stopPropagation()}
+                  autoComplete="off"
+                  data-lpignore="true"
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: 4,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 13,
+                    outline: "none"
+                  }}
+                />
+              </div>
+            )}
+
             {/* Dynamic Explanation */}
             <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
               {connectionType === "mortise-tenon" ? (
@@ -160,48 +188,68 @@ const RightSidebar = ({
                  
                  // Logic for Mortise & Tenon
                  if (type === 'mortise-tenon') {
+                   console.log("[MortiseTenon] Starting creation...");
                    // Simplified Logic: 
                    // Part A (First Selected) = Tenon (Red)
                    // Part B (Second Selected) = Mortise (Yellow)
-                   const tenon = partA;
-                   const mortise = partB;
+                   
+                   // Use partA and partB from outer scope
+                   if (partA && partB) {
+                       const tenon = partA;
+                       const mortise = partB;
 
                    console.log(`[Mortise & Tenon] Tenon: ${tenon.name} (Red), Mortise: ${mortise.name} (Yellow)`);
                    
-                   const insertionDepth = 5; // mm
+                   const insertionDepth = connectionDepth; // Use configured depth
 
                    // Determine dominant axis
-                   const diff = new THREE.Vector3().subVectors(
-                     new THREE.Vector3(...tenon.pos),
-                     new THREE.Vector3(...mortise.pos)
+                   // Determine dominant axis in TENON'S LOCAL SPACE
+                   // This ensures we extend the correct local dimension (width, height, or depth)
+                   // regardless of how the tenon is rotated in the world.
+                   
+                   const tenonRot = new THREE.Euler(...tenon.rot);
+                   const tenonQuat = new THREE.Quaternion().setFromEuler(tenonRot);
+                   const invTenonQuat = tenonQuat.clone().invert();
+                   
+                   const worldDiff = new THREE.Vector3().subVectors(
+                     new THREE.Vector3(...mortise.pos), // Target (Mortise)
+                     new THREE.Vector3(...tenon.pos)    // Source (Tenon)
                    );
-                   const absDiff = new THREE.Vector3(Math.abs(diff.x), Math.abs(diff.y), Math.abs(diff.z));
+                   
+                   // Transform difference into Tenon's local space
+                   const localDiff = worldDiff.clone().applyQuaternion(invTenonQuat);
+                   const absLocalDiff = new THREE.Vector3(Math.abs(localDiff.x), Math.abs(localDiff.y), Math.abs(localDiff.z));
+                   
                    let axis = 'y'; // default
-                   if (absDiff.x > absDiff.y && absDiff.x > absDiff.z) axis = 'x';
-                   if (absDiff.z > absDiff.x && absDiff.z > absDiff.y) axis = 'z';
+                   if (absLocalDiff.x > absLocalDiff.y && absLocalDiff.x > absLocalDiff.z) axis = 'x';
+                   if (absLocalDiff.z > absLocalDiff.x && absLocalDiff.z > absLocalDiff.y) axis = 'z';
+
+                   console.log(`[MortiseTenon] Local Diff: ${JSON.stringify(localDiff)}, Selected Axis: ${axis}`);
 
                    setObjects(prev => {
                      return prev.map(o => {
                        // Modify Tenon: Extend Length
                        if (o.id === tenon.id) {
-                         // Determine direction based on relative position to mortise
+                         // Determine direction based on local relative position
                          let tenonEnd = 0;
                          let newDims = { ...o.dims };
                          let shift = new THREE.Vector3();
 
                          if (axis === 'x') {
-                            const isRight = diff.x > 0;
-                            tenonEnd = isRight ? -1 : 1;
+                            // If localDiff.x > 0, Mortise is to the Right -> Extend Right (+x)
+                            // To extend Right, we add to width, and shift center by +amount/2
+                            const isRight = localDiff.x > 0;
+                            tenonEnd = isRight ? 1 : -1; 
                             newDims.w = o.dims.w + insertionDepth;
                             shift.set((insertionDepth / 2) * tenonEnd, 0, 0);
                          } else if (axis === 'y') {
-                            const isTop = diff.y > 0;
-                            tenonEnd = isTop ? -1 : 1;
+                            const isTop = localDiff.y > 0;
+                            tenonEnd = isTop ? 1 : -1;
                             newDims.h = o.dims.h + insertionDepth;
                             shift.set(0, (insertionDepth / 2) * tenonEnd, 0);
                          } else { // z
-                            const isFront = diff.z > 0;
-                            tenonEnd = isFront ? -1 : 1;
+                            const isFront = localDiff.z > 0;
+                            tenonEnd = isFront ? 1 : -1;
                             newDims.d = o.dims.d + insertionDepth;
                             shift.set(0, 0, (insertionDepth / 2) * tenonEnd);
                          }
@@ -243,18 +291,18 @@ const RightSidebar = ({
                           let newTenonDims = { ...tenon.dims };
 
                           if (axis === 'x') {
-                             const isRight = diff.x > 0;
-                             tenonEnd = isRight ? -1 : 1;
+                             const isRight = localDiff.x > 0;
+                             tenonEnd = isRight ? 1 : -1;
                              shift.set((insertionDepth / 2) * tenonEnd, 0, 0);
                              newTenonDims.w += insertionDepth;
                           } else if (axis === 'y') {
-                             const isTop = diff.y > 0;
-                             tenonEnd = isTop ? -1 : 1;
+                             const isTop = localDiff.y > 0;
+                             tenonEnd = isTop ? 1 : -1;
                              shift.set(0, (insertionDepth / 2) * tenonEnd, 0);
                              newTenonDims.h += insertionDepth;
                           } else { // z
-                             const isFront = diff.z > 0;
-                             tenonEnd = isFront ? -1 : 1;
+                             const isFront = localDiff.z > 0;
+                             tenonEnd = isFront ? 1 : -1;
                              shift.set(0, 0, (insertionDepth / 2) * tenonEnd);
                              newTenonDims.d += insertionDepth;
                           }
@@ -289,14 +337,17 @@ const RightSidebar = ({
                        return o;
                      });
                    });
+                   }
                  }
 
                  // Logic for Cross-Lap Joint
                  if (type === 'cross-lap') {
-                    const partA = objects.find(o => o.id === selectedIds[0]);
-                    const partB = objects.find(o => o.id === selectedIds[1]);
+                    console.log("[CrossLap] Starting creation...");
+                    // Use partA and partB from outer scope (First/Second selected)
                     
                     if (partA && partB) {
+                      console.log("[CrossLap] Parts found:", partA.name, partB.name);
+
                       // 0. Check Intersection (Robust World AABB)
                       const getWorldBounds = (p) => {
                          const { w, h, d } = p.dims;
@@ -328,17 +379,20 @@ const RightSidebar = ({
                       const bA = getWorldBounds(partA);
                       const bB = getWorldBounds(partB);
 
-                      const intersectMin = new THREE.Vector3().maxVectors(bA.min, bB.min);
-                      const intersectMax = new THREE.Vector3().minVectors(bA.max, bB.max);
+                      const intersectMin = bA.min.clone().max(bB.min);
+                      const intersectMax = bA.max.clone().min(bB.max);
 
                       // Check if there is a positive intersection volume
                       const sizeX = intersectMax.x - intersectMin.x;
                       const sizeY = intersectMax.y - intersectMin.y;
                       const sizeZ = intersectMax.z - intersectMin.z;
 
+                      console.log("[CrossLap] Intersection Size:", sizeX, sizeY, sizeZ);
+
                       // Use a small epsilon to avoid floating point issues, but ensure it's > 0
                       const epsilon = 1.0; // Require at least 1mm intersection
                       if (sizeX < epsilon || sizeY < epsilon || sizeZ < epsilon) {
+                         console.warn("[CrossLap] Intersection too small!");
                          showToast({
                            type: "error",
                            text: "Parts must intersect to create a Cross-Lap Joint.",
@@ -348,19 +402,35 @@ const RightSidebar = ({
                       }
 
                       // 1. Determine Stack Axis (the axis along which they are stacked/crossing)
-                      // Usually the smallest dimension of the intersection box, OR the axis where they overlap the least relative to their own size?
-                      // Actually, for a cross-lap, the cut is usually along the "thickness" direction.
-                      // Let's pick the axis with the SMALLEST intersection dimension as the "thickness" to cut through?
-                      // No, we want to cut halfway through the "thickness".
-                      // Let's look at the parts' local dimensions.
-                      // Simplified: Use the axis with the smallest intersection extent.
-                      const dims = { x: sizeX, y: sizeY, z: sizeZ };
-                      // Prioritize Y (vertical) if it's small, as that's common for stacking.
-                      let stackAxis = 'y';
-                      if (dims.x < dims.y && dims.x < dims.z) stackAxis = 'x';
-                      if (dims.z < dims.x && dims.z < dims.y) stackAxis = 'z';
+                      // Heuristic:
+                      // - If intersection is "Plate-like" (2 large, 1 small) -> Use Smallest (Thickness)
+                      // - If intersection is "Column-like" (1 large, 2 small) -> Use Largest (Length/Height)
                       
-                      console.log("[CrossLap] Intersection Box:", dims, "Selected Stack Axis:", stackAxis);
+                      const dims = [
+                        { axis: 'x', val: sizeX },
+                        { axis: 'y', val: sizeY },
+                        { axis: 'z', val: sizeZ }
+                      ];
+                      
+                      // Sort by size
+                      dims.sort((a, b) => a.val - b.val);
+                      
+                      const min = dims[0];
+                      const median = dims[1];
+                      const max = dims[2];
+                      
+                      let stackAxis = min.axis; // Default to smallest (Plate-like behavior)
+                      
+                      // Check for Column-like (Max is significantly larger than Median)
+                      // Using 1.5x threshold
+                      if (max.val > median.val * 1.5) {
+                         stackAxis = max.axis;
+                         console.log("[CrossLap] Detected Column-like intersection. Using Largest Axis:", stackAxis);
+                      } else {
+                         console.log("[CrossLap] Detected Plate-like intersection. Using Smallest Axis:", stackAxis);
+                      }
+                      
+                      console.log("[CrossLap] Intersection Box:", sizeX, sizeY, sizeZ, "Selected Stack Axis:", stackAxis);
 
                       // 2. Calculate Cut Plane (Center of Intersection)
                       const center = new THREE.Vector3().addVectors(intersectMin, intersectMax).multiplyScalar(0.5);

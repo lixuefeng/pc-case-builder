@@ -253,7 +253,7 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
 
   const handlePointerEnter = (e) => {
     if (canDelete) {
-      console.log("[HoleMarker] Hover enter", hole.id);
+
       e.stopPropagation();
       setHovered(true);
       document.body.style.cursor = "pointer";
@@ -283,9 +283,7 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
     }
   };
 
-  useEffect(() => {
-    console.log("[HoleMarker] Mount/Update", hole.id, hole.position);
-  }, [hole]);
+
 
   return (
     <group 

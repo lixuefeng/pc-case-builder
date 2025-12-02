@@ -15,6 +15,7 @@ import CSGStandoff from "./CSGStandoff";
 import Cylinder from "./primitives/Cylinder";
 import Cone from "./primitives/Cone";
 import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
+import { usePartModifiers } from "../hooks/usePartModifiers";
 
 const DEBUG_LOG = false;
 const dlog = DEBUG_LOG ? (...args) => console.log("[MovablePart]", ...args) : () => {};
@@ -330,10 +331,10 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
     </group>
   );
 };
-
 export default function MovablePart({
   obj,
   selected,
+  selectionOrder = -1,
   setObj,
   onSelect,
   palette,
@@ -353,14 +354,23 @@ export default function MovablePart({
   setConnectorHovered,
   onDrillHover,
   onHoleDelete,
+  rulerPoints,
+  rawObjects,
 }) {
-  const t = palette;
+  const { gl, camera } = useThree();
   const groupRef = useRef();
   const controlsRef = useRef();
   const hoverFaceMeshRef = useRef(null);
   const [hoveredFace, setHoveredFace] = useState(null);
   const stretchStateRef = useRef(null);
-  const { gl, camera } = useThree();
+
+  // Helper to determine selection color
+  const getSelectionColor = () => {
+    if (!selected) return "#cbd5e1"; // Default gray
+    if (selectionOrder === 0) return "#ef4444"; // Red for first selection (Tenon)
+    if (selectionOrder === 1) return "#eab308"; // Yellow for second selection (Mortise)
+    return "#ef4444"; // Fallback to red
+  };
 
   const setObjRef = useRef(setObj);
   useEffect(() => {
@@ -1565,6 +1575,7 @@ export default function MovablePart({
     <>
       <group
         ref={groupRef}
+        visible={obj.visible !== false}
         position={obj.pos}
         rotation={obj.rot}
         userData={{ objectId: obj.id }}
@@ -1683,28 +1694,28 @@ export default function MovablePart({
         onPointerUp={(e) => e.stopPropagation()}
       >
         {obj.type === "motherboard" ? (
-          <MotherboardMesh obj={obj} selected={selected} />
+          <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "gpu" ? (
-          <GPUMesh obj={obj} selected={selected} />
+          <GPUMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "group" ? (
-          <GroupMesh obj={obj} selected={selected} />
+          <GroupMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "imported" ? (
-          <ImportedMesh obj={obj} selected={selected} />
+          <ImportedMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "reference" ? (
-          <ReferenceMesh obj={obj} selected={selected} />
+          <ReferenceMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "cpu-cooler" ? (
-          <CPUCoolerMesh obj={obj} selected={selected} />
+          <CPUCoolerMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "gpu-bracket" ? (
-          <GPUBracketMesh obj={obj} selected={selected} />
+          <GPUBracketMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "standoff" ? (
-          <CSGStandoff {...obj} selected={selected} />
+          <CSGStandoff {...obj} selected={selected} selectionOrder={selectionOrder} />
         ) : obj.type === "cylinder" ? (
           <Cylinder 
             radius={obj.dims?.w ? obj.dims.w / 2 : 25} 
             height={obj.dims?.h || 50} 
             selected={selected}
           >
-             <meshStandardMaterial color={selected ? "#ef4444" : "#cbd5e1"} />
+             <meshStandardMaterial color={getSelectionColor()} />
           </Cylinder>
         ) : obj.type === "cone" ? (
           <Cone 
@@ -1712,10 +1723,17 @@ export default function MovablePart({
             height={obj.dims?.h || 50} 
             selected={selected}
           >
-             <meshStandardMaterial color={selected ? "#ef4444" : "#cbd5e1"} />
+             <meshStandardMaterial color={getSelectionColor()} />
           </Cone>
         ) : (
-          <PartBox obj={obj} selected={selected} />
+          <PartBox 
+            obj={obj} 
+            selected={selected} 
+            selectionOrder={selectionOrder}
+            connections={connections}
+            rawObjects={rawObjects}
+            modifiers={usePartModifiers(obj, connections, rawObjects)}
+          />
         )}
         {showTransformControls && Array.isArray(obj.connectors) && obj.connectors
           .filter((connector) => connector && connector.id)

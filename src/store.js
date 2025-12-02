@@ -110,6 +110,14 @@ const sanitizeConnections = (connections, objects) => {
   }
 
   return connections.filter((connection) => {
+    // Support new schema: partA, partB
+    if (connection.partA && connection.partB) {
+      const hasPartA = connectorMap.has(connection.partA);
+      const hasPartB = connectorMap.has(connection.partB);
+      return hasPartA && hasPartB;
+    }
+
+    // Support legacy schema: from, to
     if (!connection?.from || !connection?.to) {
       return false;
     }

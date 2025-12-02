@@ -49,25 +49,7 @@ export const buildGpuFingerPlacement = ({ dims, pcie }) => {
   // Connector point at bottom edge + small lift; slot side controls insertion depth
   const connectorPos = addVec(center, [0, -height / 2 + connectorEpsUp, 0]);
 
-  // Debug: log connector and bottom edge positions to verify placement
-  if (pcie.__debugLog) {
-    const bottomEdge = center[1] - height / 2;
-    // eslint-disable-next-line no-console
-    console.log("[gpuPcieSpec] finger placement", {
-      dims,
-      pcieKey: pcie.key || pcie.presetKey || "unknown",
-      length,
-      height,
-      thickness,
-      offsetFromBracket,
-      visualDrop,
-      connectorEpsUp,
-      zOffset,
-      center,
-      bottomEdge,
-      connectorPos,
-    });
-  }
+
 
   return {
     length,

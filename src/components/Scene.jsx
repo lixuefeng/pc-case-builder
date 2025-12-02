@@ -5,6 +5,7 @@ import { OrbitControls, Line } from "@react-three/drei";
 import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
 import RulerMarkers from "./RulerMarkers";
+import ConnectionManager from "./connections/ConnectionManager";
 import { expandObjectsWithEmbedded } from "../utils/embeddedParts";
 
 export default function Scene({
@@ -102,11 +103,6 @@ export default function Scene({
         ...obj,
         pos: worldPos.toArray(),
         rot: worldRot,
-        // If it's a group, we might still want to align to its bounding box? 
-        // Or just its children?
-        // If we align to group, we use the group's dims/pos.
-        // If we align to children, we use children's dims/pos.
-        // Let's include both.
       });
 
       if (Array.isArray(obj.children)) {
@@ -144,7 +140,7 @@ export default function Scene({
         position: [450, 280, 850],
         fov: 55,
         near: 1,
-        far: 5000, // 调整相机远裁剪平面以匹配新的、更小的网格尺寸
+        far: 5000,
       }}
       onPointerMissed={() => onSelect(null)}
     >
@@ -162,6 +158,7 @@ export default function Scene({
             key={obj.id}
             obj={obj}
             selected={selectedIds.includes(obj.id)}
+            selectionOrder={selectedIds.indexOf(obj.id)}
             setObj={(updater) => {
               if (obj.embeddedParentId) return;
               setObjects((prev) =>
@@ -191,6 +188,8 @@ export default function Scene({
             setConnectorHovered={setConnectorHovered}
             onDrillHover={onDrillHover}
             onHoleDelete={onHoleDelete}
+            rulerPoints={rulerPoints}
+            rawObjects={objects}
           />
         ))}
         <RulerMarkers measurements={measurements} />
@@ -231,11 +230,13 @@ export default function Scene({
           </>
         )}
 
+        {/* Connection System */}
+        <ConnectionManager connections={connections} objects={objects} />
+
       </group>
       <OrbitControls
         ref={orbitRef}
-        enabled={isAltPressed && !isDragging} // ✅ 最终修复：同时检查 Alt 键和拖拽状态
-        // 修复：禁用阻尼效果，让视角旋转立即停止，感觉更“跟手”
+        enabled={isAltPressed && !isDragging}
         enableDamping={false}
       />
     </Canvas>

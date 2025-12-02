@@ -19,7 +19,9 @@ const TopBar = ({
   measurements = [],
   onClearMeasurements,
   onGenerateStandoffs,
+  onConnect,
   selectedObject,
+  selectedIds,
 }) => {
   const { language, setLanguage, t } = useLanguage();
 
@@ -150,6 +152,7 @@ const TopBar = ({
              🏗️ Standoffs
            </button>
         )}
+
         {transformMode === "ruler" && measurements.length > 0 && (
           <button
             style={{ ...btnStyle, background: "#ef4444", borderColor: "#ef4444", marginLeft: 4 }}

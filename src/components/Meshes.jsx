@@ -3,18 +3,21 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 import { anchorPoint, addVec } from "../utils/anchors";
+import { Geometry, Base, Subtraction } from "@react-three/csg";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
-export function MotherboardMesh({ obj, selected }) {
+export function MotherboardMesh({ obj, selected, selectionOrder }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
   const topLeftBack = useMemo(() => anchorPoint(dims, "top-left-back"), [dims]);
+  const selColor = selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : null;
+
   return (
     <group>
       <mesh userData={{ objectId: obj.id }}>
         <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
-          color={selected ? "#ef4444" : color || "#81a1c1"}
+          color={selColor || color || "#81a1c1"}
           opacity={0.95}
           transparent
         />
@@ -54,7 +57,7 @@ export function ChildMeshRenderer({ obj }) {
   }
 }
 
-export function GroupMesh({ obj, selected }) {
+export function GroupMesh({ obj, selected, selectionOrder }) {
   if (!obj) return null;
   const children = Array.isArray(obj.children) ? obj.children : [];
   
@@ -69,7 +72,7 @@ export function GroupMesh({ obj, selected }) {
           ]}
         />
         <meshStandardMaterial
-          color={selected ? "#ef4444" : "#4f46e5"}
+          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : "#4f46e5"}
           transparent
           opacity={selected ? 0.2 : 0.1}
         />
@@ -86,16 +89,83 @@ export function GroupMesh({ obj, selected }) {
   );
 }
 
-export function PartBox({ obj, selected }) {
+const getRelativeTransform = (targetObj, sourceObj) => {
+  const sourcePos = new THREE.Vector3(...(sourceObj.pos || [0,0,0]));
+  const sourceRot = new THREE.Euler(...(sourceObj.rot || [0,0,0]));
+  const sourceQuat = new THREE.Quaternion().setFromEuler(sourceRot);
+
+  const targetPos = new THREE.Vector3(...(targetObj.pos || [0,0,0]));
+  const targetRot = new THREE.Euler(...(targetObj.rot || [0,0,0]));
+  const targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
+
+  const invSourceQuat = sourceQuat.clone().invert();
+  
+  const relPos = targetPos.clone().sub(sourcePos).applyQuaternion(invSourceQuat);
+  const relQuat = invSourceQuat.clone().multiply(targetQuat);
+  const relEuler = new THREE.Euler().setFromQuaternion(relQuat);
+
+  return { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
+};
+
+export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
   const { dims, color, type } = obj;
   const defaultColor = type === "structure" ? "#d1d5db" : "#ffaa44";
+
+  // Use modifiers passed from parent (calculated via hook)
+  const subtractingParts = modifiers;
+
+  if (subtractingParts.length > 0) {
+    return (
+      <group userData={{ objectId: obj.id }}>
+        <mesh key={subtractingParts.map(p => p.id).join('-')}>
+          <Geometry computeVertexNormals>
+            <Base>
+               <boxGeometry args={[dims.w, dims.h, dims.d]} />
+            </Base>
+            {subtractingParts.map(other => {
+               if (!other.relativeTransform) return null;
+               
+               let geo = null;
+               let args = [];
+               if (other.type === 'cylinder') {
+                 args = [other.dims.w / 2, other.dims.w / 2, other.dims.h, 32];
+                 geo = <cylinderGeometry args={args} />;
+               } else if (other.type === 'cone') {
+                 args = [0, other.dims.w / 2, other.dims.h, 32];
+                 geo = <cylinderGeometry args={args} />;
+               } else {
+                 args = [other.dims.w, other.dims.h, other.dims.d];
+                 geo = <boxGeometry args={args} />;
+               }
+
+               return (
+                 <Subtraction 
+                   key={other.id} 
+                   position={other.relativeTransform.pos} 
+                   rotation={other.relativeTransform.rot}
+                   scale={other.scale || [1, 1, 1]}
+                 >
+                   {geo}
+                 </Subtraction>
+               );
+            })}
+          </Geometry>
+          <meshStandardMaterial
+            color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || defaultColor}
+            opacity={1}
+            transparent={false}
+          />
+        </mesh>
+      </group>
+    );
+  }
 
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh>
         <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
-          color={selected ? "#ef4444" : color || defaultColor}
+          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || defaultColor}
           opacity={1}
           transparent={false}
         />
@@ -104,14 +174,14 @@ export function PartBox({ obj, selected }) {
   );
 }
 
-export function SphereMesh({ obj, selected }) {
+export function SphereMesh({ obj, selected, selectionOrder }) {
   const { dims, color } = obj;
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <sphereGeometry args={[0.5, 32, 32]} />
         <meshStandardMaterial
-          color={selected ? "#ef4444" : color || "#d1d5db"}
+          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#d1d5db"}
           opacity={1}
           transparent={false}
         />
@@ -120,14 +190,14 @@ export function SphereMesh({ obj, selected }) {
   );
 }
 
-export function CylinderMesh({ obj, selected }) {
+export function CylinderMesh({ obj, selected, selectionOrder }) {
   const { dims, color } = obj;
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
         <meshStandardMaterial
-          color={selected ? "#ef4444" : color || "#d1d5db"}
+          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#d1d5db"}
           opacity={1}
           transparent={false}
         />
@@ -146,7 +216,7 @@ const base64ToArrayBuffer = (base64) => {
   return bytes.buffer;
 };
 
-export function ImportedMesh({ obj, selected }) {
+export function ImportedMesh({ obj, selected, selectionOrder }) {
   const geometry = useMemo(() => {
     if (!obj.meta?.geometryBase64) return null;
     try {
@@ -178,7 +248,7 @@ export function ImportedMesh({ obj, selected }) {
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        color={selected ? "#60a5fa" : "#94a3b8"}
+        color={selected ? (selectionOrder === 0 ? "#60a5fa" : (selectionOrder === 1 ? "#eab308" : "#60a5fa")) : "#94a3b8"}
         metalness={0.3}
         roughness={0.6}
       />
@@ -186,7 +256,7 @@ export function ImportedMesh({ obj, selected }) {
   );
 }
 
-export function ReferenceMesh({ obj, selected }) {
+export function ReferenceMesh({ obj, selected, selectionOrder }) {
   const { dims, color, key } = obj;
 
   // Check if it's a coke can to apply the custom shape
@@ -229,7 +299,7 @@ export function ReferenceMesh({ obj, selected }) {
 
     const paintMaterial = (
       <meshStandardMaterial
-        color={selected ? "#ef4444" : color || "#ef4444"}
+        color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#ef4444"}
         metalness={0.6}
         roughness={0.3}
       />
@@ -267,7 +337,7 @@ export function ReferenceMesh({ obj, selected }) {
       <mesh>
         <cylinderGeometry args={[radius, radius, height, 32]} />
         <meshStandardMaterial
-          color={selected ? "#ef4444" : color || "#ef4444"}
+          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#ef4444"}
           metalness={0.6}
           roughness={0.3}
         />
@@ -276,7 +346,7 @@ export function ReferenceMesh({ obj, selected }) {
   );
 }
 
-export function CPUCoolerMesh({ obj, selected }) {
+export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
   const { dims, color } = obj;
   const { w, h, d } = dims;
 

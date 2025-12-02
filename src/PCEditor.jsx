@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ToastProvider, useToast } from "./context/ToastContext";
 import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
 import * as THREE from "three";
 import Scene from "./components/Scene";
@@ -112,29 +113,28 @@ function EditorContent() {
     selectedIds,
     setSelectedIds,
     connections,
+    setConnections,
     projects,
     currentProjectId,
     copyToClipboard,
     pasteFromClipboard,
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
-  const [connectorToast, setConnectorToast] = useState(null);
+  const { showToast } = useToast();
   const [activeConnectorId, setActiveConnectorId] = useState(null);
   const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
   const [transformMode, setTransformMode] = useState("translate");
   const [pendingAlignFace, setPendingAlignFace] = useState(null);
   const [showGizmos, setShowGizmos] = useState(true);
   const [pendingConnector, setPendingConnector] = useState(null);
-  const [snapEnabled, setSnapEnabled] = useState(false); // New snap state
-  const [rulerPoints, setRulerPoints] = useState([]); // Ruler state
-  const [measurements, setMeasurements] = useState([]); // Persistent measurements
+  const [snapEnabled, setSnapEnabled] = useState(false);
+  const [rulerPoints, setRulerPoints] = useState([]);
+  const [measurements, setMeasurements] = useState([]);
   const [drillGhost, setDrillGhost] = useState(null);
   const [drillCandidates, setDrillCandidates] = useState([]);
   const rulerStartRef = React.useRef(null);
-  
-  // Lifted state for LeftSidebar tabs
   const [activeLeftTab, setActiveLeftTab] = useState("library");
-
+  
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
 
@@ -148,13 +148,7 @@ function EditorContent() {
     return p ? p.name : "";
   }, [projects, currentProjectId]);
 
-  useEffect(() => {
-    if (!connectorToast) {
-      return undefined;
-    }
-    const timer = setTimeout(() => setConnectorToast(null), connectorToast.ttl ?? 2600);
-    return () => clearTimeout(timer);
-  }, [connectorToast]);
+
 
   const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "ruler" || transformMode === "drill";
 
@@ -704,14 +698,14 @@ function EditorContent() {
 
       if (nextSelection.length > 0) {
         setSelectedIds(nextSelection);
-        setConnectorToast({
+        showToast({
           type: "success",
           text: `已复制 ${nextSelection.length} 个零件`,
           ttl: 1500,
         });
       }
     },
-    [selectedIds, setObjects, setSelectedIds, setConnectorToast]
+    [selectedIds, setObjects, setSelectedIds, showToast]
   );
 
   const formatPartName = useCallback((part) => {
@@ -846,7 +840,7 @@ function EditorContent() {
       if (!pendingAlignFace && transformMode !== "ruler" && transformMode !== "drill") {
         alog("pick:first", faceInfo);
         setPendingAlignFace(faceInfo);
-        setConnectorToast({
+        showToast({
           type: "info",
           text: "已选中要移动/调整的面。再选择对齐目标面。",
         });
@@ -927,7 +921,7 @@ function EditorContent() {
           })
         );
         
-        setConnectorToast({
+        showToast({
           type: "success",
           text: "Hole drilled!",
           ttl: 2000,
@@ -945,7 +939,7 @@ function EditorContent() {
 
         if (rulerPoints.length === 0) {
           if (!faceInfo.shiftKey) {
-            setConnectorToast({
+            showToast({
               type: "info",
               text: "Hold Shift + Click to select start face.",
               ttl: 3000,
@@ -956,7 +950,7 @@ function EditorContent() {
           rulerStartRef.current = newPoint;
           setRulerPoints([newPoint.center]);
 
-          setConnectorToast({
+          showToast({
             type: "info",
             text: "Start face selected. Click target face to measure.",
             ttl: 3000,
@@ -1009,7 +1003,7 @@ function EditorContent() {
             },
           ]);
           
-          setConnectorToast({
+          showToast({
             type: "success",
             text: `${label}: ${dist.toFixed(2)}mm (X: ${dx.toFixed(2)}, Y: ${dy.toFixed(2)}, Z: ${dz.toFixed(2)})`,
             ttl: 5000,
@@ -1022,7 +1016,7 @@ function EditorContent() {
       }
 
       if (pendingAlignFace.partId === faceInfo.partId) {
-        setConnectorToast({
+        showToast({
           type: "warning",
           text: "请选择不同零件的面进行对齐。",
         });
@@ -1037,7 +1031,7 @@ function EditorContent() {
         return;
       }
       if (movingObj.embeddedParentId) {
-        setConnectorToast({
+        showToast({
           type: "warning",
           text: "嵌入式部件无法移动，请选择其它零件。",
         });
@@ -1059,7 +1053,7 @@ function EditorContent() {
 
       const parallel = Math.abs(anchorTransform.normal.dot(movingTransform.normal));
       if (parallel < 0.999) {
-        setConnectorToast({
+        showToast({
           type: "warning",
           text: "两个面的法线不平行，无法对齐。",
         });
@@ -1096,7 +1090,7 @@ function EditorContent() {
 
         const axisInfo = getStretchAxisInfo(movingObj, pendingAlignFace.face);
         if (!axisInfo) {
-          setConnectorToast({ type: "warning", text: "无法调整该方向的尺寸。" });
+          showToast({ type: "warning", text: "无法调整该方向的尺寸。" });
           setPendingAlignFace(null);
           return;
         }
@@ -1136,7 +1130,7 @@ function EditorContent() {
       }
       setSelectedIds([movingObj.id]);
       setPendingAlignFace(null);
-      setConnectorToast({
+      showToast({
         type: "success",
         text: `已将 ${formatPartName(movingObj)} 对齐到 ${formatPartName(anchorObj)}`,
       });
@@ -1148,7 +1142,7 @@ function EditorContent() {
       setObjects,
       setSelectedIds,
       formatPartName,
-      setConnectorToast,
+      showToast,
       computeFaceTransform,
       transformMode,
       rulerPoints,
@@ -1170,7 +1164,7 @@ function EditorContent() {
       if (!pendingConnector) {
         setPendingConnector({ partId, connectorId });
         setSelectedIds([partId]);
-        setConnectorToast({
+        showToast({
           type: "info",
           text: `已选中 ${formatPartName(currentObj)} (移动部件)。请选择目标连接点。`,
           ttl: 4000,
@@ -1183,7 +1177,7 @@ function EditorContent() {
         pendingConnector.connectorId === connectorId
       ) {
         setPendingConnector(null);
-        setConnectorToast(null);
+        showToast(null);
         return;
       }
 
@@ -1198,7 +1192,7 @@ function EditorContent() {
         return;
       }
       if (anchorObj.id === movingObj.id) {
-        setConnectorToast({
+        showToast({
           type: "warning",
           text: "请选择不同零件的连接点。",
           ttl: 2000,
@@ -1268,7 +1262,7 @@ function EditorContent() {
       );
       setSelectedIds([movingObj.id]);
       setPendingConnector(null);
-      setConnectorToast({
+      showToast({
         type: "success",
         text: `已将 ${formatPartName(movingObj)} 连接到 ${formatPartName(anchorObj)}`,
       });
@@ -1279,7 +1273,7 @@ function EditorContent() {
       computeConnectorTransform,
       formatPartName,
       getConnectorLabel,
-      setConnectorToast,
+      showToast,
       setObjects,
       setSelectedIds,
     ]
@@ -1301,13 +1295,13 @@ function EditorContent() {
           return { ...obj, connectors: nextConnectors };
         })
       );
-      setConnectorToast({
+      showToast({
         type: "info",
         text: `Updated ${getConnectorLabel(selectedObject, connectorId)} orientation.`,
         ttl: 2000,
       });
     },
-    [getConnectorLabel, selectedObject, setConnectorToast, setObjects]
+    [getConnectorLabel, selectedObject, showToast, setObjects]
   );
 
   useEffect(() => {
@@ -1331,25 +1325,27 @@ function EditorContent() {
         return { ...obj, holes: updatedHoles };
       })
     );
-    setConnectorToast({
+    showToast({
       type: "success",
       text: "Hole deleted",
       ttl: 1500,
     });
-  }, [setObjects, setConnectorToast]);
+  }, [setObjects, showToast]);
 
   const clearMeasurements = useCallback(() => {
     setMeasurements([]);
     setRulerPoints([]);
-    setConnectorToast({ type: "info", text: "Measurements cleared.", ttl: 2000 });
+    showToast({ type: "info", text: "Measurements cleared.", ttl: 2000 });
   }, []);
+
+
 
   const handleGenerateStandoffs = useCallback(() => {
     if (!selectedObject) return;
 
     const holes = selectedObject.connectors?.filter(c => c.type === 'screw-m3' || c.type === 'mb-mount') || [];
     if (holes.length === 0) {
-      setConnectorToast({ type: "error", text: "No suitable holes found.", ttl: 2000 });
+      showToast({ type: "error", text: "No suitable holes found.", ttl: 2000 });
       return;
     }
 
@@ -1455,12 +1451,45 @@ function EditorContent() {
       setObjects(prev => [...prev, ...newStandoffs]);
       // Select the last generated standoff
       setSelectedIds([newStandoffs[newStandoffs.length - 1].id]);
-      setConnectorToast({ type: "success", text: `Generated ${newStandoffs.length} standoffs.`, ttl: 2000 });
+      showToast({ type: "success", text: `Generated ${newStandoffs.length} standoffs.`, ttl: 2000 });
     } else {
-      setConnectorToast({ type: "warning", text: "No target parts found below holes.", ttl: 2000 });
+      showToast({ type: "warning", text: "No target parts found below holes.", ttl: 2000 });
     }
 
-  }, [selectedObject, expandedObjects, setObjects, setConnectorToast, setSelectedIds]);
+  }, [selectedObject, expandedObjects, setObjects, showToast, setSelectedIds]);
+
+  const handleConnect = useCallback((typeArg) => {
+    if (selectedIds.length !== 2) {
+      return;
+    }
+    const partA = objects.find(o => o.id === selectedIds[0]);
+    const partB = objects.find(o => o.id === selectedIds[1]);
+    if (!partA || !partB) {
+      return;
+    }
+
+    let type = typeArg;
+    if (!type) {
+       // Fallback to prompt if no type provided (e.g. from TopBar if we kept it)
+       type = window.prompt("Enter connection type (half-lap, external-plate, blind-joint, cross-lap, shear-boss):", "half-lap");
+    }
+    if (!type) return;
+
+    const newConnection = {
+      id: generateObjectId("conn"),
+      type: type,
+      partA: partA.id,
+      partB: partB.id,
+      params: {}
+    };
+
+    setConnections(prev => {
+      const next = [...prev, newConnection];
+      return next;
+    });
+    showToast({ type: "success", text: `Created ${type} connection.`, ttl: 2000 });
+
+  }, [selectedIds, objects, setConnections, showToast]);
 
 
 
@@ -1487,7 +1516,9 @@ function EditorContent() {
         onOpenProjectManager={() => setActiveLeftTab("projects")}
         currentProjectName={currentProjectName}
         onGenerateStandoffs={handleGenerateStandoffs}
+        onConnect={handleConnect}
         selectedObject={selectedObject}
+        selectedIds={selectedIds}
       />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
@@ -1538,6 +1569,8 @@ function EditorContent() {
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 10, height: "100%" }}>
             <RightSidebar
               selectedObject={selectedObject}
+              selectedIds={selectedIds}
+              objects={objects}
               setObjects={setObjects}
               activeConnectorId={activeConnectorId}
               setActiveConnectorId={setActiveConnectorId}
@@ -1546,20 +1579,27 @@ function EditorContent() {
               onUngroup={handleUngroup}
               onDuplicate={handleDuplicate}
               onDelete={handleDelete}
+              onConnect={handleConnect}
             />
           </div>
         )}
 
-        <ConnectorToast toast={connectorToast} />
+        <ConnectorToast />
       </div>
     </div>
   );
 }
 
+
+
+
+
 export default function PCEditor() {
   return (
     <LanguageProvider>
-      <EditorContent />
+      <ToastProvider>
+        <EditorContent />
+      </ToastProvider>
     </LanguageProvider>
   );
 }

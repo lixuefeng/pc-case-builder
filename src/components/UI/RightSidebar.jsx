@@ -529,6 +529,43 @@ const RightSidebar = ({
         </div>
       </div>
 
+      {/* Appearance */}
+      <div style={cardStyle}>
+        <div style={{...sectionStyle, marginBottom: 12}}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.appearance") || "Appearance"}</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
+               <input
+                type="color"
+                value={selectedObject.color || "#d1d5db"}
+                onChange={(e) => handleChange("color", e.target.value)}
+                style={{
+                  width: 24,
+                  height: 24,
+                  padding: 0,
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  background: "none"
+                }}
+              />
+              <span style={{ fontSize: 13, color: "#334155", fontFamily: "monospace" }}>
+                {selectedObject.color || "#d1d5db"}
+              </span>
+            </div>
+            <button
+              style={btnStyle}
+              onClick={() => {
+                const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+                handleChange("color", randomColor);
+              }}
+            >
+              {t("action.randomColor") || "Random"}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Actions */}
       <div style={cardStyle}>
         <div style={{...sectionStyle, marginBottom: 12}}>

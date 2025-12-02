@@ -7,6 +7,7 @@ import TopBar from "./components/UI/TopBar";
 import LeftSidebar from "./components/UI/LeftSidebar";
 import RightSidebar from "./components/UI/RightSidebar";
 import ConnectorToast from "./components/UI/ConnectorToast";
+import HUD from "./components/UI/HUD";
 
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
@@ -118,6 +119,7 @@ function EditorContent() {
     currentProjectId,
     copyToClipboard,
     pasteFromClipboard,
+    setHudState,
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const { showToast } = useToast();
@@ -152,24 +154,75 @@ function EditorContent() {
 
   const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "ruler" || transformMode === "drill";
 
+  const handleTransformModeChange = (mode) => {
+    setTransformMode(mode);
+    
+    if (mode === 'ruler') {
+      setHudState({ type: 'ruler', data: { distance: 0 } });
+    } else if (mode === 'drill') {
+      setHudState({ type: 'drill', data: {} });
+    } else if (selectedObject) {
+       if (mode === 'translate') {
+           setHudState({ type: 'move', data: { 
+             x: selectedObject.pos[0], y: selectedObject.pos[1], z: selectedObject.pos[2] 
+           }});
+       } else if (mode === 'rotate') {
+           setHudState({ type: 'rotate', data: { 
+             rx: THREE.MathUtils.radToDeg(selectedObject.rot[0]), 
+             ry: THREE.MathUtils.radToDeg(selectedObject.rot[1]), 
+             rz: THREE.MathUtils.radToDeg(selectedObject.rot[2]) 
+           }});
+       } else if (mode === 'scale') {
+           const s = selectedObject.scale || [1, 1, 1];
+           setHudState({ type: 'scale', data: { 
+               sx: s[0], sy: s[1], sz: s[2], factor: s[0] 
+           }});
+       } else {
+           setHudState(null);
+       }
+    } else {
+      setHudState(null);
+    }
+  };
+
   useEffect(() => {
     if (!alignEnabled) {
       setPendingAlignFace(null);
-    } else if (selectedIds.length === 0 && transformMode !== "ruler" && !pendingAlignFace) {
-      // Only clear if we are not in ruler mode and have no pending face, 
-      // OR if we want to enforce selection-clearing behavior.
-      // Actually, if we want to allow starting without selection, we shouldn't auto-clear here just because selectedIds is empty.
-      // But we SHOULD clear if the user explicitly deselected everything (which usually sets selectedIds to []).
-      // Let's rely on handleSelect(null) to clear things if needed, or just keep it simple:
-      // If we are in a mode that allows it, we don't strictly need selectedIds to be non-empty to hold a pending face.
-      // However, if the user clicks empty space, handleSelect(null) is called.
     }
+    
     if (transformMode !== "ruler" && transformMode !== "drill") {
       setRulerPoints([]);
       setDrillCandidates([]);
       setDrillGhost(null);
     }
   }, [alignEnabled, transformMode]);
+
+  // Sync Ruler Points to HUD
+  useEffect(() => {
+    if (transformMode === 'ruler') {
+      let distance = 0;
+      if (rulerPoints.length === 2) {
+        distance = new THREE.Vector3(...rulerPoints[0]).distanceTo(new THREE.Vector3(...rulerPoints[1]));
+      }
+      setHudState({
+        type: 'ruler',
+        data: { distance }
+      });
+    }
+  }, [transformMode, rulerPoints, setHudState]);
+
+  // Sync Drill State to HUD
+  useEffect(() => {
+    if (transformMode === 'drill') {
+      setHudState({
+        type: 'drill',
+        data: { 
+            snapped: drillGhost?.snapped,
+            position: drillGhost?.position
+        }
+      });
+    }
+  }, [transformMode, drillGhost, setHudState]);
 
   const snapThreshold = 10; // mm
 
@@ -568,6 +621,7 @@ function EditorContent() {
     if (id === null) {
       setSelectedIds([]);
       setPendingAlignFace(null);
+      setHudState(null); // Clear HUD on deselect
       if (transformMode === "ruler") {
         setRulerPoints([]);
       }
@@ -585,8 +639,29 @@ function EditorContent() {
         }
       });
     } else {
-      // 单?
+      // Single selection
       setSelectedIds([id]);
+      
+      // Initialize HUD with object properties
+      const obj = objects.find(o => o.id === id);
+      if (obj) {
+        if (transformMode === 'translate') {
+           setHudState({ type: 'move', data: { 
+             x: obj.pos[0], y: obj.pos[1], z: obj.pos[2] 
+           }});
+        } else if (transformMode === 'rotate') {
+           setHudState({ type: 'rotate', data: { 
+             rx: THREE.MathUtils.radToDeg(obj.rot[0]), 
+             ry: THREE.MathUtils.radToDeg(obj.rot[1]), 
+             rz: THREE.MathUtils.radToDeg(obj.rot[2]) 
+           }});
+        } else if (transformMode === 'scale') {
+           const s = obj.scale || [1, 1, 1];
+           setHudState({ type: 'scale', data: { 
+               sx: s[0], sy: s[1], sz: s[2], factor: s[0] 
+           }});
+        }
+      }
     }
   };
   const lastSelectedId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null;
@@ -1504,7 +1579,7 @@ function EditorContent() {
         canUndo={past.length > 0}
         canRedo={future.length > 0}
         transformMode={transformMode}
-        setTransformMode={setTransformMode}
+        setTransformMode={handleTransformModeChange}
         showGrid={showHorizontalGrid}
         setShowGrid={setShowHorizontalGrid}
         showGizmos={showGizmos}
@@ -1520,6 +1595,7 @@ function EditorContent() {
         selectedObject={selectedObject}
         selectedIds={selectedIds}
       />
+      <HUD />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
         {/* Left Sidebar */}
@@ -1550,7 +1626,7 @@ function EditorContent() {
             onConnectorPick={handleConnectorPick}
             activeAlignFace={pendingAlignFace}
             transformMode={transformMode}
-            onChangeTransformMode={setTransformMode}
+            onChangeTransformMode={handleTransformModeChange}
             showTransformControls={showGizmos}
             snapEnabled={snapEnabled}
             measurements={measurements}

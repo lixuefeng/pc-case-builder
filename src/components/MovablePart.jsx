@@ -16,6 +16,7 @@ import Cylinder from "./primitives/Cylinder";
 import Cone from "./primitives/Cone";
 import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 import { usePartModifiers } from "../hooks/usePartModifiers";
+import { useStore } from "../store";
 
 const DEBUG_LOG = false;
 const dlog = DEBUG_LOG ? (...args) => console.log("[MovablePart]", ...args) : () => {};
@@ -221,6 +222,88 @@ const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => 
   );
 };
 
+const MIN_MOVE_EPS = 0.1;
+const ALIGN_ANG_TOL_DEG = 5;
+const PARALLEL_COS = Math.cos(THREE.MathUtils.degToRad(ALIGN_ANG_TOL_DEG));
+const IMPROVE_MM = 5;
+
+const pickTargetBasis = (tf, dir) => {
+  if (!tf || !tf.axes) return { dir: new THREE.Vector3(0, 1, 0), label: 'Y' };
+  const { ax, ay, az } = tf.axes;
+  const dx = Math.abs(dir.dot(ax));
+  const dy = Math.abs(dir.dot(ay));
+  const dz = Math.abs(dir.dot(az));
+  
+  if (dx > dy && dx > dz) return { dir: ax, label: 'X' };
+  if (dy > dx && dy > dz) return { dir: ay, label: 'Y' };
+  return { dir: az, label: 'Z' };
+};
+
+const getStretchAxisInfo = (obj, faceName) => {
+  if (!obj || !faceName) return null;
+  const dims = obj.dims || {};
+  // Simple mapping for box-like objects
+  if (faceName === '+X' || faceName === '-X') return { axis: 'X', dimKey: 'w', sign: faceName === '+X' ? 1 : -1 };
+  if (faceName === '+Y' || faceName === '-Y') return { axis: 'Y', dimKey: 'h', sign: faceName === '+Y' ? 1 : -1 };
+  if (faceName === '+Z' || faceName === '-Z') return { axis: 'Z', dimKey: 'd', sign: faceName === '+Z' ? 1 : -1 };
+  return null;
+};
+
+const getWorldTransform = ({ ref, obj }) => {
+  if (ref && ref.current) {
+    const p = new THREE.Vector3();
+    const q = new THREE.Quaternion();
+    const s = new THREE.Vector3();
+    ref.current.matrixWorld.decompose(p, q, s);
+    const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const az = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    return { p, q, s, axes: { ax, ay, az } };
+  } else if (obj) {
+    const p = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(obj.rot || [0, 0, 0])));
+    const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const az = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    return { p, q, axes: { ax, ay, az } };
+  }
+  return null;
+};
+
+const getLocalAxisDir = (tf, axisLabel) => {
+  if (!tf || !tf.axes) return null;
+  if (axisLabel === 'X') return tf.axes.ax.clone();
+  if (axisLabel === 'Y') return tf.axes.ay.clone();
+  if (axisLabel === 'Z') return tf.axes.az.clone();
+  return null;
+};
+
+const inferAxisFromMovement = (mv, selfTF) => {
+  if (!mv || !selfTF) return { axis: null, proj: {} };
+  const mvDir = mv.clone().normalize();
+  const px = Math.abs(mvDir.dot(selfTF.axes.ax));
+  const py = Math.abs(mvDir.dot(selfTF.axes.ay));
+  const pz = Math.abs(mvDir.dot(selfTF.axes.az));
+  let axis = null;
+  if (px > py && px > pz) axis = 'X';
+  else if (py > px && py > pz) axis = 'Y';
+  else if (pz > px && pz > py) axis = 'Z';
+  return { axis, proj: { X: px, Y: py, Z: pz } };
+};
+
+const projectedHalfExtentAlongAxis = (worldAxis, dims, axes) => {
+  const { ax, ay, az } = axes;
+  const w2 = (dims?.w ?? 0) / 2;
+  const h2 = (dims?.h ?? 0) / 2;
+  const d2 = (dims?.d ?? 0) / 2;
+  const dir = worldAxis.clone().normalize();
+  return (
+    Math.abs(dir.dot(ax)) * w2 +
+    Math.abs(dir.dot(ay)) * h2 +
+    Math.abs(dir.dot(az)) * d2
+  );
+};
+
 const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace, onDrillHover }) => {
   const [hovered, setHovered] = useState(false);
   const headRef = useRef(null);
@@ -356,6 +439,7 @@ export default function MovablePart({
   rawObjects,
 }) {
   const { gl, camera } = useThree();
+  const setHudState = useStore((state) => state.setHudState);
   const groupRef = useRef();
   const controlsRef = useRef();
   const hoverFaceMeshRef = useRef(null);
@@ -525,6 +609,10 @@ export default function MovablePart({
     (delta) => {
       const state = stretchStateRef.current;
       if (!state || !groupRef.current) return;
+      
+      // Optimization: Skip if delta hasn't changed significantly
+      if (Math.abs(delta - (state.lastDelta || 0)) < 0.001) return;
+
       const { axisInfo, startDims, startPosVec, axisDirection, objectId } = state;
       if (!axisInfo?.dimKey || !axisDirection || !startPosVec) return;
       const startSize = Number(startDims[axisInfo.dimKey]) || 0;
@@ -546,6 +634,18 @@ export default function MovablePart({
         dims: newDims,
         pos: [newPosVec.x, newPosVec.y, newPosVec.z],
       }));
+      
+      // Update HUD during stretch
+      setHudState({
+          type: 'scale',
+          data: {
+              sx: newDims.w,
+              sy: newDims.h,
+              sz: newDims.d,
+              factor: newDims.w // Fallback
+          }
+      });
+
       state.lastDelta = appliedDelta;
       if (DEBUG_LOG) console.log("[stretch/applyDelta]", {
         part: objectId,
@@ -559,7 +659,7 @@ export default function MovablePart({
         newPos: newPosVec.toArray(),
       });
     },
-    []
+    [setHudState]
   );
 
   const handleStretchPointerMove = useCallback(
@@ -589,24 +689,19 @@ export default function MovablePart({
         });
         return;
       }
+
       const axisOffset = computeAxisOffsetFromRay(
         raycaster.ray,
         axisOrigin,
         axisDir
       );
+
       if (typeof axisOffset !== "number" || Number.isNaN(axisOffset)) {
         return;
       }
+
       const delta = axisOffset - state.startAxisOffset;
-      if (DEBUG_LOG) console.log("[stretch/pointerMove] details", {
-        buttons: event.buttons,
-        pointerId: event.pointerId,
-        axisOffset,
-        startAxisOffset: state.startAxisOffset,
-        delta,
-        axisDir: axisDir.toArray(),
-        axisOrigin: axisOrigin.toArray(),
-      });
+
       if (!state.hasTriggeredDrag) {
         const dist = Math.sqrt(
           Math.pow(event.clientX - state.startScreenPos.x, 2) +
@@ -1084,11 +1179,17 @@ export default function MovablePart({
         groupRef.current.rotation.y,
         groupRef.current.rotation.z,
       ];
-      setObj((prev) => ({ ...prev, pos: p, rot: r }));
+      const s = [
+        groupRef.current.scale.x,
+        groupRef.current.scale.y,
+        groupRef.current.scale.z,
+      ];
+      setObj((prev) => ({ ...prev, pos: p, rot: r, scale: s }));
       dlog("onDragEnd:no-snap", { pos: p });
     }
     setBestAlignCandidate(null);
     lastAlignCandidateRef.current = null;
+    // setHudState(null); // Keep HUD active for editing
   };
 
   const getFaceDetails = ({ obj, ref, faceName }) => {
@@ -1242,6 +1343,24 @@ export default function MovablePart({
       rz: +(((r[2] - s.rot[2]) * 180) / Math.PI).toFixed(2),
     };
     setDelta(d);
+
+    // Update HUD with absolute values
+    if (groupRef.current) {
+        const p = groupRef.current.position;
+        const r = groupRef.current.rotation;
+        const s = groupRef.current.scale;
+        
+        setHudState({
+            type: mode === 'translate' ? 'move' : mode,
+            data: {
+                x: p.x, y: p.y, z: p.z,
+                rx: THREE.MathUtils.radToDeg(r.x), 
+                ry: THREE.MathUtils.radToDeg(r.y), 
+                rz: THREE.MathUtils.radToDeg(r.z),
+                factor: s.x
+            }
+        });
+    }
 
     let mv = null;
     if (prevPosRef.current) {
@@ -1546,6 +1665,7 @@ export default function MovablePart({
         visible={obj.visible !== false}
         position={obj.pos}
         rotation={obj.rot}
+        scale={obj.scale || [1, 1, 1]}
         userData={{ objectId: obj.id }}
         onPointerMove={(e) => {
           e.stopPropagation();

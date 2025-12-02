@@ -238,6 +238,10 @@ export const useStore = create((set, get) => {
     past: [],
     future: [],
 
+    // HUD State (Transient)
+    hudState: null,
+    setHudState: (newState) => set({ hudState: newState }),
+
     // Actions
     createProject: (name) => {
       const newId = generateId();

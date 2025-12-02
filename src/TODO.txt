@@ -1,15 +1,1 @@
-TODO
-1. in library-primitives: allow customize cylinder/cone size. and they should no longer called 50*50
-2. in library-pc parts: allow customize ram size
-3. update 
-4. toast auto disappear after 3 seconds
-5. layout of library-primitives dimension is weird and ugly
-6. I can't remember why do we have type selection under primitives. besides structure what else should we have?
-7. remove custom block from primitives selections it's duplicated
-
-
-
-
-
-New:
-1. customize screw size, we need to define hat diameter, hat height, screw diameter, screw height.
+scale hud has a bug. if i change the number, it would change back after I press enter although the actual size is changes. 

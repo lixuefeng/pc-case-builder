@@ -1345,6 +1345,14 @@ export default function MovablePart({
 
     if (resolvedAxis === 'X' || resolvedAxis === 'Y' || resolvedAxis === 'Z') {
       const worldDir = getLocalAxisDir(selfTF, resolvedAxis);
+      
+      // Snap worldDir to cardinal axes if very close to prevent floating point drift
+      if (worldDir) {
+        if (Math.abs(worldDir.x) > 0.9999) worldDir.set(Math.sign(worldDir.x), 0, 0);
+        else if (Math.abs(worldDir.y) > 0.9999) worldDir.set(0, Math.sign(worldDir.y), 0);
+        else if (Math.abs(worldDir.z) > 0.9999) worldDir.set(0, 0, Math.sign(worldDir.z));
+      }
+
       dlog('axis:resolved', { axisFromCtrlRaw, resolvedAxis, mv: mv?.toArray?.() });
       if (worldDir) findBestAlignCandidate(worldDir, resolvedAxis);
     } else if (currentDragAxis) {

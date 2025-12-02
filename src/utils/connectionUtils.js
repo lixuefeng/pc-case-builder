@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getRelativeTransform } from '../hooks/usePartModifiers';
+import { getRelativeTransform } from '../utils/mathUtils';
 
 /**
  * Calculates the modifications needed for a Mortise & Tenon joint.

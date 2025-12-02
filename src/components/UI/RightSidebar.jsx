@@ -3,7 +3,7 @@ import ConnectorEditor from "./ConnectorEditor";
 import * as THREE from "three";
 
 import { useLanguage } from "../../i18n/LanguageContext";
-import { getRelativeTransform } from "../../hooks/usePartModifiers";
+import { getRelativeTransform } from "../../utils/mathUtils";
 import { calculateMortiseTenon, calculateCrossLap } from "../../utils/connectionUtils";
 import { useToast } from "../../context/ToastContext";
 

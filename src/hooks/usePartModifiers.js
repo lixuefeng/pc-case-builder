@@ -1,34 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
-
-// Helper to calculate relative transform
-export const getRelativeTransform = (sourceObj, targetObj) => {
-    if (!sourceObj || !targetObj) return null;
-
-    const sourcePos = new THREE.Vector3(...(sourceObj.pos || [0, 0, 0]));
-    const sourceRot = new THREE.Euler(...(sourceObj.rot || [0, 0, 0]));
-    const sourceQuat = new THREE.Quaternion().setFromEuler(sourceRot);
-    const targetPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
-    const targetRot = new THREE.Euler(...(targetObj.rot || [0, 0, 0]));
-    const targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
-    const targetScale = new THREE.Vector3(...(targetObj.scale || [1, 1, 1]));
-
-    // Calculate relative position and rotation
-    // We want sourceObj's transform relative to targetObj's local space
-    const invTargetQuat = targetQuat.clone().invert();
-
-    // (WorldPos - TargetWorldPos) -> Rotate to Target Local -> Divide by Target Scale
-    const relPos = sourcePos.clone().sub(targetPos).applyQuaternion(invTargetQuat).divide(targetScale);
-    const relQuat = invTargetQuat.clone().multiply(sourceQuat);
-    const relEuler = new THREE.Euler().setFromQuaternion(relQuat);
-
-    const result = { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
-    if (result.pos.some(isNaN) || result.rot.some(isNaN)) {
-        console.error("getRelativeTransform produced NaNs:", result, sourceObj, targetObj);
-        return null;
-    }
-    return result;
-};
+import { getRelativeTransform } from '../utils/mathUtils';
 
 export function usePartModifiers(obj, connections = [], rawObjects = []) {
     return useMemo(() => {

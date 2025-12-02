@@ -832,16 +832,6 @@ export default function MovablePart({
     return { p, q, axes: { ax, ay, az } };
   }
 
-  function projectedHalfExtentAlongAxis(worldAxis, dims, axes) {
-    const { ax, ay, az } = axes;
-    const w2 = (dims?.w ?? 0) / 2, h2 = (dims?.h ?? 0) / 2, d2 = (dims?.d ?? 0) / 2;
-    return (
-      Math.abs(worldAxis.dot(ax)) * w2 +
-      Math.abs(worldAxis.dot(ay)) * h2 +
-      Math.abs(worldAxis.dot(az)) * d2
-    );
-  }
-
   function getFacesAlongDir({ obj: targetObj, ref, dir }) {
     const dirN = dir.clone().normalize();
     const { p, axes } = getWorldTransform({ ref, obj: targetObj });
@@ -862,34 +852,6 @@ export default function MovablePart({
       { name: facePosName, coord: centerCoord + half },
       { name: faceNegName, coord: centerCoord - half },
     ];
-  }
-
-  function inferAxisFromMovement(mv, tf) {
-    if (!mv) return { axis: null, proj: { X: 0, Y: 0, Z: 0 }, len: 0 };
-    const { ax, ay, az } = tf.axes;
-    const len = mv.length();
-    const px = Math.abs(mv.dot(ax));
-    const py = Math.abs(mv.dot(ay));
-    const pz = Math.abs(mv.dot(az));
-    let axis = 'X';
-    if (py >= px && py >= pz) axis = 'Y';
-    else if (pz >= px && pz >= py) axis = 'Z';
-    return { axis, proj: { X: px, Y: py, Z: pz }, len };
-  }
-
-  function pickTargetBasis(targetTF, selfDir) {
-    const { ax, ay, az } = targetTF.axes;
-    const candidates = [
-      { v: ax, label: 'X' },
-      { v: ay, label: 'Y' },
-      { v: az, label: 'Z' },
-    ];
-    let best = candidates[0], bestAbs = -1;
-    for (const c of candidates) {
-      const v = Math.abs(c.v.dot(selfDir));
-      if (v > bestAbs) { bestAbs = v; best = c; }
-    }
-    return { dir: best.v.clone().normalize(), label: best.label };
   }
 
   const findBestAlignCandidate = (worldDir, axisLabel) => {

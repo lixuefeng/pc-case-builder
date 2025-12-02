@@ -130,54 +130,39 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
     });
   }, [subtractingParts]);
 
-  if (validSubtractingParts.length > 0) {
-    return (
-      <group userData={{ objectId: obj.id }}>
-        <mesh key={validSubtractingParts.map(p => p.id).join('-')}>
-          <Geometry computeVertexNormals>
-            <Base>
-               <boxGeometry args={[dims.w, dims.h, dims.d]} />
-            </Base>
-            {validSubtractingParts.map(other => {
-               let geo = null;
-               let args = [];
-               if (other.type === 'cylinder') {
-                 args = [other.dims.w / 2, other.dims.w / 2, other.dims.h, 32];
-                 geo = <cylinderGeometry args={args} />;
-               } else if (other.type === 'cone') {
-                 args = [0, other.dims.w / 2, other.dims.h, 32];
-                 geo = <cylinderGeometry args={args} />;
-               } else {
-                 args = [other.dims.w, other.dims.h, other.dims.d];
-                 geo = <boxGeometry args={args} />;
-               }
-
-               return (
-                 <Subtraction 
-                   key={other.id} 
-                   position={other.relativeTransform.pos} 
-                   rotation={other.relativeTransform.rot}
-                   scale={other.scale || [1, 1, 1]}
-                 >
-                   {geo}
-                 </Subtraction>
-               );
-            })}
-          </Geometry>
-          <meshStandardMaterial
-            color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || defaultColor}
-            opacity={1}
-            transparent={false}
-          />
-        </mesh>
-      </group>
-    );
-  }
-
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh>
-        <boxGeometry args={[dims.w, dims.h, dims.d]} />
+        <Geometry computeVertexNormals>
+          <Base>
+             <boxGeometry args={[dims.w, dims.h, dims.d]} />
+          </Base>
+          {validSubtractingParts.map(other => {
+             let geo = null;
+             let args = [];
+             if (other.type === 'cylinder') {
+               args = [other.dims.w / 2, other.dims.w / 2, other.dims.h, 32];
+               geo = <cylinderGeometry args={args} />;
+             } else if (other.type === 'cone') {
+               args = [0, other.dims.w / 2, other.dims.h, 32];
+               geo = <cylinderGeometry args={args} />;
+             } else {
+               args = [other.dims.w, other.dims.h, other.dims.d];
+               geo = <boxGeometry args={args} />;
+             }
+
+             return (
+               <Subtraction 
+                 key={other.id} 
+                 position={other.relativeTransform.pos} 
+                 rotation={other.relativeTransform.rot}
+                 scale={other.scale || [1, 1, 1]}
+               >
+                 {geo}
+               </Subtraction>
+             );
+          })}
+        </Geometry>
         <meshStandardMaterial
           color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || defaultColor}
           opacity={1}

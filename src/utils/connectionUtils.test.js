@@ -6,7 +6,7 @@ import { calculateMortiseTenon, calculateCrossLap } from './connectionUtils';
 // We need to import it or mock it. Since it's in a hook file, it might be hard to import in node environment if it uses React stuff.
 // But getRelativeTransform is exported separately and uses only THREE.
 // Let's import it.
-import { getRelativeTransform } from '../hooks/usePartModifiers';
+import { getRelativeTransform } from '../utils/mathUtils';
 
 describe('connectionUtils', () => {
     // ... existing tests ...

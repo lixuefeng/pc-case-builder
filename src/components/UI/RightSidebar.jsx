@@ -4,6 +4,7 @@ import * as THREE from "three";
 
 import { useLanguage } from "../../i18n/LanguageContext";
 import { getRelativeTransform } from "../../hooks/usePartModifiers";
+import { calculateMortiseTenon, calculateCrossLap } from "../../utils/connectionUtils";
 import { useToast } from "../../context/ToastContext";
 
 const RightSidebar = ({
@@ -186,159 +187,26 @@ const RightSidebar = ({
               onClick={() => {
                  const type = connectionType;
                  
-                 // Logic for Mortise & Tenon
-                 if (type === 'mortise-tenon') {
-                   console.log("[MortiseTenon] Starting creation...");
-                   // Simplified Logic: 
-                   // Part A (First Selected) = Tenon (Red)
-                   // Part B (Second Selected) = Mortise (Yellow)
-                   
-                   // Use partA and partB from outer scope
-                   if (partA && partB) {
-                       const tenon = partA;
-                       const mortise = partB;
+                   // Logic for Mortise & Tenon
+                   if (type === 'mortise-tenon') {
+                     // Use partA and partB from outer scope
+                     if (partA && partB) {
+                         const tenon = partA;
+                         const mortise = partB;
+                     
+                         const insertionDepth = connectionDepth; // Use configured depth
 
-                   console.log(`[Mortise & Tenon] Tenon: ${tenon.name} (Red), Mortise: ${mortise.name} (Yellow)`);
-                   
-                   const insertionDepth = connectionDepth; // Use configured depth
-
-                   // Determine dominant axis
-                   // Determine dominant axis in TENON'S LOCAL SPACE
-                   // This ensures we extend the correct local dimension (width, height, or depth)
-                   // regardless of how the tenon is rotated in the world.
-                   
-                   const tenonRot = new THREE.Euler(...tenon.rot);
-                   const tenonQuat = new THREE.Quaternion().setFromEuler(tenonRot);
-                   const invTenonQuat = tenonQuat.clone().invert();
-                   
-                   const worldDiff = new THREE.Vector3().subVectors(
-                     new THREE.Vector3(...mortise.pos), // Target (Mortise)
-                     new THREE.Vector3(...tenon.pos)    // Source (Tenon)
-                   );
-                   
-                   // Transform difference into Tenon's local space
-                   const localDiff = worldDiff.clone().applyQuaternion(invTenonQuat);
-                   const absLocalDiff = new THREE.Vector3(Math.abs(localDiff.x), Math.abs(localDiff.y), Math.abs(localDiff.z));
-                   
-                   let axis = 'y'; // default
-                   if (absLocalDiff.x > absLocalDiff.y && absLocalDiff.x > absLocalDiff.z) axis = 'x';
-                   if (absLocalDiff.z > absLocalDiff.x && absLocalDiff.z > absLocalDiff.y) axis = 'z';
-
-                   console.log(`[MortiseTenon] Local Diff: ${JSON.stringify(localDiff)}, Selected Axis: ${axis}`);
-
-                   setObjects(prev => {
-                     return prev.map(o => {
-                       // Modify Tenon: Extend Length
-                       if (o.id === tenon.id) {
-                         // Determine direction based on local relative position
-                         let tenonEnd = 0;
-                         let newDims = { ...o.dims };
-                         let shift = new THREE.Vector3();
-
-                         if (axis === 'x') {
-                            // If localDiff.x > 0, Mortise is to the Right -> Extend Right (+x)
-                            // To extend Right, we add to width, and shift center by +amount/2
-                            const isRight = localDiff.x > 0;
-                            tenonEnd = isRight ? 1 : -1; 
-                            newDims.w = o.dims.w + insertionDepth;
-                            shift.set((insertionDepth / 2) * tenonEnd, 0, 0);
-                         } else if (axis === 'y') {
-                            const isTop = localDiff.y > 0;
-                            tenonEnd = isTop ? 1 : -1;
-                            newDims.h = o.dims.h + insertionDepth;
-                            shift.set(0, (insertionDepth / 2) * tenonEnd, 0);
-                         } else { // z
-                            const isFront = localDiff.z > 0;
-                            tenonEnd = isFront ? 1 : -1;
-                            newDims.d = o.dims.d + insertionDepth;
-                            shift.set(0, 0, (insertionDepth / 2) * tenonEnd);
-                         }
-
-                         const rot = new THREE.Euler(...o.rot);
-                         const quat = new THREE.Quaternion().setFromEuler(rot);
-                         const worldShift = shift.clone().applyQuaternion(quat);
+                         const result = calculateMortiseTenon(tenon, mortise, insertionDepth);
                          
-                         // Fix: Update CSG Operations (Holes) to stay in place
-                         // Since we are shifting the object center, we must shift the holes in the opposite direction
-                         // to keep them in the same world position.
-                         const newCsgOperations = (o.csgOperations || []).map(op => {
-                           if (op.relativeTransform && op.relativeTransform.pos) {
-                             const oldPos = new THREE.Vector3(...op.relativeTransform.pos);
-                             const newPos = oldPos.clone().sub(shift); // shift is already in local space
-                             return {
-                               ...op,
-                               relativeTransform: {
-                                 ...op.relativeTransform,
-                                 pos: newPos.toArray()
-                               }
-                             };
-                           }
-                           return op;
-                         });
-
-                         return {
-                           ...o,
-                           dims: newDims,
-                           pos: [o.pos[0] + worldShift.x, o.pos[1] + worldShift.y, o.pos[2] + worldShift.z],
-                           csgOperations: newCsgOperations
-                         };
-                       }
-                       // Modify Mortise: Subtract Tenon (using NEW dimensions)
-                       if (o.id === mortise.id) {
-                          // Calculate Tenon's New World Position for the subtraction
-                          let tenonEnd = 0;
-                          let shift = new THREE.Vector3();
-                          let newTenonDims = { ...tenon.dims };
-
-                          if (axis === 'x') {
-                             const isRight = localDiff.x > 0;
-                             tenonEnd = isRight ? 1 : -1;
-                             shift.set((insertionDepth / 2) * tenonEnd, 0, 0);
-                             newTenonDims.w += insertionDepth;
-                          } else if (axis === 'y') {
-                             const isTop = localDiff.y > 0;
-                             tenonEnd = isTop ? 1 : -1;
-                             shift.set(0, (insertionDepth / 2) * tenonEnd, 0);
-                             newTenonDims.h += insertionDepth;
-                          } else { // z
-                             const isFront = localDiff.z > 0;
-                             tenonEnd = isFront ? 1 : -1;
-                             shift.set(0, 0, (insertionDepth / 2) * tenonEnd);
-                             newTenonDims.d += insertionDepth;
-                          }
-
-                          const tenonRot = new THREE.Euler(...tenon.rot);
-                          const tenonQuat = new THREE.Quaternion().setFromEuler(tenonRot);
-                          const worldShift = shift.applyQuaternion(tenonQuat);
-                          const newTenonPos = [tenon.pos[0] + worldShift.x, tenon.pos[1] + worldShift.y, tenon.pos[2] + worldShift.z];
-                          
-                          const tenonObjForCalc = {
-                            ...tenon,
-                            pos: newTenonPos,
-                            dims: newTenonDims
-                          };
-
-                          const relTransform = getRelativeTransform(tenonObjForCalc, o);
-                          
-                          if (relTransform) {
-                            const modifier = {
-                              id: `sub_${tenon.id}_${Date.now()}`,
-                              type: tenon.type,
-                              dims: tenonObjForCalc.dims,
-                              relativeTransform: relTransform,
-                              scale: tenon.scale || [1, 1, 1]
-                            };
-                            return {
-                              ...o,
-                              csgOperations: [...(o.csgOperations || []), modifier]
-                            };
-                          }
-                       }
-                       return o;
-                     });
-                   });
+                         if (result) {
+                           setObjects(prev => prev.map(o => {
+                             if (o.id === result.tenon.id) return result.tenon;
+                             if (o.id === result.mortise.id) return result.mortise;
+                             return o;
+                           }));
+                         }
+                     }
                    }
-                 }
 
                  // Logic for Cross-Lap Joint
                  if (type === 'cross-lap') {
@@ -348,179 +216,23 @@ const RightSidebar = ({
                     if (partA && partB) {
                       console.log("[CrossLap] Parts found:", partA.name, partB.name);
 
-                      // 0. Check Intersection (Robust World AABB)
-                      const getWorldBounds = (p) => {
-                         const { w, h, d } = p.dims;
-                         const hw = w / 2, hh = h / 2, hd = d / 2;
-                         // 8 corners of local box
-                         const corners = [
-                           new THREE.Vector3(hw, hh, hd), new THREE.Vector3(hw, hh, -hd),
-                           new THREE.Vector3(hw, -hh, hd), new THREE.Vector3(hw, -hh, -hd),
-                           new THREE.Vector3(-hw, hh, hd), new THREE.Vector3(-hw, hh, -hd),
-                           new THREE.Vector3(-hw, -hh, hd), new THREE.Vector3(-hw, -hh, -hd)
-                         ];
-                         
-                         const rot = new THREE.Euler(...(p.rot || [0, 0, 0]));
-                         const quat = new THREE.Quaternion().setFromEuler(rot);
-                         const pos = new THREE.Vector3(...p.pos);
-                         
-                         const min = new THREE.Vector3(Infinity, Infinity, Infinity);
-                         const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-                         
-                         corners.forEach(c => {
-                           c.applyQuaternion(quat).add(pos);
-                           min.min(c);
-                           max.max(c);
-                         });
-                         
-                         return { min, max };
-                      };
-
-                      const bA = getWorldBounds(partA);
-                      const bB = getWorldBounds(partB);
-
-                      const intersectMin = bA.min.clone().max(bB.min);
-                      const intersectMax = bA.max.clone().min(bB.max);
-
-                      // Check if there is a positive intersection volume
-                      const sizeX = intersectMax.x - intersectMin.x;
-                      const sizeY = intersectMax.y - intersectMin.y;
-                      const sizeZ = intersectMax.z - intersectMin.z;
-
-                      console.log("[CrossLap] Intersection Size:", sizeX, sizeY, sizeZ);
-
-                      // Use a small epsilon to avoid floating point issues, but ensure it's > 0
-                      const epsilon = 1.0; // Require at least 1mm intersection
-                      if (sizeX < epsilon || sizeY < epsilon || sizeZ < epsilon) {
-                         console.warn("[CrossLap] Intersection too small!");
+                      try {
+                        const result = calculateCrossLap(partA, partB);
+                        if (result) {
+                           setObjects(prev => prev.map(o => {
+                             if (o.id === result.partA.id) return result.partA;
+                             if (o.id === result.partB.id) return result.partB;
+                             return o;
+                           }));
+                        }
+                      } catch (error) {
+                         console.warn("[CrossLap] Error:", error.message);
                          showToast({
                            type: "error",
-                           text: "Parts must intersect to create a Cross-Lap Joint.",
+                           text: error.message,
                            ttl: 3000
                          });
-                         return;
                       }
-
-                      // 1. Determine Stack Axis (the axis along which they are stacked/crossing)
-                      // Heuristic:
-                      // - If intersection is "Plate-like" (2 large, 1 small) -> Use Smallest (Thickness)
-                      // - If intersection is "Column-like" (1 large, 2 small) -> Use Largest (Length/Height)
-                      
-                      const dims = [
-                        { axis: 'x', val: sizeX },
-                        { axis: 'y', val: sizeY },
-                        { axis: 'z', val: sizeZ }
-                      ];
-                      
-                      // Sort by size
-                      dims.sort((a, b) => a.val - b.val);
-                      
-                      const min = dims[0];
-                      const median = dims[1];
-                      const max = dims[2];
-                      
-                      let stackAxis = min.axis; // Default to smallest (Plate-like behavior)
-                      
-                      // Check for Column-like (Max is significantly larger than Median)
-                      // Using 1.5x threshold
-                      if (max.val > median.val * 1.5) {
-                         stackAxis = max.axis;
-                         console.log("[CrossLap] Detected Column-like intersection. Using Largest Axis:", stackAxis);
-                      } else {
-                         console.log("[CrossLap] Detected Plate-like intersection. Using Smallest Axis:", stackAxis);
-                      }
-                      
-                      console.log("[CrossLap] Intersection Box:", sizeX, sizeY, sizeZ, "Selected Stack Axis:", stackAxis);
-
-                      // 2. Calculate Cut Plane (Center of Intersection)
-                      const center = new THREE.Vector3().addVectors(intersectMin, intersectMax).multiplyScalar(0.5);
-                      const splitPlane = center[stackAxis];
-                      
-                      console.log("[CrossLap] Split Plane (World):", splitPlane);
-
-                      setObjects(prev => prev.map(o => {
-                        // Modify Top Part (Part A): Cut from Bottom (remove bottom half of intersection)
-                        // We use Part B as the cutter. We want to keep the Top half of A.
-                        // So we need to remove the volume BELOW the split plane.
-                        // We shift Part B so its TOP face (in World Space) aligns with the split plane.
-                        if (o.id === partA.id) {
-                           const cutter = partB;
-                           // Use World Bounds of the cutter (Part B) to find its current Top
-                           const cutterCurrentTop = bB.max[stackAxis];
-                           
-                           // We want Cutter Top = Split Plane
-                           // Shift = Target - Current
-                           // But wait, if we move the cutter, we change the intersection.
-                           // We are creating a "virtual" cutter based on Part B.
-                           
-                           // Shift = Target - Current
-                           const shiftVal = splitPlane - cutterCurrentTop;
-                           
-                           console.log("[CrossLap] Cutting Top Part (A). Cutter (B) Current Top:", cutterCurrentTop, "Target:", splitPlane, "Shift:", shiftVal);
-
-                           const newCutterPos = [...cutter.pos];
-                           if (stackAxis === 'x') newCutterPos[0] += shiftVal;
-                           if (stackAxis === 'y') newCutterPos[1] += shiftVal;
-                           if (stackAxis === 'z') newCutterPos[2] += shiftVal;
-                           
-                           const cutterObj = { ...cutter, pos: newCutterPos };
-                           const relTransform = getRelativeTransform(cutterObj, o);
-                           
-                           if (relTransform) {
-                             return {
-                               ...o,
-                               csgOperations: [...(o.csgOperations || []), {
-                                 id: `cross_${cutter.id}_${Date.now()}`,
-                                 type: cutter.type,
-                                 dims: cutter.dims,
-                                 relativeTransform: relTransform,
-                                 scale: cutter.scale || [1, 1, 1],
-                                 operation: 'subtract'
-                               }]
-                             };
-                           }
-                        }
-                        
-                        // Modify Bottom Part (Part B): Cut from Top (remove top half of intersection)
-                        // We use Part A as the cutter. We want to keep the Bottom half of B.
-                        // So we need to remove the volume ABOVE the split plane.
-                        // We shift Part A so its BOTTOM face (in World Space) aligns with the split plane.
-                        if (o.id === partB.id) {
-                           const cutter = partA;
-                           // Use World Bounds of the cutter (Part A) to find its current Bottom
-                           const cutterCurrentBottom = bA.min[stackAxis];
-                           
-                           // We want Cutter Bottom = Split Plane
-                           // Shift = Target - Current
-                           const shiftVal = splitPlane - cutterCurrentBottom;
-                           
-                           console.log("[CrossLap] Cutting Bottom Part (B). Cutter (A) Current Bottom:", cutterCurrentBottom, "Target:", splitPlane, "Shift:", shiftVal);
-
-                           const newCutterPos = [...cutter.pos];
-                           if (stackAxis === 'x') newCutterPos[0] += shiftVal;
-                           if (stackAxis === 'y') newCutterPos[1] += shiftVal;
-                           if (stackAxis === 'z') newCutterPos[2] += shiftVal;
-                           
-                           const cutterObj = { ...cutter, pos: newCutterPos };
-                           const relTransform = getRelativeTransform(cutterObj, o);
-                           
-                           if (relTransform) {
-                             return {
-                               ...o,
-                               csgOperations: [...(o.csgOperations || []), {
-                                 id: `cross_${cutter.id}_${Date.now()}`,
-                                 type: cutter.type,
-                                 dims: cutter.dims,
-                                 relativeTransform: relTransform,
-                                 scale: cutter.scale || [1, 1, 1],
-                                 operation: 'subtract'
-                               }]
-                             };
-                           }
-                        }
-                        
-                        return o;
-                      }));
                     }
                  }
 

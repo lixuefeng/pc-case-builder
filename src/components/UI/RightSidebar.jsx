@@ -22,6 +22,7 @@ const RightSidebar = ({
 }) => {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const [connectionType, setConnectionType] = React.useState("mortise-tenon");
 
   // Multi-selection Logic
   if (selectedIds && selectedIds.length === 2) {
@@ -29,64 +30,133 @@ const RightSidebar = ({
     const partB = objects.find(o => o.id === selectedIds[1]);
     
     if (partA && partB) {
+      const cardStyle = {
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+      };
+
+      const labelStyle = {
+        fontSize: 12,
+        color: "#64748b",
+        marginBottom: 4,
+        display: "block",
+        fontWeight: 600,
+      };
+
+      const typeBtnStyle = (isActive) => ({
+        flex: 1,
+        padding: "10px",
+        borderRadius: 6,
+        border: isActive ? "1px solid #3b82f6" : "1px solid #cbd5e1",
+        background: isActive ? "#eff6ff" : "#fff",
+        color: isActive ? "#1d4ed8" : "#64748b",
+        fontWeight: 600,
+        cursor: "pointer",
+        fontSize: 13,
+        transition: "all 0.2s"
+      });
+
       return (
         <div style={{
-          width: 300,
+          width: 320,
           background: "rgba(255,255,255,0.96)",
           borderLeft: "1px solid #e5e7eb",
           padding: 16,
           height: "100%",
           overflowY: "auto",
-          color: "#0f172a"
+          color: "#0f172a",
+          display: "flex",
+          flexDirection: "column"
         }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, borderBottom: "1px solid #e5e7eb", paddingBottom: 8 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#0f172a" }}>
             Connection
           </h3>
           
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#64748b" }}>Part A</div>
-            <div style={{ padding: 8, background: "#f1f5f9", borderRadius: 6, fontSize: 14 }}>
-               {partA.name || partA.type}
+          {/* Part A Card */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>First Selected</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ 
+                width: 12, 
+                height: 12, 
+                borderRadius: "50%", 
+                background: "#ef4444", // Red (Selection Highlight)
+                border: "1px solid rgba(0,0,0,0.1)"
+              }} />
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{partA.name || partA.type}</div>
             </div>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "#64748b" }}>Part B</div>
-            <div style={{ padding: 8, background: "#f1f5f9", borderRadius: 6, fontSize: 14 }}>
-               {partB.name || partB.type}
+          {/* Part B Card */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>Second Selected</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ 
+                width: 12, 
+                height: 12, 
+                borderRadius: "50%", 
+                background: "#eab308", // Yellow (Selection Highlight)
+                border: "1px solid rgba(0,0,0,0.1)"
+              }} />
+              <div style={{ fontSize: 14, fontWeight: 500 }}>{partB.name || partB.type}</div>
             </div>
           </div>
 
-          <div style={{ marginTop: 24, borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Connection Type</div>
-            <select style={{
-              width: "100%",
-              padding: "8px",
-              borderRadius: 6,
-              border: "1px solid #cbd5e1",
-              marginBottom: 16,
-              fontSize: 14
-            }} id="conn-type-select">
-              <option value="mortise-tenon">Mortise & Tenon</option>
-              <option value="external-plate">External Plate</option>
-              <option value="blind-joint">Blind Joint</option>
-              <option value="cross-lap">Cross-Lap Joint</option>
-              <option value="shear-boss">Shear Boss</option>
-            </select>
-            
+          {/* Connection Type Selection */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>Connection Type</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button 
+                style={typeBtnStyle(connectionType === "mortise-tenon")}
+                onClick={() => setConnectionType("mortise-tenon")}
+              >
+                Mortise & Tenon
+              </button>
+              <button 
+                style={typeBtnStyle(connectionType === "cross-lap")}
+                onClick={() => setConnectionType("cross-lap")}
+              >
+                Cross-Lap
+              </button>
+            </div>
+
+            {/* Dynamic Explanation */}
+            <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
+              {connectionType === "mortise-tenon" ? (
+                <>
+                  <strong>Selection Order:</strong><br/>
+                  1. <span style={{color: "#ef4444", fontWeight: "bold"}}>First Selected</span> inserts into Second Selected.<br/>
+                  2. <span style={{color: "#eab308", fontWeight: "bold"}}>Second Selected</span> receives the hole.
+                </>
+              ) : (
+                <>
+                  <strong>Selection Order:</strong><br/>
+                  1. <span style={{color: "#ef4444", fontWeight: "bold"}}>First Selected</span>: Top Part (Cut from Bottom).<br/>
+                  2. <span style={{color: "#eab308", fontWeight: "bold"}}>Second Selected</span>: Bottom Part (Cut from Top).
+                </>
+              )}
+            </div>
+
+            {/* Create Button */}
             <button
               style={{
                 width: "100%",
-                padding: "10px",
+                padding: "12px",
                 background: "#3b82f6",
                 color: "white",
                 border: "none",
-                borderRadius: 6,
+                borderRadius: 8,
                 fontWeight: 600,
-                cursor: "pointer"
+                cursor: "pointer",
+                fontSize: 14,
+                boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
               }}
               onClick={() => {
-                 const type = document.getElementById("conn-type-select").value;
+                 const type = connectionType;
                  
                  // Logic for Mortise & Tenon
                  if (type === 'mortise-tenon') {
@@ -138,12 +208,31 @@ const RightSidebar = ({
 
                          const rot = new THREE.Euler(...o.rot);
                          const quat = new THREE.Quaternion().setFromEuler(rot);
-                         const worldShift = shift.applyQuaternion(quat);
+                         const worldShift = shift.clone().applyQuaternion(quat);
                          
+                         // Fix: Update CSG Operations (Holes) to stay in place
+                         // Since we are shifting the object center, we must shift the holes in the opposite direction
+                         // to keep them in the same world position.
+                         const newCsgOperations = (o.csgOperations || []).map(op => {
+                           if (op.relativeTransform && op.relativeTransform.pos) {
+                             const oldPos = new THREE.Vector3(...op.relativeTransform.pos);
+                             const newPos = oldPos.clone().sub(shift); // shift is already in local space
+                             return {
+                               ...op,
+                               relativeTransform: {
+                                 ...op.relativeTransform,
+                                 pos: newPos.toArray()
+                               }
+                             };
+                           }
+                           return op;
+                         });
+
                          return {
                            ...o,
                            dims: newDims,
-                           pos: [o.pos[0] + worldShift.x, o.pos[1] + worldShift.y, o.pos[2] + worldShift.z]
+                           pos: [o.pos[0] + worldShift.x, o.pos[1] + worldShift.y, o.pos[2] + worldShift.z],
+                           csgOperations: newCsgOperations
                          };
                        }
                        // Modify Mortise: Subtract Tenon (using NEW dimensions)
@@ -238,96 +327,62 @@ const RightSidebar = ({
 
                       const bA = getWorldBounds(partA);
                       const bB = getWorldBounds(partB);
-                      
-                      console.log("[CrossLap] Part A Bounds:", bA);
-                      console.log("[CrossLap] Part B Bounds:", bB);
 
-                      const intersects = (
-                        bA.min.x < bB.max.x && bA.max.x > bB.min.x &&
-                        bA.min.y < bB.max.y && bA.max.y > bB.min.y &&
-                        bA.min.z < bB.max.z && bA.max.z > bB.min.z
-                      );
-                      
-                      // Calculate Intersection Box
-                      const intersectMin = {
-                        x: Math.max(bA.min.x, bB.min.x),
-                        y: Math.max(bA.min.y, bB.min.y),
-                        z: Math.max(bA.min.z, bB.min.z)
-                      };
-                      const intersectMax = {
-                        x: Math.min(bA.max.x, bB.max.x),
-                        y: Math.min(bA.max.y, bB.max.y),
-                        z: Math.min(bA.max.z, bB.max.z)
-                      };
-                      
-                      const volume = 
-                        Math.max(0, intersectMax.x - intersectMin.x) * 
-                        Math.max(0, intersectMax.y - intersectMin.y) * 
-                        Math.max(0, intersectMax.z - intersectMin.z);
+                      const intersectMin = new THREE.Vector3().maxVectors(bA.min, bB.min);
+                      const intersectMax = new THREE.Vector3().minVectors(bA.max, bB.max);
 
-                      if (!intersects || volume < 1.0) {
-                        showToast({
-                          type: "error",
-                          text: "Parts do not intersect significantly! Please move them closer.",
-                          ttl: 3000
-                        });
-                        return;
+                      // Check if there is a positive intersection volume
+                      const sizeX = intersectMax.x - intersectMin.x;
+                      const sizeY = intersectMax.y - intersectMin.y;
+                      const sizeZ = intersectMax.z - intersectMin.z;
+
+                      // Use a small epsilon to avoid floating point issues, but ensure it's > 0
+                      const epsilon = 1.0; // Require at least 1mm intersection
+                      if (sizeX < epsilon || sizeY < epsilon || sizeZ < epsilon) {
+                         showToast({
+                           type: "error",
+                           text: "Parts must intersect to create a Cross-Lap Joint.",
+                           ttl: 3000
+                         });
+                         return;
                       }
-                      
 
+                      // 1. Determine Stack Axis (the axis along which they are stacked/crossing)
+                      // Usually the smallest dimension of the intersection box, OR the axis where they overlap the least relative to their own size?
+                      // Actually, for a cross-lap, the cut is usually along the "thickness" direction.
+                      // Let's pick the axis with the SMALLEST intersection dimension as the "thickness" to cut through?
+                      // No, we want to cut halfway through the "thickness".
+                      // Let's look at the parts' local dimensions.
+                      // Simplified: Use the axis with the smallest intersection extent.
+                      const dims = { x: sizeX, y: sizeY, z: sizeZ };
+                      // Prioritize Y (vertical) if it's small, as that's common for stacking.
+                      let stackAxis = 'y';
+                      if (dims.x < dims.y && dims.x < dims.z) stackAxis = 'x';
+                      if (dims.z < dims.x && dims.z < dims.y) stackAxis = 'z';
                       
-                      console.log("[CrossLap] Intersection Box:", { min: intersectMin, max: intersectMax });
+                      console.log("[CrossLap] Intersection Box:", dims, "Selected Stack Axis:", stackAxis);
 
-                      // Determine Stack Axis (Thickness Axis)
-                      // We want to cut along the "thickness" of the parts.
-                      // 1. Find the smallest dimension for each part.
-                      const getMinAxis = (dims) => {
-                         const min = Math.min(dims.w, dims.h, dims.d);
-                         if (min === dims.h) return 'y'; // Prioritize Y (Vertical) for ties
-                         if (min === dims.w) return 'x';
-                         return 'z';
-                      };
-                      const axisA = getMinAxis(partA.dims);
-                      const axisB = getMinAxis(partB.dims);
+                      // 2. Calculate Cut Plane (Center of Intersection)
+                      const center = new THREE.Vector3().addVectors(intersectMin, intersectMax).multiplyScalar(0.5);
+                      const splitPlane = center[stackAxis];
                       
-                      let stackAxis = 'y'; // Default to Y
-                      if (axisA === axisB) {
-                        stackAxis = axisA;
-                      } else {
-                        // If they disagree, check if one matches Y.
-                        if (axisA === 'y' || axisB === 'y') stackAxis = 'y';
-                        else stackAxis = axisA; // Fallback
-                      }
-                      
-                      console.log("[CrossLap] Stack Axis (Derived from Parts):", stackAxis, "AxisA:", axisA, "AxisB:", axisB);
+                      console.log("[CrossLap] Split Plane (World):", splitPlane);
 
-                      // Calculate Intersection Center (Split Plane)
-                      const intersectCenter = {
-                        x: (intersectMin.x + intersectMax.x) / 2,
-                        y: (intersectMin.y + intersectMax.y) / 2,
-                        z: (intersectMin.z + intersectMax.z) / 2
-                      };
-                      const splitPlane = intersectCenter[stackAxis];
-                      console.log("[CrossLap] Split Plane:", splitPlane);
-
-                      // 2. Determine Top/Bottom based on SELECTION ORDER
-                      // Part A (First Selected) = "Top" Role (Keeps Top Half, Cuts Bottom)
-                      // Part B (Second Selected) = "Bottom" Role (Keeps Bottom Half, Cuts Top)
-                      const topPart = partA; 
-                      const bottomPart = partB;
-                      
-                      // 3. Apply Modifiers
                       setObjects(prev => prev.map(o => {
                         // Modify Top Part (Part A): Cut from Bottom (remove bottom half of intersection)
                         // We use Part B as the cutter. We want to keep the Top half of A.
                         // So we need to remove the volume BELOW the split plane.
                         // We shift Part B so its TOP face (in World Space) aligns with the split plane.
-                        if (o.id === topPart.id) {
-                           const cutter = bottomPart;
+                        if (o.id === partA.id) {
+                           const cutter = partB;
                            // Use World Bounds of the cutter (Part B) to find its current Top
                            const cutterCurrentTop = bB.max[stackAxis];
                            
                            // We want Cutter Top = Split Plane
+                           // Shift = Target - Current
+                           // But wait, if we move the cutter, we change the intersection.
+                           // We are creating a "virtual" cutter based on Part B.
+                           
                            // Shift = Target - Current
                            const shiftVal = splitPlane - cutterCurrentTop;
                            
@@ -360,8 +415,8 @@ const RightSidebar = ({
                         // We use Part A as the cutter. We want to keep the Bottom half of B.
                         // So we need to remove the volume ABOVE the split plane.
                         // We shift Part A so its BOTTOM face (in World Space) aligns with the split plane.
-                        if (o.id === bottomPart.id) {
-                           const cutter = topPart;
+                        if (o.id === partB.id) {
+                           const cutter = partA;
                            // Use World Bounds of the cutter (Part A) to find its current Bottom
                            const cutterCurrentBottom = bA.min[stackAxis];
                            
@@ -406,58 +461,62 @@ const RightSidebar = ({
             >
               Create Connection
             </button>
+          </div>
+          
+          {/* Subtraction Section Header */}
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, marginTop: 24, color: "#0f172a" }}>
+            Subtraction
+          </h3>
+
+          {/* Subtraction Button (Separate Card) */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>Subtraction</label>
             
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 8, padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0" }}>
-                <strong>Selection Order:</strong><br/>
-                1. <span style={{color: "#ef4444", fontWeight: "bold"}}>Red (Tenon)</span>: The part that inserts.<br/>
-                2. <span style={{color: "#eab308", fontWeight: "bold"}}>Yellow (Mortise)</span>: The part receiving the cut.
+            <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
+               <strong>Effect:</strong><br/>
+               Removes <span style={{color: "#eab308", fontWeight: "bold"}}>Second Selected</span> from <span style={{color: "#ef4444", fontWeight: "bold"}}>First Selected</span>.
             </div>
 
-            <div style={{ marginTop: 16, borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-                 <button
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    background: "#ef4444", // Red for destructive/subtractive
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    fontWeight: 600,
-                    cursor: "pointer"
-                  }}
-                  onClick={() => {
-                     // Static Subtraction Logic
-                     if (partA && partB) {
-                        const modifier = {
-                          ...partB,
-                          id: `sub_${partB.id}_${Date.now()}`, // Generate unique ID for the modifier
-                          sourceId: partB.id, // Keep reference to original ID
-                          operation: 'subtract',
-                          relativeTransform: getRelativeTransform(partB, partA),
-                          scale: partB.scale || [1, 1, 1] // Capture scale
-                        };
+               <button
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  background: "#ef4444", // Red for destructive/subtractive
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+                onClick={() => {
+                   // Static Subtraction Logic
+                   if (partA && partB) {
+                      const modifier = {
+                        ...partB,
+                        id: `sub_${partB.id}_${Date.now()}`, // Generate unique ID for the modifier
+                        sourceId: partB.id, // Keep reference to original ID
+                        operation: 'subtract',
+                        relativeTransform: getRelativeTransform(partB, partA),
+                        scale: partB.scale || [1, 1, 1] // Capture scale
+                      };
 
-                        setObjects(prev => {
-                          const next = prev.map(o => {
-                            if (o.id === partA.id) {
-                              return {
-                                ...o,
-                                csgOperations: [...(o.csgOperations || []), modifier]
-                              };
-                            }
-                            return o;
-                          });
-                          return next;
+                      setObjects(prev => {
+                        const next = prev.map(o => {
+                          if (o.id === partA.id) {
+                            return {
+                              ...o,
+                              csgOperations: [...(o.csgOperations || []), modifier]
+                            };
+                          }
+                          return o;
                         });
-                     }
-                  }}
-                >
-                  Subtract (A - B)
-                </button>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, textAlign: "center" }}>
-                    Subtracts Part B from Part A
-                </div>
-            </div>
+                        return next;
+                      });
+                   }
+                }}
+              >
+                Subtract
+              </button>
           </div>
         </div>
       );
@@ -512,10 +571,19 @@ const RightSidebar = ({
     handleChange("rot", newRot);
   };
 
+  const cardStyle = {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+  };
+
   const sectionStyle = {
-    marginBottom: 20,
-    borderBottom: "1px solid #e5e7eb",
-    paddingBottom: 16,
+    marginBottom: 0, // Removed margin as card handles it
+    borderBottom: "none", // Removed border as card handles it
+    paddingBottom: 0,
   };
 
   const labelStyle = {
@@ -574,119 +642,125 @@ const RightSidebar = ({
       </div>
 
       {/* Basic Info */}
-      <div style={sectionStyle}>
-        <label style={labelStyle}>{t("prop.name")}</label>
-        <input
-          style={inputStyle}
-          value={selectedObject.name || selectedObject.id}
-          onChange={(e) => handleChange("name", e.target.value)}
-        />
-        <div style={rowStyle}>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>{t("prop.type")}</label>
-            <div style={{ fontSize: 13, color: "#334155" }}>{selectedObject.type}</div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <label style={labelStyle}>{t("prop.id")}</label>
-            <div style={{ fontSize: 13, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {selectedObject.id}
+      <div style={cardStyle}>
+        <div style={{...sectionStyle, marginBottom: 12}}>
+          <label style={labelStyle}>{t("prop.name")}</label>
+          <input
+            style={inputStyle}
+            value={selectedObject.name || selectedObject.id}
+            onChange={(e) => handleChange("name", e.target.value)}
+          />
+          <div style={rowStyle}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>{t("prop.type")}</label>
+              <div style={{ fontSize: 13, color: "#334155" }}>{selectedObject.type}</div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>{t("prop.id")}</label>
+              <div style={{ fontSize: 13, color: "#94a3b8", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {selectedObject.id}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Transform */}
-      <div style={sectionStyle}>
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.transform")}</div>
-        
-        <label style={labelStyle}>{t("prop.position")}</label>
-        <div style={rowStyle}>
-          <input
-            type="number"
-            style={inputStyle}
-            value={selectedObject.pos?.[0] ?? 0}
-            onChange={(e) => handlePosChange("x", e.target.value)}
-            placeholder="X"
-          />
-          <input
-            type="number"
-            style={inputStyle}
-            value={selectedObject.pos?.[1] ?? 0}
-            onChange={(e) => handlePosChange("y", e.target.value)}
-            placeholder="Y"
-          />
-          <input
-            type="number"
-            style={inputStyle}
-            value={selectedObject.pos?.[2] ?? 0}
-            onChange={(e) => handlePosChange("z", e.target.value)}
-            placeholder="Z"
-          />
-        </div>
+      <div style={cardStyle}>
+        <div style={{...sectionStyle, marginBottom: 12}}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.transform")}</div>
+          
+          <label style={labelStyle}>{t("prop.position")}</label>
+          <div style={rowStyle}>
+            <input
+              type="number"
+              style={inputStyle}
+              value={selectedObject.pos?.[0] ?? 0}
+              onChange={(e) => handlePosChange("x", e.target.value)}
+              placeholder="X"
+            />
+            <input
+              type="number"
+              style={inputStyle}
+              value={selectedObject.pos?.[1] ?? 0}
+              onChange={(e) => handlePosChange("y", e.target.value)}
+              placeholder="Y"
+            />
+            <input
+              type="number"
+              style={inputStyle}
+              value={selectedObject.pos?.[2] ?? 0}
+              onChange={(e) => handlePosChange("z", e.target.value)}
+              placeholder="Z"
+            />
+          </div>
 
-        <label style={labelStyle}>{t("prop.rotation") || "Rotation (Deg)"}</label>
-        <div style={rowStyle}>
-          <input
-            type="number"
-            style={inputStyle}
-            value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0))}
-            onChange={(e) => handleRotChange("x", e.target.value)}
-            placeholder="X"
-          />
-          <input
-            type="number"
-            style={inputStyle}
-            value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[1] ?? 0))}
-            onChange={(e) => handleRotChange("y", e.target.value)}
-            placeholder="Y"
-          />
-          <input
-            type="number"
-            style={inputStyle}
-            value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[2] ?? 0))}
-            onChange={(e) => handleRotChange("z", e.target.value)}
-            placeholder="Z"
-          />
-        </div>
+          <label style={labelStyle}>{t("prop.rotation") || "Rotation (Deg)"}</label>
+          <div style={rowStyle}>
+            <input
+              type="number"
+              style={inputStyle}
+              value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0))}
+              onChange={(e) => handleRotChange("x", e.target.value)}
+              placeholder="X"
+            />
+            <input
+              type="number"
+              style={inputStyle}
+              value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[1] ?? 0))}
+              onChange={(e) => handleRotChange("y", e.target.value)}
+              placeholder="Y"
+            />
+            <input
+              type="number"
+              style={inputStyle}
+              value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[2] ?? 0))}
+              onChange={(e) => handleRotChange("z", e.target.value)}
+              placeholder="Z"
+            />
+          </div>
 
-        <label style={labelStyle}>{t("prop.dimensions")}</label>
-        <div style={rowStyle}>
-          <input
-            type="number"
-            style={inputStyle}
-            value={selectedObject.dims?.w ?? 0}
-            onChange={(e) => handleDimChange("w", e.target.value)}
-            placeholder="W"
-          />
-          <input
-            type="number"
-            style={inputStyle}
-            value={selectedObject.dims?.h ?? 0}
-            onChange={(e) => handleDimChange("h", e.target.value)}
-            placeholder="H"
-          />
-          <input
-            type="number"
-            style={inputStyle}
-            value={selectedObject.dims?.d ?? 0}
-            onChange={(e) => handleDimChange("d", e.target.value)}
-            placeholder="D"
-          />
+          <label style={labelStyle}>{t("prop.dimensions")}</label>
+          <div style={rowStyle}>
+            <input
+              type="number"
+              style={inputStyle}
+              value={selectedObject.dims?.w ?? 0}
+              onChange={(e) => handleDimChange("w", e.target.value)}
+              placeholder="W"
+            />
+            <input
+              type="number"
+              style={inputStyle}
+              value={selectedObject.dims?.h ?? 0}
+              onChange={(e) => handleDimChange("h", e.target.value)}
+              placeholder="H"
+            />
+            <input
+              type="number"
+              style={inputStyle}
+              value={selectedObject.dims?.d ?? 0}
+              onChange={(e) => handleDimChange("d", e.target.value)}
+              placeholder="D"
+            />
+          </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div style={sectionStyle}>
-        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.actions")}</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button style={btnStyle} onClick={onDuplicate}>{t("action.copy")}</button>
-          <button style={{ ...btnStyle, color: "#ef4444", borderColor: "#fca5a5" }} onClick={onDelete}>{t("action.delete")}</button>
-          <button style={btnStyle} onClick={() => handleChange("visible", !selectedObject.visible)}>
-            {selectedObject.visible === false ? "Show" : "Hide"}
-          </button>
-          {selectedObject.type === "group" && (
-            <button style={btnStyle} onClick={onUngroup}>{t("action.ungroup")}</button>
-          )}
+      <div style={cardStyle}>
+        <div style={{...sectionStyle, marginBottom: 12}}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.actions")}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button style={btnStyle} onClick={onDuplicate}>{t("action.copy")}</button>
+            <button style={{ ...btnStyle, color: "#ef4444", borderColor: "#fca5a5" }} onClick={onDelete}>{t("action.delete")}</button>
+            <button style={btnStyle} onClick={() => handleChange("visible", !selectedObject.visible)}>
+              {selectedObject.visible === false ? "Show" : "Hide"}
+            </button>
+            {selectedObject.type === "group" && (
+              <button style={btnStyle} onClick={onUngroup}>{t("action.ungroup")}</button>
+            )}
+          </div>
         </div>
       </div>
 

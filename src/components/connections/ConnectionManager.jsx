@@ -1,9 +1,6 @@
 import React from 'react';
 import MortiseTenon from './MortiseTenon';
-import ExternalPlate from './ExternalPlate';
-import BlindJoint from './BlindJoint';
 import CrossLapJoint from './CrossLapJoint';
-import ShearBoss from './ShearBoss';
 
 const ConnectionManager = ({ connections, objects }) => {
   if (!connections || connections.length === 0) return null;
@@ -30,14 +27,8 @@ const ConnectionManager = ({ connections, objects }) => {
         switch (conn.type) {
           case 'mortise-tenon':
             return null; // Handled by geometry modification
-          case 'external-plate':
-            return <ExternalPlate key={conn.id} {...props} />;
-          case 'blind-joint':
-            return <BlindJoint key={conn.id} {...props} />;
           case 'cross-lap':
             return <CrossLapJoint key={conn.id} {...props} />;
-          case 'shear-boss':
-            return <ShearBoss key={conn.id} {...props} />;
           case 'subtraction':
             return null; // Purely CSG, no extra visual component needed
           default:

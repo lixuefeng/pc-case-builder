@@ -43,22 +43,14 @@ export function usePartModifiers(obj, connections = [], rawObjects = []) {
 
         // 2. Add dynamic modifiers from connections
         connections.forEach(conn => {
+            // Filter out legacy types to prevent errors
+            const validTypes = ['mortise-tenon', 'cross-lap', 'subtraction'];
+            if (!validTypes.includes(conn.type)) return;
+
             // Logic for Cross-Lap Joint (Handled by RightSidebar baking)
             // if (conn.type === 'cross-lap') { ... }
 
-            // Logic for Blind Joint (Part A is cut by Part B)
-            if (conn.type === 'blind-joint') {
-                if (conn.partA === obj.id) { // Only cut if we are Part A (Host)
-                    const otherObj = rawObjects.find(o => o.id === conn.partB);
-                    if (otherObj) {
-                        modifiers.push({
-                            ...otherObj,
-                            operation: 'subtract',
-                            relativeTransform: getRelativeTransform(otherObj, obj)
-                        });
-                    }
-                }
-            }
+
 
             // Logic for Generic Subtraction (Part A is cut by Part B)
             if (conn.type === 'subtraction') {

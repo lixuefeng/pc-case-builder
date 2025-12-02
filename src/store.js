@@ -110,6 +110,13 @@ const sanitizeConnections = (connections, objects) => {
   }
 
   return connections.filter((connection) => {
+    // Filter out legacy/deleted connection types
+    const validTypes = ['mortise-tenon', 'cross-lap', 'subtraction'];
+    if (connection.type && !validTypes.includes(connection.type)) {
+      console.warn(`Removing legacy connection type: ${connection.type}`);
+      return false;
+    }
+
     // Support new schema: partA, partB
     if (connection.partA && connection.partB) {
       const hasPartA = connectorMap.has(connection.partA);

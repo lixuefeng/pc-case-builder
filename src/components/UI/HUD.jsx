@@ -238,6 +238,9 @@ const HUD = ({ transformMode }) => {
                 </div>
               </div>
             )}
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: hasSelection ? 4 : 0, borderTop: hasSelection ? '1px solid #334155' : 'none', paddingTop: hasSelection ? 4 : 0, width: '100%', textAlign: 'center' }}>
+              {t('label.rotateInstructions')}
+            </div>
           </div>
         );
       }

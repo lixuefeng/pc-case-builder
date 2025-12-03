@@ -155,7 +155,7 @@ function EditorContent() {
 
 
 
-  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "ruler" || transformMode === "drill";
+  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "rotate" || transformMode === "ruler" || transformMode === "drill";
 
   const handleTransformModeChange = (mode) => {
     setTransformMode(mode);
@@ -1135,6 +1135,51 @@ function EditorContent() {
       const anchorTransform = computeFaceTransform(anchorObj, faceInfo.face);
       if (!anchorTransform || !movingTransform) {
         setPendingAlignFace(null);
+        return;
+      }
+
+      if (transformMode === "rotate") {
+        // Rotation Alignment Logic
+        // Rotate movingObj so that movingTransform.normal aligns with anchorTransform.normal
+        const startNormal = movingTransform.normal.clone();
+        const targetNormal = anchorTransform.normal.clone();
+        
+        // Calculate the rotation needed to align the normals
+        const alignQuat = new THREE.Quaternion().setFromUnitVectors(startNormal, targetNormal);
+        
+        // Apply this rotation to the object's current rotation
+        const currentQuat = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(
+            movingObj.rot?.[0] ?? 0,
+            movingObj.rot?.[1] ?? 0,
+            movingObj.rot?.[2] ?? 0,
+            "XYZ"
+          )
+        );
+        
+        // Pre-multiply because we are rotating the object in world space?
+        // If we want to rotate the vector N by Q, and N is attached to the object...
+        // NewOrientation = Q * OldOrientation
+        const newQuat = alignQuat.multiply(currentQuat);
+        const newEuler = new THREE.Euler().setFromQuaternion(newQuat, "XYZ");
+
+        setObjects((prev) =>
+          prev.map((obj) =>
+            obj.id === movingObj.id
+              ? {
+                ...obj,
+                rot: [newEuler.x, newEuler.y, newEuler.z],
+              }
+              : obj
+          )
+        );
+        
+        setSelectedIds([movingObj.id]);
+        setPendingAlignFace(null);
+        showToast({
+          type: "success",
+          text: `已将 ${formatPartName(movingObj)} 旋转对齐到 ${formatPartName(anchorObj)}`,
+        });
         return;
       }
 

@@ -87,8 +87,9 @@
     "label.selectFace2": "按住 Shift 选择面 2",
     "label.distance": "距离",
     "label.drillInstructions": "点击面打孔 • 点击孔删除",
-    "label.moveInstructions": "按住 Shift 点击面进行对齐",
-    "label.scaleInstructions": "按住 Shift 点击面进行延伸",
+    "label.moveInstructions": "选择物体或按住 Shift 点击面进行对齐",
+    "label.rotateInstructions": "选择物体或按住 Shift 点击面进行旋转对齐",
+    "label.scaleInstructions": "选择物体或按住 Shift 点击面进行延伸",
   },
   en: {
     "app.title": "PC Case Builder",
@@ -179,6 +180,7 @@
     "label.distance": "Distance",
     "label.drillInstructions": "Click face to drill • Click hole to delete",
     "label.moveInstructions": "Select a object or hold Shift + Click faces to align",
+    "label.rotateInstructions": "Select a object or hold Shift + Click faces to align rotation",
     "label.scaleInstructions": "Select a object or hold Shift + Click faces to stretch",
   }
 };

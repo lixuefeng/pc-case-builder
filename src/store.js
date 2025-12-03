@@ -242,6 +242,23 @@ export const useStore = create((set, get) => {
     hudState: null,
     setHudState: (newState) => set({ hudState: newState }),
 
+    // Ruler State
+    rulerPoints: [],
+    setRulerPoints: (points) => set({ rulerPoints: points }),
+    measurements: [],
+    setMeasurements: (updater) => set((state) => ({
+      measurements: typeof updater === 'function' ? updater(state.measurements) : updater
+    })),
+
+    // Drill State
+    drillParams: {
+      headDiameter: 6,
+      headDepth: 2,
+      holeDepth: 10,
+      holeDiameter: 3,
+    },
+    setDrillParams: (params) => set((state) => ({ drillParams: { ...state.drillParams, ...params } })),
+
     // Actions
     createProject: (name) => {
       const newId = generateId();

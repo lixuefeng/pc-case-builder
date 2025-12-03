@@ -310,11 +310,11 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
   const shaftRef = useRef(null);
   const position = new THREE.Vector3(...(hole.position || [0, 0, 0]));
   const direction = new THREE.Vector3(...(hole.direction || [0, 0, 1])).normalize();
-  // M3 Counterbore Specs
-  const headDia = 6;
-  const headDepth = 5;
-  const shaftDia = 3;
-  const totalDepth = hole.depth || 20;
+  // M3 Counterbore Specs (Defaults)
+  const headDia = hole.headDiameter || 6;
+  const headDepth = hole.headDepth || 2; 
+  const shaftDia = hole.diameter || 3;
+  const shaftLength = hole.depth || 10; // Interpreted as shaft length (excluding head)
 
   // Align cylinder to direction. Cylinder default is Y-axis.
   // If direction is Normal (OUT), we want the hole to go IN (along -Y in local space).
@@ -373,7 +373,7 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
       position={position}
       quaternion={quaternion}
     >
-      {/* Head: Goes from 0 to -5mm */}
+      {/* Head: Goes from 0 to -headDepth */}
       <mesh
         ref={headRef}
         position={[0, -headDepth / 2, 0]}
@@ -391,10 +391,10 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
         <cylinderGeometry args={[headDia / 2, headDia / 2, headDepth, 32]} />
         <meshBasicMaterial color={headColor} transparent opacity={opacity} depthTest={false} />
       </mesh>
-      {/* Shaft: Goes from -5mm to -TotalDepth */}
+      {/* Shaft: Goes from -headDepth to -(headDepth + shaftLength) */}
       <mesh
         ref={shaftRef}
-        position={[0, -headDepth - (totalDepth - headDepth) / 2, 0]}
+        position={[0, -headDepth - shaftLength / 2, 0]}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onPointerMove={handlePointerMove}
@@ -406,7 +406,7 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
         frustumCulled={false}
         userData={{ isHole: true, holeId: hole.id, partId }}
       >
-        <cylinderGeometry args={[shaftDia / 2, shaftDia / 2, totalDepth - headDepth, 32]} />
+        <cylinderGeometry args={[shaftDia / 2, shaftDia / 2, shaftLength, 32]} />
         <meshBasicMaterial color={shaftColor} transparent opacity={opacity} depthTest={false} />
       </mesh>
     </group>
@@ -1850,7 +1850,7 @@ export default function MovablePart({
         ))}
       </group>
 
-      {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && (
+      {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && mode !== "drill" && (
         <TransformControls
           ref={controlsRef}
           object={groupRef.current}

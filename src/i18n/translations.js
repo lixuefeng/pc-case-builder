@@ -83,6 +83,10 @@
     "action.updateOrientation": "更新方向",
     "label.settings": "设置",
     "label.part": "零件",
+    "label.selectFace1": "按住 Shift 选择面 1",
+    "label.selectFace2": "按住 Shift 选择面 2",
+    "label.distance": "距离",
+    "label.drillInstructions": "点击面打孔 • 点击孔删除",
   },
   en: {
     "app.title": "PC Case Builder",
@@ -168,5 +172,9 @@
     "action.updateOrientation": "Update Orientation",
     "label.settings": "Settings",
     "label.part": "Part",
+    "label.selectFace1": "Hold Shift + Select Face 1",
+    "label.selectFace2": "Hold Shift + Select Face 2",
+    "label.distance": "Distance",
+    "label.drillInstructions": "Click face to drill • Click hole to delete",
   }
 };

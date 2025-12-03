@@ -120,6 +120,11 @@ function EditorContent() {
     copyToClipboard,
     pasteFromClipboard,
     setHudState,
+    rulerPoints,
+    setRulerPoints,
+    measurements,
+    setMeasurements,
+    drillParams,
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const { showToast } = useToast();
@@ -130,8 +135,6 @@ function EditorContent() {
   const [showGizmos, setShowGizmos] = useState(true);
   const [pendingConnector, setPendingConnector] = useState(null);
   const [snapEnabled, setSnapEnabled] = useState(false);
-  const [rulerPoints, setRulerPoints] = useState([]);
-  const [measurements, setMeasurements] = useState([]);
   const [drillGhost, setDrillGhost] = useState(null);
   const [drillCandidates, setDrillCandidates] = useState([]);
   const rulerStartRef = React.useRef(null);
@@ -206,7 +209,7 @@ function EditorContent() {
       }
       setHudState({
         type: 'ruler',
-        data: { distance }
+        data: { distance, pointsCount: rulerPoints.length }
       });
     }
   }, [transformMode, rulerPoints, setHudState]);
@@ -978,10 +981,12 @@ function EditorContent() {
         const newHole = {
           id: `hole_${Date.now()}`,
           type: "counterbore", // Updated type
-          diameter: 3.2, 
+          diameter: drillParams.holeDiameter, 
           position: localP.toArray(),
           direction: localNormal.toArray(),
-          depth: 20, // Default depth
+          depth: drillParams.holeDepth,
+          headDiameter: drillParams.headDiameter,
+          headDepth: drillParams.headDepth,
         };
 
         setObjects((prev) =>
@@ -1084,7 +1089,7 @@ function EditorContent() {
             ttl: 5000,
           });
           
-          setRulerPoints([]); 
+          // setRulerPoints([]); // Removed to keep points selected until manual clear
           rulerStartRef.current = null;
         }
         return;
@@ -1595,7 +1600,7 @@ function EditorContent() {
         selectedObject={selectedObject}
         selectedIds={selectedIds}
       />
-      <HUD />
+      <HUD transformMode={transformMode} />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
         {/* Left Sidebar */}

@@ -6,6 +6,7 @@ import MovablePart from "./MovablePart";
 import GridPlane from "./GridPlane";
 import RulerMarkers from "./RulerMarkers";
 import ConnectionManager from "./connections/ConnectionManager";
+
 import { expandObjectsWithEmbedded } from "../utils/embeddedParts";
 
 export default function Scene({
@@ -28,6 +29,8 @@ export default function Scene({
   drillCandidates = [],
   onHoleDelete,
   rulerPoints = [],
+  cutPlaneTransform,
+  onCutPlaneChange,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -230,6 +233,8 @@ export default function Scene({
             )}
           </>
         )}
+
+
 
         {/* Connection System */}
         <ConnectionManager connections={connections} objects={objects} />

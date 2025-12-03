@@ -77,7 +77,7 @@ const Box = ({ filled }) => (
   }} />
 );
 
-const HUD = ({ transformMode }) => {
+const HUD = ({ transformMode, onApplyCut }) => {
   const hudState = useStore(state => state.hudState);
   const setObjects = useStore(state => state.setObjects);
   const selectedIds = useStore(state => state.selectedIds);
@@ -97,6 +97,8 @@ const HUD = ({ transformMode }) => {
 
   if (transformMode === 'ruler') {
     type = 'ruler';
+  } else if (transformMode === 'cut') {
+    type = 'cut';
   }
 
   if (!type) return null;
@@ -390,6 +392,55 @@ const HUD = ({ transformMode }) => {
             <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 4, width: '100%', textAlign: 'center' }}>
               {t('label.drillInstructions')}
             </div>
+          </div>
+        );
+      }
+
+      case 'cut': {
+        const selectedObjs = objects.filter(o => selectedIds.includes(o.id));
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 200 }}>
+             <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', borderBottom: '1px solid #334155', paddingBottom: 4 }}>
+                Split Targets ({selectedObjs.length})
+             </div>
+             
+             {selectedObjs.length > 0 ? (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 100, overflowY: 'auto' }}>
+                  {selectedObjs.map(o => (
+                    <div key={o.id} style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                       <Box filled={true} />
+                       <span>{o.name || o.type}</span>
+                    </div>
+                  ))}
+               </div>
+             ) : (
+               <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
+                  No objects selected
+               </div>
+             )}
+
+             <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 4 }}>
+                1. Select objects to split<br/>
+                2. Shift + Click a face to set plane<br/>
+                3. Click Apply Split
+             </div>
+             
+             <button
+               onClick={onApplyCut}
+               style={{
+                 marginTop: 4,
+                 background: '#ef4444',
+                 color: 'white',
+                 border: 'none',
+                 borderRadius: 4,
+                 padding: '4px 8px',
+                 fontSize: 11,
+                 cursor: 'pointer',
+                 fontWeight: 600
+               }}
+             >
+               Apply Split
+             </button>
           </div>
         );
       }

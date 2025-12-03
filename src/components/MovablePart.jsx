@@ -1554,7 +1554,7 @@ export default function MovablePart({
 
   const resolveHoveredFace = useCallback(
     (event) => {
-      if ((!alignMode && mode !== "scale" && mode !== "ruler" && mode !== "drill") || !groupRef.current) return;
+      if ((!alignMode && mode !== "scale" && mode !== "ruler" && mode !== "drill" && mode !== "cut") || !groupRef.current) return;
 
       let width, height, depth;
       if (obj.type === "standoff") {
@@ -1676,14 +1676,19 @@ export default function MovablePart({
           if (isHoleEvent && mode === "drill") {
             return;
           }
+          // DEBUG LOG
+          if (mode === "cut") {
+             // console.log("MovablePart: cut hover", { shift: e.shiftKey, nativeShift: e?.nativeEvent?.shiftKey });
+          }
           const faceSelectionActive =
             (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
             (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
             (mode === "ruler" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
-            (mode === "drill");
+            (mode === "drill") ||
+            (mode === "cut" && (e.shiftKey || e?.nativeEvent?.shiftKey));
           if (faceSelectionActive) {
             resolveHoveredFace(e);
-          } else if (!stretchStateRef.current && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill") && hoveredFace) {
+          } else if (!stretchStateRef.current && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut") && hoveredFace) {
             setHoveredFace(null);
           }
           if (mode === "drill" && hoveredFace && onDrillHover) {
@@ -1702,7 +1707,7 @@ export default function MovablePart({
           if (stretchStateRef.current) {
             return;
           }
-          if (alignMode || mode === "scale" || mode === "ruler" || mode === "drill") {
+          if (alignMode || mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut") {
             setHoveredFace(null);
           }
           if (mode === "drill" && onDrillHover) {
@@ -1711,6 +1716,7 @@ export default function MovablePart({
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
+          // console.log("MovablePart: pointer down", { mode, shift: e.shiftKey, hoveredFace });
           dlog("pointer:down", {
             shift: e.shiftKey || e?.nativeEvent?.shiftKey,
             ctrl: e.ctrlKey,
@@ -1744,6 +1750,18 @@ export default function MovablePart({
               quaternion: hoveredFaceDetails?.quaternion?.toArray()
             });
             return;
+          }
+          if (mode === "cut" && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
+             console.log("MovablePart: cut pick", { hoveredFace, shift: e.shiftKey });
+             onFacePick?.({
+                partId: obj.id,
+                face: hoveredFace,
+                point: lastHoverSampleRef.current?.world?.toArray(),
+                normal: hoveredFaceDetails?.normal,
+                object: groupRef.current, // We need the object for matrixWorld in PCEditor
+                event: e // Pass the event for shiftKey check in PCEditor
+             });
+             return;
           }
           if (
             !alignMode &&
@@ -1858,7 +1876,7 @@ export default function MovablePart({
         ))}
       </group>
 
-      {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && mode !== "drill" && (
+      {selected && !isEmbedded && showTransformControls && mode !== "scale" && mode !== "ruler" && mode !== "drill" && mode !== "cut" && (
         <TransformControls
           ref={controlsRef}
           object={groupRef.current}
@@ -1908,7 +1926,7 @@ export default function MovablePart({
         />
       )}
 
-      {(alignMode || mode === "scale") && hoveredFaceDetails && (
+      {(alignMode || mode === "scale" || mode === "cut") && hoveredFaceDetails && (
         <mesh
           ref={hoverFaceMeshRef}
           position={hoveredFaceDetails.center}
@@ -1927,7 +1945,7 @@ export default function MovablePart({
         </mesh>
       )}
 
-      {(alignMode || mode === "scale") && activeFaceDetails && (
+      {(alignMode || mode === "scale" || mode === "cut") && activeFaceDetails && (
         <mesh
           position={activeFaceDetails.center}
           quaternion={activeFaceDetails.quaternion}

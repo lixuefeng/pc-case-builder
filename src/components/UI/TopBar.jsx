@@ -20,6 +20,9 @@ const TopBar = ({
   onClearMeasurements,
   onGenerateStandoffs,
   onConnect,
+  onApplyCut,
+  isCutting,
+  onToggleCut,
   selectedObject,
   selectedIds,
 }) => {
@@ -143,6 +146,13 @@ const TopBar = ({
         >
           🔩 Drill
         </button>
+        <button
+          style={isCutting ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
+          onClick={onToggleCut}
+          title="Split Object"
+        >
+          ✂️ Split
+        </button>
         {selectedObject && (selectedObject.type === 'motherboard' || (selectedObject.connectors && selectedObject.connectors.some(c => c.type === 'screw-m3' || c.type === 'mb-mount'))) && (
            <button
              style={{ ...btnStyle, border: "none", background: "transparent", color: "#fbbf24" }}
@@ -155,6 +165,8 @@ const TopBar = ({
 
 
       </div>
+      
+
 
       <div style={dividerStyle} />
 

@@ -1,5 +1,11 @@
+0. introduce cut operation. interaction should be like:
+  0.1 click cut button on the topbar
+  0.2 define a face to cut. we can show a thin plane and let user to rotate it to define the face.
+  0.3 selection one or more objects to cut
+  0.4 click cut button to cut
+
 1. half lap joint for long beams that don't fit 3d printer. we need to cut the beam into 2 parts and connect them with a half lap joint. 
-  1.1 so first we need to introduce cut operation
+  1.1 so first we need to reuse split operation
   1.2 then introduce half lap joint
   1.3 we already have screw functionality, we can reuse it
   1.4 we need to introduce nut (like hex nut)

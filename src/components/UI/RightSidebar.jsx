@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { useLanguage } from "../../i18n/LanguageContext";
 import { getRelativeTransform } from "../../utils/mathUtils";
 import { calculateMortiseTenon, calculateCrossLap } from "../../utils/connectionUtils";
+import { calculateHalfLapTransforms, validateHalfLapCompatibility } from "../../utils/halfLapUtils";
 import { useToast } from "../../context/ToastContext";
 
 const RightSidebar = ({
@@ -25,6 +26,7 @@ const RightSidebar = ({
   const { showToast } = useToast();
   const [connectionType, setConnectionType] = React.useState("mortise-tenon");
   const [connectionDepth, setConnectionDepth] = React.useState(5);
+  const [lapLength, setLapLength] = React.useState(20);
 
   const cardStyle = {
     background: "#fff",
@@ -298,6 +300,12 @@ const RightSidebar = ({
               >
                 Cross-Lap
               </button>
+              <button
+                style={typeBtnStyle(connectionType === "half-lap")}
+                onClick={() => setConnectionType("half-lap")}
+              >
+                Half Lap
+              </button>
             </div>
 
             {/* Depth Input (Only for Mortise & Tenon for now) */}
@@ -308,13 +316,26 @@ const RightSidebar = ({
                   type="number"
                   value={connectionDepth}
                   onChange={(e) => { e.stopPropagation(); setConnectionDepth(Number(e.target.value)); }}
-                  onClick={(e) => e.stopPropagation()}
-                  onFocus={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  onKeyUp={(e) => e.stopPropagation()}
-                  onInput={(e) => e.stopPropagation()}
-                  autoComplete="off"
-                  data-lpignore="true"
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: 4,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 13,
+                    outline: "none"
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Lap Length Input (Only for Half Lap) */}
+            {connectionType === "half-lap" && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelStyle}>Lap Length (mm)</label>
+                <input
+                  type="number"
+                  value={lapLength}
+                  onChange={(e) => { e.stopPropagation(); setLapLength(Number(e.target.value)); }}
                   style={{
                     width: "100%",
                     padding: "8px",
@@ -335,13 +356,18 @@ const RightSidebar = ({
                   1. <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span> inserts into Second Selected.<br />
                   2. <span style={{ color: "#eab308", fontWeight: "bold" }}>Second Selected</span> receives the hole.
                 </>
-              ) : (
+              ) : connectionType === "cross-lap" ? (
                 <>
                   <strong>Selection Order:</strong><br />
                   1. <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span>: Top Part (Cut from Bottom).<br />
                   2. <span style={{ color: "#eab308", fontWeight: "bold" }}>Second Selected</span>: Bottom Part (Cut from Top).
                 </>
-              )}
+              ) : connectionType === "half-lap" ? (
+                <>
+                  <strong>Effect:</strong><br />
+                  Extends both beams and cuts them to overlap by {lapLength}mm.
+                </>
+              ) : null}
             </div>
 
             {/* Create Button */}
@@ -406,6 +432,26 @@ const RightSidebar = ({
                         text: error.message,
                         ttl: 3000
                       });
+                    }
+                  }
+                }
+
+                // Logic for Half Lap Joint
+                if (type === 'half-lap') {
+                  if (partA && partB) {
+                    const validation = validateHalfLapCompatibility(partA, partB);
+                    if (!validation.compatible) {
+                      showToast({ type: "error", text: validation.reason, ttl: 3000 });
+                      return;
+                    }
+
+                    const result = calculateHalfLapTransforms(partA, partB, lapLength);
+                    if (result && result.updates) {
+                      setObjects(prev => prev.map(o => {
+                        const update = result.updates.find(u => u.id === o.id);
+                        return update ? { ...o, ...update } : o;
+                      }));
+                      showToast({ type: "success", text: "Half Lap Joint created", ttl: 2000 });
                     }
                   }
                 }

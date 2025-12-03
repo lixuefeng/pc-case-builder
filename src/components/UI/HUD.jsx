@@ -346,51 +346,102 @@ const HUD = ({ transformMode, onApplyCut }) => {
 
       case 'drill': {
         const updateParam = (key, val) => setDrillParams({ [key]: val });
-        
+        const drillType = drillParams.drillType || 'screw';
+        const setDrillType = (t) => updateParam('drillType', t);
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 8px' }}>
             
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-              {/* Left Column: Diameters & Diagram */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                 {/* Head Dia */}
-                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                    <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Head Dia</span>
-                    <NumberInput value={drillParams.headDiameter} onCommit={(v) => updateParam('headDiameter', v)} width={50} />
-                 </div>
-                 
-                 {/* Diagram */}
-                 <svg width="60" height="80" viewBox="0 0 60 80" style={{ overflow: 'visible', margin: '4px 0' }}>
-                    {/* Head */}
-                    <path d="M5,5 L55,5 L55,25 L5,25 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
-                    {/* Shaft */}
-                    <path d="M20,25 L40,25 L40,75 L20,75 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
-                    {/* Center Line */}
-                    <path d="M30,0 L30,80" stroke="#475569" strokeWidth="1" strokeDasharray="4 2" />
-                 </svg>
-                 
-                 {/* Hole Dia */}
-                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                    <NumberInput value={drillParams.holeDiameter} onCommit={(v) => updateParam('holeDiameter', v)} width={50} />
-                    <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Hole Dia</span>
-                 </div>
-              </div>
-
-              {/* Right Column: Heights */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 28, justifyContent: 'center', paddingTop: 10 }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <NumberInput value={drillParams.headDepth} onCommit={(v) => updateParam('headDepth', v)} width={50} />
-                    <span style={{ fontSize: 10, color: '#94a3b8' }}>Head H</span>
-                 </div>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <NumberInput value={drillParams.holeDepth} onCommit={(v) => updateParam('holeDepth', v)} width={50} />
-                    <span style={{ fontSize: 10, color: '#94a3b8' }}>Depth</span>
-                 </div>
-              </div>
+            {/* Type Toggle */}
+            <div style={{ display: 'flex', background: '#334155', borderRadius: 4, padding: 2, marginBottom: 4 }}>
+                <button
+                    onClick={() => setDrillType('screw')}
+                    style={{
+                        background: drillType === 'screw' ? '#475569' : 'transparent',
+                        color: drillType === 'screw' ? '#fff' : '#94a3b8',
+                        border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer'
+                    }}
+                >
+                    Screw
+                </button>
+                <button
+                    onClick={() => setDrillType('nut')}
+                    style={{
+                        background: drillType === 'nut' ? '#475569' : 'transparent',
+                        color: drillType === 'nut' ? '#fff' : '#94a3b8',
+                        border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer'
+                    }}
+                >
+                    Nut
+                </button>
             </div>
+
+            {drillType === 'screw' ? (
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  {/* Left Column: Diameters & Diagram */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                     {/* Head Dia */}
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                        <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Head Dia</span>
+                        <NumberInput value={drillParams.headDiameter} onCommit={(v) => updateParam('headDiameter', v)} width={50} />
+                     </div>
+                     
+                     {/* Diagram */}
+                     <svg width="60" height="80" viewBox="0 0 60 80" style={{ overflow: 'visible', margin: '4px 0' }}>
+                        {/* Head */}
+                        <path d="M5,5 L55,5 L55,25 L5,25 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
+                        {/* Shaft */}
+                        <path d="M20,25 L40,25 L40,75 L20,75 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
+                        {/* Center Line */}
+                        <path d="M30,0 L30,80" stroke="#475569" strokeWidth="1" strokeDasharray="4 2" />
+                     </svg>
+                     
+                     {/* Hole Dia */}
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                        <NumberInput value={drillParams.holeDiameter} onCommit={(v) => updateParam('holeDiameter', v)} width={50} />
+                        <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Hole Dia</span>
+                     </div>
+                  </div>
+    
+                  {/* Right Column: Heights */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 28, justifyContent: 'center', paddingTop: 10 }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <NumberInput value={drillParams.headDepth} onCommit={(v) => updateParam('headDepth', v)} width={50} />
+                        <span style={{ fontSize: 10, color: '#94a3b8' }}>Head H</span>
+                     </div>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <NumberInput value={drillParams.holeDepth} onCommit={(v) => updateParam('holeDepth', v)} width={50} />
+                        <span style={{ fontSize: 10, color: '#94a3b8' }}>Depth</span>
+                     </div>
+                  </div>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                  {/* Nut UI */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                        <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Diameter</span>
+                        <NumberInput value={drillParams.nutDiameter || 6} onCommit={(v) => updateParam('nutDiameter', v)} width={50} />
+                     </div>
+                     
+                     {/* Hex Nut Diagram */}
+                     <svg width="60" height="60" viewBox="0 0 60 60" style={{ overflow: 'visible', margin: '4px 0' }}>
+                        {/* Hexagon */}
+                        <path d="M30,5 L52,17 L52,43 L30,55 L8,43 L8,17 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
+                        {/* Inner Circle */}
+                        <circle cx="30" cy="30" r="12" fill="none" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
+                     </svg>
+
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                        <NumberInput value={drillParams.nutDepth || 2.5} onCommit={(v) => updateParam('nutDepth', v)} width={50} />
+                        <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Thickness</span>
+                     </div>
+                  </div>
+                </div>
+            )}
             
             <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 4, width: '100%', textAlign: 'center' }}>
-              {t('label.drillInstructions')}
+              {drillType === 'screw' ? t('label.drillInstructions') : "Click face to place Nut"}
             </div>
           </div>
         );

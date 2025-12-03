@@ -252,10 +252,13 @@ export const useStore = create((set, get) => {
 
     // Drill State
     drillParams: {
+      drillType: 'screw', // 'screw' | 'nut'
       headDiameter: 6,
       headDepth: 2,
       holeDepth: 10,
       holeDiameter: 3,
+      nutDiameter: 6, // Flat-to-flat
+      nutDepth: 2.5,
     },
     setDrillParams: (params) => set((state) => ({ drillParams: { ...state.drillParams, ...params } })),
 

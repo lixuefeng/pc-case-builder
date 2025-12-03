@@ -1209,11 +1209,11 @@ function EditorContent() {
         // Create a new hole
         const newHole = {
           id: `hole_${Date.now()}`,
-          type: "counterbore", // Updated type
-          diameter: drillParams.holeDiameter, 
+          type: drillParams.drillType === 'nut' ? 'nut' : 'counterbore',
+          diameter: drillParams.drillType === 'nut' ? (drillParams.nutDiameter || 6) : drillParams.holeDiameter, 
           position: localP.toArray(),
           direction: localNormal.toArray(),
-          depth: drillParams.holeDepth,
+          depth: drillParams.drillType === 'nut' ? (drillParams.nutDepth || 2.5) : drillParams.holeDepth,
           headDiameter: drillParams.headDiameter,
           headDepth: drillParams.headDepth,
         };

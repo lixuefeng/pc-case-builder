@@ -310,11 +310,14 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
   const shaftRef = useRef(null);
   const position = new THREE.Vector3(...(hole.position || [0, 0, 0]));
   const direction = new THREE.Vector3(...(hole.direction || [0, 0, 1])).normalize();
-  // M3 Counterbore Specs (Defaults)
+  
+  const isNut = hole.type === 'nut';
+
+  // Specs
   const headDia = hole.headDiameter || 6;
   const headDepth = hole.headDepth || 2; 
   const shaftDia = hole.diameter || 3;
-  const shaftLength = hole.depth || 10; // Interpreted as shaft length (excluding head)
+  const shaftLength = hole.depth || 10; 
 
   // Align cylinder to direction. Cylinder default is Y-axis.
   // If direction is Normal (OUT), we want the hole to go IN (along -Y in local space).
@@ -332,6 +335,7 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
 
   const headColor = hovered && canDelete ? "#f87171" : "#ef4444";
   const shaftColor = hovered && canDelete ? "#dc2626" : "#b91c1c";
+  const nutColor = hovered && canDelete ? "#fcd34d" : "#fbbf24"; // Goldish for nut
   const opacity = hovered && canDelete ? 0.9 : 0.6;
 
   const handlePointerEnter = (e) => {
@@ -366,7 +370,46 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
     }
   };
 
+  if (isNut) {
+    // Render Nut (Hexagon)
+    // ShaftDia is Nut Diameter (Flat-to-Flat)
+    // ShaftLength is Nut Thickness
+    // Hexagon radius = Diameter / sqrt(3) ? No, Flat-to-Flat D -> Radius (Point-to-Center) = D / sqrt(3) * 2 ??
+    // Radius (Point) = D / 1.732 * 2? No.
+    // Flat-to-Flat (W) = 2 * R * cos(30) = 2 * R * 0.866 = 1.732 * R
+    // R = W / 1.732
+    // CylinderGeometry takes Radius.
+    // So radius = shaftDia / 1.732
+    
+    const hexRadius = shaftDia / Math.sqrt(3);
 
+    return (
+        <group position={position} quaternion={quaternion}>
+            <mesh
+                ref={shaftRef}
+                position={[0, -shaftLength / 2, 0]} // Center it
+                onPointerEnter={handlePointerEnter}
+                onPointerLeave={handlePointerLeave}
+                onPointerMove={handlePointerMove}
+                onPointerDown={handlePointerDown}
+                raycast={(raycaster, intersects) =>
+                  applyConnectorRaycastBias(shaftRef.current, raycaster, intersects)
+                }
+                renderOrder={1003}
+                frustumCulled={false}
+                userData={{ isHole: true, holeId: hole.id, partId }}
+            >
+                <cylinderGeometry args={[hexRadius, hexRadius, shaftLength, 6]} />
+                <meshBasicMaterial color={nutColor} transparent opacity={opacity} depthTest={false} />
+            </mesh>
+            {/* Optional: Inner hole for the nut? */}
+            <mesh position={[0, -shaftLength / 2, 0]}>
+                 <cylinderGeometry args={[shaftDia * 0.3, shaftDia * 0.3, shaftLength + 0.1, 16]} />
+                 <meshBasicMaterial color="#000" />
+            </mesh>
+        </group>
+    );
+  }
 
   return (
     <group

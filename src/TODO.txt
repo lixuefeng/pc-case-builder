@@ -12,3 +12,20 @@
     3.1 io cut out on motherboard: position and size should be configurable
     3.2 size the graphics card should be configurable
     3.3 io bracket on graphics card: position and size should be configurable
+
+4. the shape of graphics bracket is still not correct
+
+5. The transform axes must switch between Local and Global to allow correct movement after rotation
+
+6. export to stl
+    6.1 export the shape with holes correctly
+    6.2 export grouped objects as one stl file
+
+7. database
+
+8. login
+
+9. domain
+
+10. server
+ 

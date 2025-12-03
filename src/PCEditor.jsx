@@ -623,12 +623,8 @@ function EditorContent() {
       setSelectedIds([]);
       setPendingAlignFace(null);
       
-      // Persist HUD for specific modes even when deselected
-      if (transformMode === 'translate') {
-        setHudState({ type: 'move', data: {} });
-      } else if (transformMode === 'scale') {
-        setHudState({ type: 'scale', data: {} });
-      } else if (transformMode !== 'ruler' && transformMode !== 'drill') {
+      // Only persist HUD for ruler/drill, otherwise clear it
+      if (transformMode !== 'ruler' && transformMode !== 'drill') {
         setHudState(null);
       }
       

@@ -18,7 +18,7 @@ export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }
         <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
           color={selColor || color || "#81a1c1"}
-          opacity={0.95}
+          opacity={selected ? 0.7 : 0.95}
           transparent
         />
       </mesh>
@@ -175,8 +175,8 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
         </Geometry>
         <meshStandardMaterial
           color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || defaultColor}
-          opacity={1}
-          transparent={false}
+          opacity={selected ? 0.7 : 1}
+          transparent={true}
         />
       </mesh>
     </group>
@@ -191,8 +191,8 @@ export function SphereMesh({ obj, selected, selectionOrder, selectedCount }) {
         <sphereGeometry args={[0.5, 32, 32]} />
         <meshStandardMaterial
           color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#d1d5db"}
-          opacity={1}
-          transparent={false}
+          opacity={selected ? 0.7 : 1}
+          transparent={true}
         />
       </mesh>
     </group>
@@ -218,8 +218,8 @@ export function CylinderMesh({ obj, selected, selectionOrder, selectedCount }) {
         <cylinderGeometry args={[radiusTop, radiusBottom, 1, 32]} />
         <meshStandardMaterial
           color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#d1d5db"}
-          opacity={1}
-          transparent={false}
+          opacity={selected ? 0.7 : 1}
+          transparent={true}
         />
       </mesh>
     </group>
@@ -271,6 +271,8 @@ export function ImportedMesh({ obj, selected, selectionOrder, selectedCount }) {
         color={selected ? (selectedCount > 2 ? "#60a5fa" : (selectionOrder === 0 ? "#60a5fa" : (selectionOrder === 1 ? "#eab308" : "#60a5fa"))) : "#94a3b8"}
         metalness={0.3}
         roughness={0.6}
+        opacity={selected ? 0.7 : 1}
+        transparent={selected}
       />
     </mesh>
   );
@@ -314,6 +316,8 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
         color="#e2e8f0"
         metalness={0.8}
         roughness={0.2}
+        opacity={selected ? 0.7 : 1}
+        transparent={selected}
       />
     );
 
@@ -322,6 +326,8 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
         color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#ef4444"}
         metalness={0.6}
         roughness={0.3}
+        opacity={selected ? 0.7 : 1}
+        transparent={selected}
       />
     );
 
@@ -360,6 +366,8 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
           color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#ef4444"}
           metalness={0.6}
           roughness={0.3}
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
         />
       </mesh>
     </group>
@@ -376,6 +384,8 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
       color="#e2e8f0"
       metalness={0.7}
       roughness={0.3}
+      opacity={selected ? 0.7 : 1}
+      transparent={selected}
     />
   );
 
@@ -385,6 +395,8 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
       color="#1e293b"
       metalness={0.2}
       roughness={0.8}
+      opacity={selected ? 0.7 : 1}
+      transparent={selected}
     />
   );
 

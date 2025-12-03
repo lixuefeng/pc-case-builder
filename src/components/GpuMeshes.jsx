@@ -57,6 +57,8 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
             color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : "#9ca3af"}
             metalness={0.55}
             roughness={0.32}
+            opacity={selected ? 0.7 : 1}
+            transparent={selected}
           />
         </mesh>
       )}
@@ -82,6 +84,8 @@ export function GPUMesh({ obj, selected, selectionOrder, selectedCount }) {
           color={coolerColor}
           metalness={0.6}
           roughness={0.4}
+          opacity={selected ? 0.7 : 1}
+          transparent={true}
         />
       </mesh>
 

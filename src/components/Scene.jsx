@@ -197,7 +197,7 @@ export default function Scene({
 
         {/* Drill Ghost */}
         {transformMode === "drill" && drillGhost && (
-          <mesh position={drillGhost.position} raycast={() => null}>
+          <mesh position={drillGhost.position} raycast={() => null} renderOrder={9999}>
             <sphereGeometry args={[1, 16, 16]} />
             <meshBasicMaterial color={drillGhost.snapped ? "#10b981" : "#ef4444"} transparent opacity={0.8} depthTest={false} />
           </mesh>
@@ -205,7 +205,7 @@ export default function Scene({
 
         {/* Drill Candidates (Blue Markers) */}
         {transformMode === "drill" && drillCandidates.map((cand, i) => (
-          <mesh key={i} position={cand} raycast={() => null}>
+          <mesh key={i} position={cand} raycast={() => null} renderOrder={9999}>
             <sphereGeometry args={[1.5, 16, 16]} />
             <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} depthTest={false} />
           </mesh>

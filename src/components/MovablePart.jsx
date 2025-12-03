@@ -1801,7 +1801,11 @@ export default function MovablePart({
             height={obj.dims?.h || 50}
             selected={selected}
           >
-            <meshStandardMaterial color={getSelectionColor()} />
+            <meshStandardMaterial
+              color={getSelectionColor()}
+              opacity={selected ? 0.7 : 1}
+              transparent={true}
+            />
           </Cylinder>
         ) : obj.type === "cone" ? (
           <Cone
@@ -1809,7 +1813,11 @@ export default function MovablePart({
             height={obj.dims?.h || 50}
             selected={selected}
           >
-            <meshStandardMaterial color={getSelectionColor()} />
+            <meshStandardMaterial
+              color={getSelectionColor()}
+              opacity={selected ? 0.7 : 1}
+              transparent={true}
+            />
           </Cone>
         ) : (
           <PartBox

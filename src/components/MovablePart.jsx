@@ -19,7 +19,7 @@ import { usePartModifiers } from "../hooks/usePartModifiers";
 import { useStore } from "../store";
 
 const DEBUG_LOG = false;
-const dlog = DEBUG_LOG ? (...args) => console.log("[MovablePart]", ...args) : () => {};
+const dlog = DEBUG_LOG ? (...args) => console.log("[MovablePart]", ...args) : () => { };
 
 const CONNECTOR_TYPE_COLORS = {
   "screw-m3": "#38bdf8",
@@ -52,7 +52,7 @@ const applyConnectorRaycastBias = (mesh, raycaster, intersects) => {
   // If we pass null, we assume the caller handles the raycast call or we are just using the function for the bias logic?
   // Wait, the original function calls `THREE.Mesh.prototype.raycast.call(mesh, ...)`
   // So we MUST pass the mesh.
-  
+
   // Let's modify this helper to be more robust or just use a ref in HoleMarker.
   if (!mesh) return;
   const startLen = intersects.length;
@@ -114,7 +114,7 @@ const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => 
   const headRef = useRef(null);
 
   const quaternion = useMemo(() => buildConnectorQuaternion(connector), [connector]);
-  
+
 
   const position = Array.isArray(connector?.pos) && connector.pos.length === 3
     ? connector.pos
@@ -233,7 +233,7 @@ const pickTargetBasis = (tf, dir) => {
   const dx = Math.abs(dir.dot(ax));
   const dy = Math.abs(dir.dot(ay));
   const dz = Math.abs(dir.dot(az));
-  
+
   if (dx > dy && dx > dz) return { dir: ax, label: 'X' };
   if (dy > dx && dy > dz) return { dir: ay, label: 'Y' };
   return { dir: az, label: 'Z' };
@@ -369,12 +369,12 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
 
 
   return (
-    <group 
-      position={position} 
+    <group
+      position={position}
       quaternion={quaternion}
     >
       {/* Head: Goes from 0 to -5mm */}
-      <mesh 
+      <mesh
         ref={headRef}
         position={[0, -headDepth / 2, 0]}
         onPointerEnter={handlePointerEnter}
@@ -392,7 +392,7 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
         <meshBasicMaterial color={headColor} transparent opacity={opacity} depthTest={false} />
       </mesh>
       {/* Shaft: Goes from -5mm to -TotalDepth */}
-      <mesh 
+      <mesh
         ref={shaftRef}
         position={[0, -headDepth - (totalDepth - headDepth) / 2, 0]}
         onPointerEnter={handlePointerEnter}
@@ -416,6 +416,7 @@ export default function MovablePart({
   obj,
   selected,
   selectionOrder = -1,
+  selectedCount = 0,
   setObj,
   onSelect,
   palette,
@@ -449,6 +450,7 @@ export default function MovablePart({
   // Helper to determine selection color
   const getSelectionColor = () => {
     if (!selected) return "#cbd5e1"; // Default gray
+    if (selectedCount > 2) return "#ef4444"; // All red if > 2 items selected
     if (selectionOrder === 0) return "#ef4444"; // Red for first selection (Tenon)
     if (selectionOrder === 1) return "#eab308"; // Yellow for second selection (Mortise)
     return "#ef4444"; // Fallback to red
@@ -609,7 +611,7 @@ export default function MovablePart({
     (delta) => {
       const state = stretchStateRef.current;
       if (!state || !groupRef.current) return;
-      
+
       // Optimization: Skip if delta hasn't changed significantly
       if (Math.abs(delta - (state.lastDelta || 0)) < 0.001) return;
 
@@ -634,16 +636,16 @@ export default function MovablePart({
         dims: newDims,
         pos: [newPosVec.x, newPosVec.y, newPosVec.z],
       }));
-      
+
       // Update HUD during stretch
       setHudState({
-          type: 'scale',
-          data: {
-              sx: newDims.w,
-              sy: newDims.h,
-              sz: newDims.d,
-              factor: newDims.w // Fallback
-          }
+        type: 'scale',
+        data: {
+          sx: newDims.w,
+          sy: newDims.h,
+          sz: newDims.d,
+          factor: newDims.w // Fallback
+        }
       });
 
       state.lastDelta = appliedDelta;
@@ -970,8 +972,8 @@ export default function MovablePart({
       if (targetObj.id === obj.id || !targetObj.visible) continue;
       const targetTF = getWorldTransform({ ref: null, obj: targetObj });
       const picked = pickTargetBasis(targetTF, dirN);
-      const targetDir = picked.dir; 
-      const targetAxisLabel = picked.label; 
+      const targetDir = picked.dir;
+      const targetAxisLabel = picked.label;
       const isGpuTarget = targetObj.type === "gpu" || targetObj.type === "gpu-bracket";
       if (isGpuTarget) {
         dlog("gpu:target-basis", {
@@ -1032,7 +1034,7 @@ export default function MovablePart({
         });
       }
       if (prev && noHitFramesRef.current < GRACE_FRAMES) {
-        finalCandidate = prev; 
+        finalCandidate = prev;
         noHitFramesRef.current += 1;
         dlog('candidate:stick(prev)', { noHitFrames: noHitFramesRef.current });
       } else {
@@ -1121,7 +1123,7 @@ export default function MovablePart({
     const from = groupRef.current.position.clone();
     const to = targetPos;
     const start = performance.now();
-    const dur = 120; 
+    const dur = 120;
 
     dlog("snap", {
       targetId: candidate.targetObj.id,
@@ -1207,7 +1209,7 @@ export default function MovablePart({
       }
     }
 
-    const { p, q } = getWorldTransform({ ref, obj }); 
+    const { p, q } = getWorldTransform({ ref, obj });
 
     if (isChild) {
       const childPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
@@ -1228,7 +1230,7 @@ export default function MovablePart({
       depth = targetObj.outerDiameter || 6;
     }
     const thickness = 0.2;
-    const surfacePadding = 0.02; 
+    const surfacePadding = 0.02;
 
     const currentFaceName = targetFace;
 
@@ -1315,7 +1317,7 @@ export default function MovablePart({
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
     dragStartRef.current = { pos: p, rot: r };
-    prevPosRef.current = p; 
+    prevPosRef.current = p;
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
     isDraggingRef.current = true;
     dlog("startDrag", { pos: p, rot: r });
@@ -1323,7 +1325,7 @@ export default function MovablePart({
 
   useEffect(() => {
     dlog("init", { id: obj.id, type: obj.type, pos: obj.pos, rot: obj.rot });
-  }, []); 
+  }, []);
 
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
@@ -1346,20 +1348,20 @@ export default function MovablePart({
 
     // Update HUD with absolute values
     if (groupRef.current) {
-        const p = groupRef.current.position;
-        const r = groupRef.current.rotation;
-        const s = groupRef.current.scale;
-        
-        setHudState({
-            type: mode === 'translate' ? 'move' : mode,
-            data: {
-                x: p.x, y: p.y, z: p.z,
-                rx: THREE.MathUtils.radToDeg(r.x), 
-                ry: THREE.MathUtils.radToDeg(r.y), 
-                rz: THREE.MathUtils.radToDeg(r.z),
-                factor: s.x
-            }
-        });
+      const p = groupRef.current.position;
+      const r = groupRef.current.rotation;
+      const s = groupRef.current.scale;
+
+      setHudState({
+        type: mode === 'translate' ? 'move' : mode,
+        data: {
+          x: p.x, y: p.y, z: p.z,
+          rx: THREE.MathUtils.radToDeg(r.x),
+          ry: THREE.MathUtils.radToDeg(r.y),
+          rz: THREE.MathUtils.radToDeg(r.z),
+          factor: s.x
+        }
+      });
     }
 
     let mv = null;
@@ -1404,7 +1406,7 @@ export default function MovablePart({
       return;
     }
 
-    const axisFromCtrlRaw = controlsRef.current?.axis || null; 
+    const axisFromCtrlRaw = controlsRef.current?.axis || null;
     let resolvedAxis = (axisFromCtrlRaw === 'X' || axisFromCtrlRaw === 'Y' || axisFromCtrlRaw === 'Z') ? axisFromCtrlRaw : null;
 
     const { axis: inferred, proj } = inferAxisFromMovement(mv, selfTF);
@@ -1413,7 +1415,7 @@ export default function MovablePart({
     if (!resolvedAxis) {
       resolvedAxis = inferred || currentDragAxis;
     } else {
-      const margin = 1.25; 
+      const margin = 1.25;
       const ctrlProj = proj[resolvedAxis] ?? 0;
       const infProj = inferred ? (proj[inferred] ?? 0) : 0;
       if (inferred && inferred !== resolvedAxis && infProj > ctrlProj * margin) {
@@ -1426,7 +1428,7 @@ export default function MovablePart({
 
     if (resolvedAxis === 'X' || resolvedAxis === 'Y' || resolvedAxis === 'Z') {
       const worldDir = getLocalAxisDir(selfTF, resolvedAxis);
-      
+
       // Snap worldDir to cardinal axes if very close to prevent floating point drift
       if (worldDir) {
         if (Math.abs(worldDir.x) > 0.9999) worldDir.set(Math.sign(worldDir.x), 0, 0);
@@ -1445,7 +1447,7 @@ export default function MovablePart({
             : new THREE.Vector3(0, 0, 1);
       dlog('axis:fallback-world', { currentDragAxis });
       findBestAlignCandidate(worldDir, currentDragAxis);
-    } 
+    }
   };
 
   const hudInputStyle = {
@@ -1479,7 +1481,7 @@ export default function MovablePart({
     const { p, q, axes } = getWorldTransform({ ref: null, obj: targetObj });
     const half = projectedHalfExtentAlongAxis(targetDir, targetObj.dims, axes);
     const sign = targetFace[0] === '+' ? 1 : -1;
-    const offset = 0.1; 
+    const offset = 0.1;
     const center = p.clone().add(targetDir.clone().multiplyScalar(sign * (half + offset)));
 
     const thickness = 0.2;
@@ -1500,7 +1502,7 @@ export default function MovablePart({
   const selfHighlightDetails = useMemo(() => {
     if (!bestAlignCandidate) return null;
     const axis = bestAlignCandidate.axisLabel;
-    const face = bestAlignCandidate.selfFace[0] + axis; 
+    const face = bestAlignCandidate.selfFace[0] + axis;
     return getFaceDetails({ obj, ref: groupRef, faceName: face });
   }, [bestAlignCandidate, obj]);
 
@@ -1544,7 +1546,7 @@ export default function MovablePart({
       const meshEuler = new THREE.Euler().setFromQuaternion(meshQuat, "XYZ");
     }
   }, [hoveredFace, hoveredFaceDetails, obj]);
- 
+
   const activeFaceDetails = useMemo(() => {
     if (!activeAlignFace || activeAlignFace.partId !== obj.id) return null;
     return getFaceDetails({ obj, ref: groupRef, faceName: activeAlignFace.face });
@@ -1553,7 +1555,7 @@ export default function MovablePart({
   const resolveHoveredFace = useCallback(
     (event) => {
       if ((!alignMode && mode !== "scale" && mode !== "ruler" && mode !== "drill") || !groupRef.current) return;
-      
+
       let width, height, depth;
       if (obj.type === "standoff") {
         width = obj.outerDiameter || 6;
@@ -1572,7 +1574,7 @@ export default function MovablePart({
       }
 
       if (obj.type === "group") {
-        const hit = event; 
+        const hit = event;
         if (!hit.object || !hit.face) return;
         return;
       }
@@ -1685,15 +1687,15 @@ export default function MovablePart({
             setHoveredFace(null);
           }
           if (mode === "drill" && hoveredFace && onDrillHover) {
-             onDrillHover({
-               partId: obj.id,
-               face: hoveredFace,
-               point: lastHoverSampleRef.current?.world?.toArray(),
-               normal: hoveredFaceDetails?.normal,
-               faceCenter: hoveredFaceDetails?.center,
-               faceSize: hoveredFaceDetails?.size,
-               quaternion: hoveredFaceDetails?.quaternion?.toArray()
-             });
+            onDrillHover({
+              partId: obj.id,
+              face: hoveredFace,
+              point: lastHoverSampleRef.current?.world?.toArray(),
+              normal: hoveredFaceDetails?.normal,
+              faceCenter: hoveredFaceDetails?.center,
+              faceSize: hoveredFaceDetails?.size,
+              quaternion: hoveredFaceDetails?.quaternion?.toArray()
+            });
           }
         }}
         onPointerLeave={() => {
@@ -1704,7 +1706,7 @@ export default function MovablePart({
             setHoveredFace(null);
           }
           if (mode === "drill" && onDrillHover) {
-             onDrillHover(null);
+            onDrillHover(null);
           }
         }}
         onPointerDown={(e) => {
@@ -1720,7 +1722,7 @@ export default function MovablePart({
             connectorHovered,
           });
           if (gizmoHovered) {
-             return;
+            return;
           }
           if (connectorHovered) {
             return;
@@ -1732,16 +1734,16 @@ export default function MovablePart({
           // Drill mode should be handled first, before alignMode logic
           if (mode === "drill" && hoveredFace) {
 
-             onFacePick?.({ 
-               partId: obj.id, 
-               face: hoveredFace, 
-               point: lastHoverSampleRef.current?.world?.toArray(),
-               localPoint: lastHoverSampleRef.current?.local?.toArray(),
-               localPoint: lastHoverSampleRef.current?.local?.toArray(),
-               normal: hoveredFaceDetails?.normal,
-               quaternion: hoveredFaceDetails?.quaternion?.toArray()
-             });
-             return;
+            onFacePick?.({
+              partId: obj.id,
+              face: hoveredFace,
+              point: lastHoverSampleRef.current?.world?.toArray(),
+              localPoint: lastHoverSampleRef.current?.local?.toArray(),
+
+              normal: hoveredFaceDetails?.normal,
+              quaternion: hoveredFaceDetails?.quaternion?.toArray()
+            });
+            return;
           }
           if (
             !alignMode &&
@@ -1778,41 +1780,41 @@ export default function MovablePart({
         onPointerUp={(e) => e.stopPropagation()}
       >
         {obj.type === "motherboard" ? (
-          <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "gpu" ? (
-          <GPUMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <GPUMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "group" ? (
-          <GroupMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <GroupMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "imported" ? (
-          <ImportedMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <ImportedMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "reference" ? (
-          <ReferenceMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <ReferenceMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "cpu-cooler" ? (
-          <CPUCoolerMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <CPUCoolerMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "gpu-bracket" ? (
-          <GPUBracketMesh obj={obj} selected={selected} selectionOrder={selectionOrder} />
+          <GPUBracketMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "standoff" ? (
-          <CSGStandoff {...obj} selected={selected} selectionOrder={selectionOrder} />
+          <CSGStandoff {...obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "cylinder" ? (
-          <Cylinder 
-            radius={obj.dims?.w ? obj.dims.w / 2 : 25} 
-            height={obj.dims?.h || 50} 
+          <Cylinder
+            radius={obj.dims?.w ? obj.dims.w / 2 : 25}
+            height={obj.dims?.h || 50}
             selected={selected}
           >
-             <meshStandardMaterial color={getSelectionColor()} />
+            <meshStandardMaterial color={getSelectionColor()} />
           </Cylinder>
         ) : obj.type === "cone" ? (
-          <Cone 
-            radius={obj.dims?.w ? obj.dims.w / 2 : 25} 
-            height={obj.dims?.h || 50} 
+          <Cone
+            radius={obj.dims?.w ? obj.dims.w / 2 : 25}
+            height={obj.dims?.h || 50}
             selected={selected}
           >
-             <meshStandardMaterial color={getSelectionColor()} />
+            <meshStandardMaterial color={getSelectionColor()} />
           </Cone>
         ) : (
-          <PartBox 
-            obj={obj} 
-            selected={selected} 
+          <PartBox
+            obj={obj}
+            selected={selected}
             selectionOrder={selectionOrder}
             connections={connections}
             rawObjects={rawObjects}
@@ -1836,8 +1838,8 @@ export default function MovablePart({
             );
           })}
         {Array.isArray(obj.holes) && obj.holes.map((hole) => (
-          <HoleMarker 
-            key={hole.id} 
+          <HoleMarker
+            key={hole.id}
             hole={hole}
             partId={obj.id}
             onDelete={onHoleDelete}
@@ -1854,7 +1856,7 @@ export default function MovablePart({
           object={groupRef.current}
           mode={mode}
           space="local"
-          depthTest={false} 
+          depthTest={false}
           enabled={!uiLock}
           onObjectChange={() => {
             if (!groupRef.current) return;
@@ -1989,14 +1991,14 @@ export default function MovablePart({
                 fontSize: "12px",
                 fontWeight: "bold",
                 pointerEvents: "none",
-            }}
-          >
-            {/* ASCII arrow avoids non-ASCII parse issues in build tools. */}
-            {bestAlignCandidate.selfFace} -&gt; {bestAlignCandidate.targetFace}
-          </div>
-        </Html>
-      </group>
-    )}
+              }}
+            >
+              {/* ASCII arrow avoids non-ASCII parse issues in build tools. */}
+              {bestAlignCandidate.selfFace} -&gt; {bestAlignCandidate.targetFace}
+            </div>
+          </Html>
+        </group>
+      )}
     </>
   );
 }

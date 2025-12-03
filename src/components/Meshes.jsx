@@ -6,11 +6,11 @@ import { anchorPoint, addVec } from "../utils/anchors";
 import { Geometry, Base, Subtraction } from "@react-three/csg";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
-export function MotherboardMesh({ obj, selected, selectionOrder }) {
+export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
   const topLeftBack = useMemo(() => anchorPoint(dims, "top-left-back"), [dims]);
-  const selColor = selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : null;
+  const selColor = selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : null;
 
   return (
     <group>
@@ -67,10 +67,10 @@ export function ChildMeshRenderer({ obj }) {
   }
 }
 
-export function GroupMesh({ obj, selected, selectionOrder }) {
+export function GroupMesh({ obj, selected, selectionOrder, selectedCount }) {
   if (!obj) return null;
   const children = Array.isArray(obj.children) ? obj.children : [];
-  
+
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh raycast={() => null}>
@@ -82,7 +82,7 @@ export function GroupMesh({ obj, selected, selectionOrder }) {
           ]}
         />
         <meshStandardMaterial
-          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : "#4f46e5"}
+          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : "#4f46e5"}
           transparent
           opacity={selected ? 0.2 : 0.1}
         />
@@ -100,16 +100,16 @@ export function GroupMesh({ obj, selected, selectionOrder }) {
 }
 
 const getRelativeTransform = (targetObj, sourceObj) => {
-  const sourcePos = new THREE.Vector3(...(sourceObj.pos || [0,0,0]));
-  const sourceRot = new THREE.Euler(...(sourceObj.rot || [0,0,0]));
+  const sourcePos = new THREE.Vector3(...(sourceObj.pos || [0, 0, 0]));
+  const sourceRot = new THREE.Euler(...(sourceObj.rot || [0, 0, 0]));
   const sourceQuat = new THREE.Quaternion().setFromEuler(sourceRot);
 
-  const targetPos = new THREE.Vector3(...(targetObj.pos || [0,0,0]));
-  const targetRot = new THREE.Euler(...(targetObj.rot || [0,0,0]));
+  const targetPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
+  const targetRot = new THREE.Euler(...(targetObj.rot || [0, 0, 0]));
   const targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
 
   const invSourceQuat = sourceQuat.clone().invert();
-  
+
   const relPos = targetPos.clone().sub(sourcePos).applyQuaternion(invSourceQuat);
   const relQuat = invSourceQuat.clone().multiply(targetQuat);
   const relEuler = new THREE.Euler().setFromQuaternion(relQuat);
@@ -117,7 +117,7 @@ const getRelativeTransform = (targetObj, sourceObj) => {
   return { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
 };
 
-export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
+export function PartBox({ obj, selected, modifiers = [], selectionOrder, selectedCount }) {
   const { dims, color, type } = obj;
   const defaultColor = (type === "structure" || type === "cube") ? "#d1d5db" : "#ffaa44";
 
@@ -132,11 +132,11 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
   // Filter valid parts first to avoid passing null children to Geometry
   const validSubtractingParts = useMemo(() => {
     return subtractingParts.filter(other => {
-       if (!other.relativeTransform) return false;
-       const scale = other.scale || [1, 1, 1];
-       // Filter out near-zero scales
-       if (scale.some(s => Math.abs(s) < 0.0001)) return false;
-       return true;
+      if (!other.relativeTransform) return false;
+      const scale = other.scale || [1, 1, 1];
+      // Filter out near-zero scales
+      if (scale.some(s => Math.abs(s) < 0.0001)) return false;
+      return true;
     });
   }, [subtractingParts]);
 
@@ -145,36 +145,36 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
       <mesh>
         <Geometry computeVertexNormals>
           <Base>
-             <boxGeometry args={[dims.w, dims.h, dims.d]} />
+            <boxGeometry args={[dims.w, dims.h, dims.d]} />
           </Base>
           {validSubtractingParts.map(other => {
-             let geo = null;
-             let args = [];
-             if (other.type === 'cylinder') {
-               args = [other.dims.w / 2, other.dims.w / 2, other.dims.h, 32];
-               geo = <cylinderGeometry args={args} />;
-             } else if (other.type === 'cone') {
-               args = [0, other.dims.w / 2, other.dims.h, 32];
-               geo = <cylinderGeometry args={args} />;
-             } else {
-               args = [other.dims.w, other.dims.h, other.dims.d];
-               geo = <boxGeometry args={args} />;
-             }
+            let geo = null;
+            let args = [];
+            if (other.type === 'cylinder') {
+              args = [other.dims.w / 2, other.dims.w / 2, other.dims.h, 32];
+              geo = <cylinderGeometry args={args} />;
+            } else if (other.type === 'cone') {
+              args = [0, other.dims.w / 2, other.dims.h, 32];
+              geo = <cylinderGeometry args={args} />;
+            } else {
+              args = [other.dims.w, other.dims.h, other.dims.d];
+              geo = <boxGeometry args={args} />;
+            }
 
-             return (
-               <Subtraction 
-                 key={other.id} 
-                 position={other.relativeTransform.pos} 
-                 rotation={other.relativeTransform.rot}
-                 scale={other.scale || [1, 1, 1]}
-               >
-                 {geo}
-               </Subtraction>
-             );
+            return (
+              <Subtraction
+                key={other.id}
+                position={other.relativeTransform.pos}
+                rotation={other.relativeTransform.rot}
+                scale={other.scale || [1, 1, 1]}
+              >
+                {geo}
+              </Subtraction>
+            );
           })}
         </Geometry>
         <meshStandardMaterial
-          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || defaultColor}
+          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || defaultColor}
           opacity={1}
           transparent={false}
         />
@@ -183,14 +183,14 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder }) {
   );
 }
 
-export function SphereMesh({ obj, selected, selectionOrder }) {
+export function SphereMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color } = obj;
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <sphereGeometry args={[0.5, 32, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#d1d5db"}
+          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#d1d5db"}
           opacity={1}
           transparent={false}
         />
@@ -199,25 +199,25 @@ export function SphereMesh({ obj, selected, selectionOrder }) {
   );
 }
 
-export function CylinderMesh({ obj, selected, selectionOrder }) {
+export function CylinderMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color, type } = obj;
   const isCone = type === 'cone' || obj.meta?.shape === 'cone';
-  
+
   // dims.w is diameter, dims.h is height
   // cylinderGeometry args: [radiusTop, radiusBottom, height, radialSegments]
   // We use scale to apply dimensions, so geometry should be unit size
   // Unit cylinder: radius 0.5 (diameter 1), height 1
   // Unit cone: radiusTop 0, radiusBottom 0.5, height 1
-  
+
   const radiusTop = isCone ? 0 : 0.5;
   const radiusBottom = 0.5;
-  
+
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <cylinderGeometry args={[radiusTop, radiusBottom, 1, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#d1d5db"}
+          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#d1d5db"}
           opacity={1}
           transparent={false}
         />
@@ -236,7 +236,7 @@ const base64ToArrayBuffer = (base64) => {
   return bytes.buffer;
 };
 
-export function ImportedMesh({ obj, selected, selectionOrder }) {
+export function ImportedMesh({ obj, selected, selectionOrder, selectedCount }) {
   const geometry = useMemo(() => {
     if (!obj.meta?.geometryBase64) return null;
     try {
@@ -268,7 +268,7 @@ export function ImportedMesh({ obj, selected, selectionOrder }) {
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        color={selected ? (selectionOrder === 0 ? "#60a5fa" : (selectionOrder === 1 ? "#eab308" : "#60a5fa")) : "#94a3b8"}
+        color={selected ? (selectedCount > 2 ? "#60a5fa" : (selectionOrder === 0 ? "#60a5fa" : (selectionOrder === 1 ? "#eab308" : "#60a5fa"))) : "#94a3b8"}
         metalness={0.3}
         roughness={0.6}
       />
@@ -276,7 +276,7 @@ export function ImportedMesh({ obj, selected, selectionOrder }) {
   );
 }
 
-export function ReferenceMesh({ obj, selected, selectionOrder }) {
+export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color, key } = obj;
 
   // Check if it's a coke can to apply the custom shape
@@ -319,7 +319,7 @@ export function ReferenceMesh({ obj, selected, selectionOrder }) {
 
     const paintMaterial = (
       <meshStandardMaterial
-        color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#ef4444"}
+        color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#ef4444"}
         metalness={0.6}
         roughness={0.3}
       />
@@ -357,7 +357,7 @@ export function ReferenceMesh({ obj, selected, selectionOrder }) {
       <mesh>
         <cylinderGeometry args={[radius, radius, height, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444")) : color || "#ef4444"}
+          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#ef4444"}
           metalness={0.6}
           roughness={0.3}
         />

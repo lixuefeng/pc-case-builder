@@ -26,29 +26,145 @@ const RightSidebar = ({
   const [connectionType, setConnectionType] = React.useState("mortise-tenon");
   const [connectionDepth, setConnectionDepth] = React.useState(5);
 
-  // Multi-selection Logic
-  if (selectedIds && selectedIds.length === 2) {
+  const cardStyle = {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+  };
+
+  const labelStyle = {
+    fontSize: 12,
+    color: "#64748b",
+    marginBottom: 4,
+    display: "block",
+    fontWeight: 600,
+  };
+
+  const btnStyle = {
+    flex: 1,
+    padding: "8px",
+    borderRadius: 6,
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 500,
+    color: "#0f172a",
+  };
+
+  const actionBtnStyle = {
+    ...btnStyle,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const destructiveBtnStyle = {
+    ...btnStyle,
+    color: "#ef4444",
+    borderColor: "#fca5a5"
+  };
+
+  const handleHideOthers = () => {
+    setObjects(prev => prev.map(o => {
+      if (selectedIds.includes(o.id)) return { ...o, visible: true };
+      return { ...o, visible: false };
+    }));
+    showToast({ type: "info", text: "Hid other objects", ttl: 1500 });
+  };
+
+  const handleShowOthers = () => {
+    setObjects(prev => prev.map(o => {
+      if (selectedIds.includes(o.id)) return o;
+      return { ...o, visible: true };
+    }));
+    showToast({ type: "info", text: "Showed other objects", ttl: 1500 });
+  };
+
+  const handleHideSelected = () => {
+    setObjects(prev => prev.map(o => {
+      if (selectedIds.includes(o.id)) return { ...o, visible: false };
+      return o;
+    }));
+  };
+
+  const handleShowSelected = () => {
+    setObjects(prev => prev.map(o => {
+      if (selectedIds.includes(o.id)) return { ...o, visible: true };
+      return o;
+    }));
+  };
+
+  // Helper to check visibility states
+  const areAllSelectedHidden = selectedIds && selectedIds.length > 0 && selectedIds.every(id => {
+    const obj = objects.find(o => o.id === id);
+    return obj && obj.visible === false;
+  });
+
+  const areAllOthersHidden = objects && objects.length > selectedIds.length && objects
+    .filter(o => !selectedIds.includes(o.id))
+    .every(o => o.visible === false);
+
+
+  const handleMultiColorChange = (color) => {
+    setObjects(prev => prev.map(o => {
+      if (selectedIds.includes(o.id)) return { ...o, color };
+      return o;
+    }));
+  };
+
+  const renderCommonActions = ({
+    canCopy = false,
+    canUngroup = false,
+    isHidden,
+    onToggleHide,
+    areOthersHidden,
+    onToggleHideOthers
+  }) => (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {canCopy && <button style={btnStyle} onClick={onDuplicate}>{t("action.copy")}</button>}
+      <button style={destructiveBtnStyle} onClick={onDelete}>{t("action.delete")}</button>
+      <button style={btnStyle} onClick={onToggleHide}>
+        {isHidden ? "Show" : "Hide"}
+      </button>
+      <button style={btnStyle} onClick={onToggleHideOthers}>
+        {areOthersHidden ? "Show Others" : "Hide Others"}
+      </button>
+      {canUngroup && <button style={btnStyle} onClick={onUngroup}>{t("action.ungroup")}</button>}
+    </div>
+  );
+
+  // --- Case 0: No Selection ---
+  if (!selectedIds || selectedIds.length === 0) {
+    return (
+      <div
+        style={{
+          width: 320,
+          background: "rgba(255,255,255,0.96)",
+          borderLeft: "1px solid #e5e7eb",
+          padding: 16,
+          color: "#475569",
+          fontSize: 14,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+        }}
+      >
+        {t("prop.noSelection")}
+      </div>
+    );
+  }
+
+  // --- Case 2: Two Parts Selected ---
+  if (selectedIds.length === 2) {
     const partA = objects.find(o => o.id === selectedIds[0]);
     const partB = objects.find(o => o.id === selectedIds[1]);
-    
+
     if (partA && partB) {
-      const cardStyle = {
-        background: "#fff",
-        border: "1px solid #e2e8f0",
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 16,
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-      };
-
-      const labelStyle = {
-        fontSize: 12,
-        color: "#64748b",
-        marginBottom: 4,
-        display: "block",
-        fontWeight: 600,
-      };
-
       const typeBtnStyle = (isActive) => ({
         flex: 1,
         padding: "10px",
@@ -75,17 +191,17 @@ const RightSidebar = ({
           flexDirection: "column"
         }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#0f172a" }}>
-            Connection
+            Multi-Selection (2)
           </h3>
-          
+
           {/* Part A Card */}
           <div style={cardStyle}>
             <label style={labelStyle}>First Selected</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ 
-                width: 12, 
-                height: 12, 
-                borderRadius: "50%", 
+              <div style={{
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
                 background: "#ef4444", // Red (Selection Highlight)
                 border: "1px solid rgba(0,0,0,0.1)"
               }} />
@@ -97,10 +213,10 @@ const RightSidebar = ({
           <div style={cardStyle}>
             <label style={labelStyle}>Second Selected</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ 
-                width: 12, 
-                height: 12, 
-                borderRadius: "50%", 
+              <div style={{
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
                 background: "#eab308", // Yellow (Selection Highlight)
                 border: "1px solid rgba(0,0,0,0.1)"
               }} />
@@ -108,17 +224,75 @@ const RightSidebar = ({
             </div>
           </div>
 
+          {/* Appearance */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>{t("prop.appearance") || "Appearance"}</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
+                <input
+                  type="color"
+                  // Use color of first selected item as representative, or default
+                  value={partA.color || "#d1d5db"}
+                  onChange={(e) => handleMultiColorChange(e.target.value)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    padding: 0,
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    background: "none"
+                  }}
+                />
+                <span style={{ fontSize: 13, color: "#334155", fontFamily: "monospace" }}>
+                  {partA.color || "#d1d5db"}
+                </span>
+              </div>
+              <button
+                style={btnStyle}
+                onClick={() => {
+                  const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+                  handleMultiColorChange(randomColor);
+                }}
+              >
+                {t("action.randomColor") || "Random"}
+              </button>
+            </div>
+          </div>
+
+          {/* Group Action */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>Group</label>
+            <button style={{ ...btnStyle, width: "100%" }} onClick={onGroup}>Group Selected</button>
+          </div>
+
+          {/* Actions */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>Actions</label>
+            {renderCommonActions({
+              canCopy: true,
+              isHidden: areAllSelectedHidden,
+              onToggleHide: areAllSelectedHidden ? handleShowSelected : handleHideSelected,
+              areOthersHidden: areAllOthersHidden,
+              onToggleHideOthers: areAllOthersHidden ? handleShowOthers : handleHideOthers
+            })}
+          </div>
+
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, marginTop: 8, color: "#0f172a" }}>
+            Connection
+          </h3>
+
           {/* Connection Type Selection */}
           <div style={cardStyle}>
             <label style={labelStyle}>Connection Type</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button 
+              <button
                 style={typeBtnStyle(connectionType === "mortise-tenon")}
                 onClick={() => setConnectionType("mortise-tenon")}
               >
                 Mortise & Tenon
               </button>
-              <button 
+              <button
                 style={typeBtnStyle(connectionType === "cross-lap")}
                 onClick={() => setConnectionType("cross-lap")}
               >
@@ -157,15 +331,15 @@ const RightSidebar = ({
             <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
               {connectionType === "mortise-tenon" ? (
                 <>
-                  <strong>Selection Order:</strong><br/>
-                  1. <span style={{color: "#ef4444", fontWeight: "bold"}}>First Selected</span> inserts into Second Selected.<br/>
-                  2. <span style={{color: "#eab308", fontWeight: "bold"}}>Second Selected</span> receives the hole.
+                  <strong>Selection Order:</strong><br />
+                  1. <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span> inserts into Second Selected.<br />
+                  2. <span style={{ color: "#eab308", fontWeight: "bold" }}>Second Selected</span> receives the hole.
                 </>
               ) : (
                 <>
-                  <strong>Selection Order:</strong><br/>
-                  1. <span style={{color: "#ef4444", fontWeight: "bold"}}>First Selected</span>: Top Part (Cut from Bottom).<br/>
-                  2. <span style={{color: "#eab308", fontWeight: "bold"}}>Second Selected</span>: Bottom Part (Cut from Top).
+                  <strong>Selection Order:</strong><br />
+                  1. <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span>: Top Part (Cut from Bottom).<br />
+                  2. <span style={{ color: "#eab308", fontWeight: "bold" }}>Second Selected</span>: Bottom Part (Cut from Top).
                 </>
               )}
             </div>
@@ -185,66 +359,66 @@ const RightSidebar = ({
                 boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
               }}
               onClick={() => {
-                 const type = connectionType;
-                 
-                   // Logic for Mortise & Tenon
-                   if (type === 'mortise-tenon') {
-                     // Use partA and partB from outer scope
-                     if (partA && partB) {
-                         const tenon = partA;
-                         const mortise = partB;
-                     
-                         const insertionDepth = connectionDepth; // Use configured depth
+                const type = connectionType;
 
-                         const result = calculateMortiseTenon(tenon, mortise, insertionDepth);
-                         
-                         if (result) {
-                           setObjects(prev => prev.map(o => {
-                             if (o.id === result.tenon.id) return result.tenon;
-                             if (o.id === result.mortise.id) return result.mortise;
-                             return o;
-                           }));
-                         }
-                     }
-                   }
+                // Logic for Mortise & Tenon
+                if (type === 'mortise-tenon') {
+                  // Use partA and partB from outer scope
+                  if (partA && partB) {
+                    const tenon = partA;
+                    const mortise = partB;
 
-                 // Logic for Cross-Lap Joint
-                 if (type === 'cross-lap') {
-                    console.log("[CrossLap] Starting creation...");
-                    // Use partA and partB from outer scope (First/Second selected)
-                    
-                    if (partA && partB) {
-                      console.log("[CrossLap] Parts found:", partA.name, partB.name);
+                    const insertionDepth = connectionDepth; // Use configured depth
 
-                      try {
-                        const result = calculateCrossLap(partA, partB);
-                        if (result) {
-                           setObjects(prev => prev.map(o => {
-                             if (o.id === result.partA.id) return result.partA;
-                             if (o.id === result.partB.id) return result.partB;
-                             return o;
-                           }));
-                        }
-                      } catch (error) {
-                         console.warn("[CrossLap] Error:", error.message);
-                         showToast({
-                           type: "error",
-                           text: error.message,
-                           ttl: 3000
-                         });
-                      }
+                    const result = calculateMortiseTenon(tenon, mortise, insertionDepth);
+
+                    if (result) {
+                      setObjects(prev => prev.map(o => {
+                        if (o.id === result.tenon.id) return result.tenon;
+                        if (o.id === result.mortise.id) return result.mortise;
+                        return o;
+                      }));
                     }
-                 }
+                  }
+                }
 
-                 if (onConnect) {
-                   onConnect(type);
-                 }
+                // Logic for Cross-Lap Joint
+                if (type === 'cross-lap') {
+                  console.log("[CrossLap] Starting creation...");
+                  // Use partA and partB from outer scope (First/Second selected)
+
+                  if (partA && partB) {
+                    console.log("[CrossLap] Parts found:", partA.name, partB.name);
+
+                    try {
+                      const result = calculateCrossLap(partA, partB);
+                      if (result) {
+                        setObjects(prev => prev.map(o => {
+                          if (o.id === result.partA.id) return result.partA;
+                          if (o.id === result.partB.id) return result.partB;
+                          return o;
+                        }));
+                      }
+                    } catch (error) {
+                      console.warn("[CrossLap] Error:", error.message);
+                      showToast({
+                        type: "error",
+                        text: error.message,
+                        ttl: 3000
+                      });
+                    }
+                  }
+                }
+
+                if (onConnect) {
+                  onConnect(type);
+                }
               }}
             >
               Create Connection
             </button>
           </div>
-          
+
           {/* Subtraction Section Header */}
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, marginTop: 24, color: "#0f172a" }}>
             Subtraction
@@ -253,77 +427,164 @@ const RightSidebar = ({
           {/* Subtraction Button (Separate Card) */}
           <div style={cardStyle}>
             <label style={labelStyle}>Subtraction</label>
-            
+
             <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
-               <strong>Effect:</strong><br/>
-               Removes <span style={{color: "#eab308", fontWeight: "bold"}}>Second Selected</span> from <span style={{color: "#ef4444", fontWeight: "bold"}}>First Selected</span>.
+              <strong>Effect:</strong><br />
+              Removes <span style={{ color: "#eab308", fontWeight: "bold" }}>Second Selected</span> from <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span>.
             </div>
 
-               <button
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  background: "#ef4444", // Red for destructive/subtractive
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-                onClick={() => {
-                   // Static Subtraction Logic
-                   if (partA && partB) {
-                      const modifier = {
-                        ...partB,
-                        id: `sub_${partB.id}_${Date.now()}`, // Generate unique ID for the modifier
-                        sourceId: partB.id, // Keep reference to original ID
-                        operation: 'subtract',
-                        relativeTransform: getRelativeTransform(partB, partA),
-                        scale: partB.scale || [1, 1, 1] // Capture scale
-                      };
+            <button
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#ef4444", // Red for destructive/subtractive
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+              onClick={() => {
+                // Static Subtraction Logic
+                if (partA && partB) {
+                  const modifier = {
+                    ...partB,
+                    id: `sub_${partB.id}_${Date.now()}`, // Generate unique ID for the modifier
+                    sourceId: partB.id, // Keep reference to original ID
+                    operation: 'subtract',
+                    relativeTransform: getRelativeTransform(partB, partA),
+                    scale: partB.scale || [1, 1, 1] // Capture scale
+                  };
 
-                      setObjects(prev => {
-                        const next = prev.map(o => {
-                          if (o.id === partA.id) {
-                            return {
-                              ...o,
-                              csgOperations: [...(o.csgOperations || []), modifier]
-                            };
-                          }
-                          return o;
-                        });
-                        return next;
-                      });
-                   }
-                }}
-              >
-                Subtract
-              </button>
+                  setObjects(prev => {
+                    const next = prev.map(o => {
+                      if (o.id === partA.id) {
+                        return {
+                          ...o,
+                          csgOperations: [...(o.csgOperations || []), modifier]
+                        };
+                      }
+                      return o;
+                    });
+                    return next;
+                  });
+                }
+              }}
+            >
+              Subtract
+            </button>
           </div>
         </div>
       );
     }
   }
 
-  if (!selectedObject) {
+  // --- Case 3: More than 2 Parts Selected ---
+  if (selectedIds.length > 2) {
+    const selectedParts = objects.filter(o => selectedIds.includes(o.id));
+
     return (
-      <div
-        style={{
-          width: 300,
-          background: "rgba(255,255,255,0.96)",
-          borderLeft: "1px solid #e5e7eb",
-          padding: 16,
-          color: "#475569",
-          fontSize: 14,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {t("prop.noSelection")}
+      <div style={{
+        width: 320,
+        background: "rgba(255,255,255,0.96)",
+        borderLeft: "1px solid #e5e7eb",
+        padding: 16,
+        height: "100%",
+        overflowY: "auto",
+        color: "#0f172a",
+        display: "flex",
+        flexDirection: "column"
+      }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "#0f172a" }}>
+          Multi-Selection ({selectedIds.length})
+        </h3>
+
+        {/* Item List */}
+        <div style={cardStyle}>
+          <label style={labelStyle}>Selected Items</label>
+          <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {selectedParts.map((part, index) => (
+              <div key={part.id} style={{
+                fontSize: 13,
+                padding: "4px 8px",
+                background: "#f1f5f9",
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8
+              }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#ef4444"
+                }} />
+                <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {part.name || part.type}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <div style={cardStyle}>
+          <label style={labelStyle}>{t("prop.appearance") || "Appearance"}</label>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
+              <input
+                type="color"
+                // Use color of first selected item as representative
+                value={selectedParts[0]?.color || "#d1d5db"}
+                onChange={(e) => handleMultiColorChange(e.target.value)}
+                style={{
+                  width: 24,
+                  height: 24,
+                  padding: 0,
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  background: "none"
+                }}
+              />
+              <span style={{ fontSize: 13, color: "#334155", fontFamily: "monospace" }}>
+                {selectedParts[0]?.color || "#d1d5db"}
+              </span>
+            </div>
+            <button
+              style={btnStyle}
+              onClick={() => {
+                const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+                handleMultiColorChange(randomColor);
+              }}
+            >
+              {t("action.randomColor") || "Random"}
+            </button>
+          </div>
+        </div>
+
+        {/* Group Action */}
+        <div style={cardStyle}>
+          <label style={labelStyle}>Group</label>
+          <button style={{ ...btnStyle, width: "100%" }} onClick={onGroup}>Group Selected</button>
+        </div>
+
+        {/* Actions */}
+        <div style={cardStyle}>
+          <label style={labelStyle}>Actions</label>
+          {renderCommonActions({
+            canCopy: true,
+            isHidden: areAllSelectedHidden,
+            onToggleHide: areAllSelectedHidden ? handleShowSelected : handleHideSelected,
+            areOthersHidden: areAllOthersHidden,
+            onToggleHideOthers: areAllOthersHidden ? handleShowOthers : handleHideOthers
+          })}
+        </div>
       </div>
     );
   }
+
+  // --- Case 1: Single Part Selected (Default Fallback) ---
+  // Ensure selectedObject is valid
+  if (!selectedObject) return null;
 
   const handleChange = (key, value) => {
     setObjects((prev) =>
@@ -353,27 +614,10 @@ const RightSidebar = ({
     handleChange("rot", newRot);
   };
 
-  const cardStyle = {
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-  };
-
   const sectionStyle = {
     marginBottom: 0, // Removed margin as card handles it
     borderBottom: "none", // Removed border as card handles it
     paddingBottom: 0,
-  };
-
-  const labelStyle = {
-    fontSize: 12,
-    color: "#334155",
-    marginBottom: 4,
-    display: "block",
-    fontWeight: 600,
   };
 
   const inputStyle = {
@@ -391,18 +635,6 @@ const RightSidebar = ({
     display: "flex",
     gap: 8,
     marginBottom: 8,
-  };
-
-  const btnStyle = {
-    flex: 1,
-    padding: "8px",
-    borderRadius: 6,
-    border: "1px solid #cbd5e1",
-    background: "#fff",
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 500,
-    color: "#0f172a",
   };
 
   return (
@@ -425,7 +657,7 @@ const RightSidebar = ({
 
       {/* Basic Info */}
       <div style={cardStyle}>
-        <div style={{...sectionStyle, marginBottom: 12}}>
+        <div style={{ ...sectionStyle, marginBottom: 12 }}>
           <label style={labelStyle}>{t("prop.name")}</label>
           <input
             style={inputStyle}
@@ -449,9 +681,9 @@ const RightSidebar = ({
 
       {/* Transform */}
       <div style={cardStyle}>
-        <div style={{...sectionStyle, marginBottom: 12}}>
+        <div style={{ ...sectionStyle, marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.transform")}</div>
-          
+
           <label style={labelStyle}>{t("prop.position")}</label>
           <div style={rowStyle}>
             <input
@@ -531,11 +763,11 @@ const RightSidebar = ({
 
       {/* Appearance */}
       <div style={cardStyle}>
-        <div style={{...sectionStyle, marginBottom: 12}}>
+        <div style={{ ...sectionStyle, marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.appearance") || "Appearance"}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
-               <input
+              <input
                 type="color"
                 value={selectedObject.color || "#d1d5db"}
                 onChange={(e) => handleChange("color", e.target.value)}
@@ -556,7 +788,7 @@ const RightSidebar = ({
             <button
               style={btnStyle}
               onClick={() => {
-                const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+                const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
                 handleChange("color", randomColor);
               }}
             >
@@ -568,18 +800,16 @@ const RightSidebar = ({
 
       {/* Actions */}
       <div style={cardStyle}>
-        <div style={{...sectionStyle, marginBottom: 12}}>
+        <div style={{ ...sectionStyle, marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.actions")}</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button style={btnStyle} onClick={onDuplicate}>{t("action.copy")}</button>
-            <button style={{ ...btnStyle, color: "#ef4444", borderColor: "#fca5a5" }} onClick={onDelete}>{t("action.delete")}</button>
-            <button style={btnStyle} onClick={() => handleChange("visible", !selectedObject.visible)}>
-              {selectedObject.visible === false ? "Show" : "Hide"}
-            </button>
-            {selectedObject.type === "group" && (
-              <button style={btnStyle} onClick={onUngroup}>{t("action.ungroup")}</button>
-            )}
-          </div>
+          {renderCommonActions({
+            canCopy: true,
+            canUngroup: selectedObject.type === "group",
+            isHidden: selectedObject.visible === false,
+            onToggleHide: () => handleChange("visible", !selectedObject.visible),
+            areOthersHidden: areAllOthersHidden,
+            onToggleHideOthers: areAllOthersHidden ? handleShowOthers : handleHideOthers
+          })}
         </div>
       </div>
 

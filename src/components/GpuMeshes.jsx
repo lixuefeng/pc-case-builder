@@ -34,7 +34,7 @@ const buildPcieBracketGeometry = ({ width, height, thickness }) => {
   return geo;
 };
 
-export function GPUBracketMesh({ obj, selected }) {
+export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount }) {
 
   const bracketGeometry = useMemo(
     () =>
@@ -54,7 +54,7 @@ export function GPUBracketMesh({ obj, selected }) {
           rotation={[0, Math.PI / 2, 0]}
         >
           <meshStandardMaterial
-            color={selected ? "#ef4444" : "#9ca3af"}
+            color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : "#9ca3af"}
             metalness={0.55}
             roughness={0.32}
           />
@@ -64,10 +64,10 @@ export function GPUBracketMesh({ obj, selected }) {
   );
 }
 
-export function GPUMesh({ obj, selected }) {
+export function GPUMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color, meta = {} } = obj;
   const BODY_LENGTH = 265; // mm
-  const coolerColor = selected ? "#ef4444" : color || "#475569";
+  const coolerColor = selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#475569";
 
   const fingerPlacement = useMemo(
     () => buildGpuFingerPlacement({ dims, pcie: meta.pcie || {} }),

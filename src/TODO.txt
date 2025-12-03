@@ -1,1 +1,5 @@
-scale hud has a bug. if i change the number, it would change back after I press enter although the actual size is changes. 
+nice. now let's fix another issue: 1. after selection 2 or more parts, there should be a group button in the right sidebar.  
+the behavior should be: 
+0. if select 1 part, show name/type/id/transform/appearance/action buttons(copy/delete/hide/hide others we don't have this yet.)/connector buttons
+1. if select 2 parts show item list (already there) and connection/subtract/group buttons/action buttons(delete/hide)
+2. if select more than 2 parts, show item list,group button/group buttons/action buttons(delete/hide)

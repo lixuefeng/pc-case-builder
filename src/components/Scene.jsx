@@ -61,7 +61,7 @@ export default function Scene({
 
   const alignmentCandidates = useMemo(() => {
     const result = [];
-    
+
     const traverse = (obj, parentWorldPos = null, parentWorldQuat = null, visited = new Set()) => {
       // Safety checks
       if (!obj || !obj.id) return;
@@ -71,7 +71,7 @@ export default function Scene({
         return;
       }
       visited.add(obj.id);
-      
+
       // Calculate world transform for current object
       let worldPos, worldQuat, worldRot;
 
@@ -83,7 +83,7 @@ export default function Scene({
 
         // World Pos = ParentPos + (LocalPos rotated by ParentQuat)
         worldPos = parentWorldPos.clone().add(localPos.applyQuaternion(parentWorldQuat));
-        
+
         // World Quat = ParentQuat * LocalQuat
         worldQuat = parentWorldQuat.clone().multiply(localQuat);
         const e = new THREE.Euler().setFromQuaternion(worldQuat, 'XYZ');
@@ -159,6 +159,7 @@ export default function Scene({
             obj={obj}
             selected={selectedIds.includes(obj.id)}
             selectionOrder={selectedIds.indexOf(obj.id)}
+            selectedCount={selectedIds.length}
             setObj={(updater) => {
               if (obj.embeddedParentId) return;
               setObjects((prev) =>
@@ -220,12 +221,12 @@ export default function Scene({
               </mesh>
             ))}
             {rulerPoints.length === 2 && (
-               <Line
-                  points={rulerPoints}
-                  color="#ef4444"
-                  lineWidth={2}
-                  depthTest={false}
-               />
+              <Line
+                points={rulerPoints}
+                color="#ef4444"
+                lineWidth={2}
+                depthTest={false}
+              />
             )}
           </>
         )}

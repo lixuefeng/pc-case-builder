@@ -22,7 +22,7 @@ const inputStyle = {
   outline: 'none',
 };
 
-const NumberInput = ({ value, onCommit, suffix = '', width = 60 }) => {
+const NumberInput = ({ value, onCommit, suffix = '', width = 60, disabled = false }) => {
   const [localValue, setLocalValue] = useState(value?.toFixed(2) ?? '0.00');
 
   const inputRef = React.useRef(null);
@@ -52,19 +52,30 @@ const NumberInput = ({ value, onCommit, suffix = '', width = 60 }) => {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div style={{ display: 'flex', alignItems: 'center', opacity: disabled ? 0.5 : 1 }}>
       <input
         ref={inputRef}
-        style={{ ...inputStyle, width }}
+        style={{ ...inputStyle, width, cursor: disabled ? 'not-allowed' : 'text' }}
         value={localValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
+        disabled={disabled}
       />
       {suffix && <span style={{ ...labelStyle, marginLeft: 2 }}>{suffix}</span>}
     </div>
   );
 };
+
+const Box = ({ filled }) => (
+  <div style={{
+    width: 10, height: 10,
+    border: '1px solid #94a3b8',
+    background: filled ? '#3b82f6' : 'transparent',
+    marginLeft: 8,
+    borderRadius: 2
+  }} />
+);
 
 const HUD = ({ transformMode }) => {
   const hudState = useStore(state => state.hudState);
@@ -144,100 +155,135 @@ const HUD = ({ transformMode }) => {
       const axes = ['sx', 'sy', 'sz'];
       newHudData[axes[axisIndex]] = newValue;
     }
-
     setHudState({ ...hudState, data: newHudData });
   };
 
   const renderContent = () => {
+    const hasSelection = selectedIds.length > 0;
+    const inputDisabled = !hasSelection;
+
     switch (type) {
-      case 'move':
+      case 'move': {
         return (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>X</span>
-              <NumberInput
-                value={data.x}
-                onCommit={(val) => updateSingleAxis('pos', 0, val)}
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {hasSelection && (
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>X</span>
+                  <NumberInput 
+                    value={data.x} 
+                    suffix="mm"
+                    onCommit={(val) => updateSingleAxis('pos', 0, val)} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>Y</span>
+                  <NumberInput 
+                    value={data.y} 
+                    suffix="mm"
+                    onCommit={(val) => updateSingleAxis('pos', 1, val)} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>Z</span>
+                  <NumberInput 
+                    value={data.z} 
+                    suffix="mm"
+                    onCommit={(val) => updateSingleAxis('pos', 2, val)} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: hasSelection ? 4 : 0, borderTop: hasSelection ? '1px solid #334155' : 'none', paddingTop: hasSelection ? 4 : 0, width: '100%', textAlign: 'center' }}>
+              {t('label.moveInstructions')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>Y</span>
-              <NumberInput
-                value={data.y}
-                onCommit={(val) => updateSingleAxis('pos', 1, val)}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>Z</span>
-              <NumberInput
-                value={data.z}
-                onCommit={(val) => updateSingleAxis('pos', 2, val)}
-              />
-            </div>
-          </>
+          </div>
         );
+      }
 
-      case 'rotate':
+      case 'rotate': {
         return (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>RX</span>
-              <NumberInput
-                value={data.rx}
-                suffix="°"
-                onCommit={(val) => updateSingleAxis('rot', 0, THREE.MathUtils.degToRad(val))}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>RY</span>
-              <NumberInput
-                value={data.ry}
-                suffix="°"
-                onCommit={(val) => updateSingleAxis('rot', 1, THREE.MathUtils.degToRad(val))}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>RZ</span>
-              <NumberInput
-                value={data.rz}
-                suffix="°"
-                onCommit={(val) => updateSingleAxis('rot', 2, THREE.MathUtils.degToRad(val))}
-              />
-            </div>
-          </>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {hasSelection && (
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>RX</span>
+                  <NumberInput 
+                    value={data.rx ? data.rx * (180/Math.PI) : 0} 
+                    suffix="°"
+                    onCommit={(val) => updateSingleAxis('rot', 0, THREE.MathUtils.degToRad(val))} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>RY</span>
+                  <NumberInput 
+                    value={data.ry ? data.ry * (180/Math.PI) : 0} 
+                    suffix="°"
+                    onCommit={(val) => updateSingleAxis('rot', 1, THREE.MathUtils.degToRad(val))} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>RZ</span>
+                  <NumberInput 
+                    value={data.rz ? data.rz * (180/Math.PI) : 0} 
+                    suffix="°"
+                    onCommit={(val) => updateSingleAxis('rot', 2, THREE.MathUtils.degToRad(val))} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         );
+      }
 
-      case 'scale':
+      case 'scale': {
         return (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>X</span>
-              <NumberInput 
-                value={data.sx ?? data.factor ?? 1} 
-                suffix="x"
-                onCommit={(val) => updateSingleAxis('scale', 0, val)} 
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {hasSelection && (
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>X</span>
+                  <NumberInput 
+                    value={data.sx ?? data.factor ?? 1} 
+                    suffix="x"
+                    onCommit={(val) => updateSingleAxis('scale', 0, val)} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>Y</span>
+                  <NumberInput 
+                    value={data.sy ?? data.factor ?? 1} 
+                    suffix="x"
+                    onCommit={(val) => updateSingleAxis('scale', 1, val)} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={labelStyle}>Z</span>
+                  <NumberInput 
+                    value={data.sz ?? data.factor ?? 1} 
+                    suffix="x"
+                    onCommit={(val) => updateSingleAxis('scale', 2, val)} 
+                    disabled={inputDisabled}
+                  />
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: hasSelection ? 4 : 0, borderTop: hasSelection ? '1px solid #334155' : 'none', paddingTop: hasSelection ? 4 : 0, width: '100%', textAlign: 'center' }}>
+              {t('label.scaleInstructions')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>Y</span>
-              <NumberInput 
-                value={data.sy ?? data.factor ?? 1} 
-                suffix="x"
-                onCommit={(val) => updateSingleAxis('scale', 1, val)} 
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span style={labelStyle}>Z</span>
-              <NumberInput 
-                value={data.sz ?? data.factor ?? 1} 
-                suffix="x"
-                onCommit={(val) => updateSingleAxis('scale', 2, val)} 
-              />
-            </div>
-          </>
+          </div>
         );
+      }
 
-      case 'ruler':
+      case 'ruler': {
         const step1Filled = rulerPoints.length >= 1;
         const step2Filled = rulerPoints.length >= 2;
         
@@ -246,16 +292,6 @@ const HUD = ({ transformMode }) => {
             displayDistance = rulerPoints[0].distanceTo(rulerPoints[1]).toFixed(2);
         }
         
-        const Box = ({ filled }) => (
-          <div style={{
-            width: 10, height: 10,
-            border: '1px solid #94a3b8',
-            background: filled ? '#3b82f6' : 'transparent',
-            marginLeft: 8,
-            borderRadius: 2
-          }} />
-        );
-
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
              <div style={{ display: 'flex', alignItems: 'center', opacity: step1Filled ? 0.5 : 1 }}>
@@ -301,8 +337,9 @@ const HUD = ({ transformMode }) => {
              )}
           </div>
         );
+      }
 
-      case 'drill':
+      case 'drill': {
         const updateParam = (key, val) => setDrillParams({ [key]: val });
         
         return (
@@ -352,6 +389,7 @@ const HUD = ({ transformMode }) => {
             </div>
           </div>
         );
+      }
 
       default:
         return null;

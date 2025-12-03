@@ -164,28 +164,26 @@ function EditorContent() {
       setHudState({ type: 'ruler', data: { distance: 0 } });
     } else if (mode === 'drill') {
       setHudState({ type: 'drill', data: {} });
-    } else if (selectedObject) {
+    } else {
+       // For translate/rotate/scale, try to use selected object data, otherwise empty
        if (mode === 'translate') {
-           setHudState({ type: 'move', data: { 
+           setHudState({ type: 'move', data: selectedObject ? { 
              x: selectedObject.pos[0], y: selectedObject.pos[1], z: selectedObject.pos[2] 
-           }});
+           } : {} });
        } else if (mode === 'rotate') {
-           setHudState({ type: 'rotate', data: { 
+           setHudState({ type: 'rotate', data: selectedObject ? { 
              rx: THREE.MathUtils.radToDeg(selectedObject.rot[0]), 
              ry: THREE.MathUtils.radToDeg(selectedObject.rot[1]), 
              rz: THREE.MathUtils.radToDeg(selectedObject.rot[2]) 
-           }});
+           } : {} });
        } else if (mode === 'scale') {
-           const s = selectedObject.scale || [1, 1, 1];
-           setHudState({ type: 'scale', data: { 
-               sx: s[0], sy: s[1], sz: s[2], factor: s[0] 
-           }});
-       } else {
-           setHudState(null);
+           const s = selectedObject?.scale || [1, 1, 1];
+           setHudState({ type: 'scale', data: selectedObject ? { 
+             sx: s[0], sy: s[1], sz: s[2] 
+           } : {} });
        }
-    } else {
-      setHudState(null);
-    }
+    } 
+
   };
 
   useEffect(() => {
@@ -624,7 +622,16 @@ function EditorContent() {
     if (id === null) {
       setSelectedIds([]);
       setPendingAlignFace(null);
-      setHudState(null); // Clear HUD on deselect
+      
+      // Persist HUD for specific modes even when deselected
+      if (transformMode === 'translate') {
+        setHudState({ type: 'move', data: {} });
+      } else if (transformMode === 'scale') {
+        setHudState({ type: 'scale', data: {} });
+      } else if (transformMode !== 'ruler' && transformMode !== 'drill') {
+        setHudState(null);
+      }
+      
       if (transformMode === "ruler") {
         setRulerPoints([]);
       }

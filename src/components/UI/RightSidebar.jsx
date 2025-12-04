@@ -27,6 +27,7 @@ const RightSidebar = ({
   const [connectionType, setConnectionType] = React.useState("mortise-tenon");
   const [connectionDepth, setConnectionDepth] = React.useState(5);
   const [lapLength, setLapLength] = React.useState(20);
+  const [clearance, setClearance] = React.useState(0.1);
 
   const cardStyle = {
     background: "#fff",
@@ -348,6 +349,28 @@ const RightSidebar = ({
               </div>
             )}
 
+            {/* Clearance Input (Common for all joints) */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={labelStyle}>Clearance (mm)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={clearance}
+                onChange={(e) => { e.stopPropagation(); setClearance(Number(e.target.value)); }}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: 4,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 13,
+                  outline: "none"
+                }}
+              />
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                Adds a gap to the joint for 3D printing tolerance.
+              </div>
+            </div>
+
             {/* Dynamic Explanation */}
             <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
               {connectionType === "mortise-tenon" ? (
@@ -396,7 +419,7 @@ const RightSidebar = ({
 
                     const insertionDepth = connectionDepth; // Use configured depth
 
-                    const result = calculateMortiseTenon(tenon, mortise, insertionDepth);
+                    const result = calculateMortiseTenon(tenon, mortise, insertionDepth, clearance);
 
                     if (result) {
                       setObjects(prev => prev.map(o => {
@@ -417,7 +440,7 @@ const RightSidebar = ({
                     console.log("[CrossLap] Parts found:", partA.name, partB.name);
 
                     try {
-                      const result = calculateCrossLap(partA, partB);
+                      const result = calculateCrossLap(partA, partB, clearance);
                       if (result) {
                         setObjects(prev => prev.map(o => {
                           if (o.id === result.partA.id) return result.partA;

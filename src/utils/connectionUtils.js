@@ -9,7 +9,7 @@ import { getRelativeTransform } from '../utils/mathUtils';
  * @returns {Object} - An object containing the modified tenon and mortise objects, or null if calculation fails.
  *                     Returns { tenon: modifiedTenon, mortise: modifiedMortise }
  */
-export const calculateMortiseTenon = (tenon, mortise, insertionDepth) => {
+export const calculateMortiseTenon = (tenon, mortise, insertionDepth, clearance = 0) => {
     if (!tenon || !mortise) return null;
 
     // Helper to get Mortise AABB in Tenon's Local Space
@@ -138,12 +138,47 @@ export const calculateMortiseTenon = (tenon, mortise, insertionDepth) => {
         csgOperations: newCsgOperations
     };
 
-    // 2. Modify Mortise: Subtract Tenon (using NEW dimensions)
+    // 2. Modify Mortise: Subtract Tenon (using NEW dimensions + Clearance)
+
+    // Calculate dimensions for the hole (Tenon dims + 2 * clearance)
+    // We add clearance to ALL dimensions for simplicity, or we could exclude the insertion axis.
+    // Usually, clearance is needed on the sides. The depth is handled by insertionDepth.
+    // If we add clearance to the insertion axis, the hole gets deeper/longer, which is fine.
+
+    const holeDims = {
+        w: modifiedTenon.dims.w + (axis !== 'x' ? 2 * clearance : 0), // Don't add clearance to length if we want precise depth control? 
+        // Actually, for a loose fit, we might want depth clearance too.
+        // But usually "clearance" refers to the fit (width/height).
+        // Let's add it to W/H/D but maybe handle the "length" axis differently?
+        // For now, simple inflation is safest for "fit".
+        // Wait, if we inflate X (length) by clearance, the hole becomes deeper.
+        // If the tenon bottoms out, that's good (space for glue/air).
+        // So adding to all axes is a reasonable default.
+        h: modifiedTenon.dims.h + (axis !== 'y' ? 2 * clearance : 0),
+        d: modifiedTenon.dims.d + (axis !== 'z' ? 2 * clearance : 0)
+    };
+
+    // If we want the hole to be slightly deeper than the tenon to ensure it fits fully:
+    // The tenon length increased by insertionDepth.
+    // The hole should be at least that deep.
+    // If we add clearance to the length axis, it adds to both ends (centered).
+    // So it adds 'clearance' depth at the bottom. This is good.
+
+    // However, we need to be careful about the POSITION of the hole cutter.
+    // If we just inflate dimensions, the center stays the same.
+    // The tenon was shifted by (insertionDepth/2).
+    // If we inflate the hole, it grows from that center.
+
+    // Let's just use the inflated dims.
 
     const tenonObjForCalc = {
         ...tenon,
         pos: modifiedTenon.pos,
-        dims: modifiedTenon.dims,
+        dims: {
+            w: modifiedTenon.dims.w + 2 * clearance,
+            h: modifiedTenon.dims.h + 2 * clearance,
+            d: modifiedTenon.dims.d + 2 * clearance
+        },
         rot: modifiedTenon.rot,
         scale: modifiedTenon.scale
     };
@@ -175,7 +210,7 @@ export const calculateMortiseTenon = (tenon, mortise, insertionDepth) => {
  * @returns {Object} - An object containing the modified parts, or throws an error if intersection is invalid.
  *                     Returns { partA: modifiedPartA, partB: modifiedPartB }
  */
-export const calculateCrossLap = (partA, partB) => {
+export const calculateCrossLap = (partA, partB, clearance = 0) => {
     if (!partA || !partB) return null;
 
     // 0. Check Intersection (Robust World AABB)
@@ -280,7 +315,14 @@ export const calculateCrossLap = (partA, partB) => {
         if (stackAxis === 'y') newCutterPos[1] += shiftVal;
         if (stackAxis === 'z') newCutterPos[2] += shiftVal;
 
-        const cutterObj = { ...cutter, pos: newCutterPos };
+        // Inflate cutter dimensions by clearance
+        const inflatedCutterDims = {
+            w: cutter.dims.w + 2 * clearance,
+            h: cutter.dims.h + 2 * clearance,
+            d: cutter.dims.d + 2 * clearance
+        };
+
+        const cutterObj = { ...cutter, pos: newCutterPos, dims: inflatedCutterDims };
         const relTransform = getRelativeTransform(cutterObj, partA);
 
         if (relTransform) {
@@ -289,7 +331,7 @@ export const calculateCrossLap = (partA, partB) => {
                 csgOperations: [...(partA.csgOperations || []), {
                     id: `cross_${cutter.id}_${Date.now()}`,
                     type: cutter.type,
-                    dims: cutter.dims,
+                    dims: inflatedCutterDims,
                     relativeTransform: relTransform,
                     scale: cutter.scale || [1, 1, 1],
                     operation: 'subtract'
@@ -310,7 +352,14 @@ export const calculateCrossLap = (partA, partB) => {
         if (stackAxis === 'y') newCutterPos[1] += shiftVal;
         if (stackAxis === 'z') newCutterPos[2] += shiftVal;
 
-        const cutterObj = { ...cutter, pos: newCutterPos };
+        // Inflate cutter dimensions by clearance
+        const inflatedCutterDims = {
+            w: cutter.dims.w + 2 * clearance,
+            h: cutter.dims.h + 2 * clearance,
+            d: cutter.dims.d + 2 * clearance
+        };
+
+        const cutterObj = { ...cutter, pos: newCutterPos, dims: inflatedCutterDims };
         const relTransform = getRelativeTransform(cutterObj, partB);
 
         if (relTransform) {
@@ -319,7 +368,7 @@ export const calculateCrossLap = (partA, partB) => {
                 csgOperations: [...(partB.csgOperations || []), {
                     id: `cross_${cutter.id}_${Date.now()}`,
                     type: cutter.type,
-                    dims: cutter.dims,
+                    dims: inflatedCutterDims,
                     relativeTransform: relTransform,
                     scale: cutter.scale || [1, 1, 1],
                     operation: 'subtract'

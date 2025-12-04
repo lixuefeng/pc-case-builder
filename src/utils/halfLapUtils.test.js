@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { validateHalfLapCompatibility, calculateHalfLapTransforms } from './halfLapUtils';
 import * as THREE from 'three';
 
@@ -28,7 +29,7 @@ describe('validateHalfLapCompatibility', () => {
         const objB = createMockObj('b', 50, 0, 0, 100, 30, 20); // Height mismatch
         const result = validateHalfLapCompatibility(objA, objB);
         expect(result.compatible).toBe(false);
-        expect(result.reason).toContain('dimensions');
+        expect(result.reason).toContain('cross-section');
     });
 });
 

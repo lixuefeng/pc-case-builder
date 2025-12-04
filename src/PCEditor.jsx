@@ -15,9 +15,10 @@ import { ensureSceneConnectors } from "./utils/connectors";
 import { getMotherboardIoCutoutBounds } from "./config/motherboardPresets";
 import { expandObjectsWithEmbedded } from "./utils/embeddedParts";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
+import { adjustCSGOperations } from "./utils/csgUtils";
 
 const DUPLICATE_OFFSET = 25;
-const alog = () => {};
+const alog = () => { };
 
 const deepCloneObject = (value) => JSON.parse(JSON.stringify(value));
 const randomSuffix = () => Math.random().toString(36).slice(2, 8);
@@ -142,14 +143,14 @@ function EditorContent() {
   const [activeLeftTab, setActiveLeftTab] = useState("library");
 
   const [cutterFace, setCutterFace] = useState(null);
-  
+
   // Clear cutterFace when leaving cut mode
   useEffect(() => {
     if (transformMode !== 'cut') {
       setCutterFace(null);
     }
   }, [transformMode]);
-  
+
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
   const baseIdSet = useMemo(() => new Set(objects.map((o) => o.id)), [objects]);
 
@@ -169,30 +170,36 @@ function EditorContent() {
 
   const handleTransformModeChange = (mode) => {
     setTransformMode(mode);
-    
+
     if (mode === 'ruler') {
       setHudState({ type: 'ruler', data: { distance: 0 } });
     } else if (mode === 'drill') {
       setHudState({ type: 'drill', data: {} });
     } else {
-       // For translate/rotate/scale, try to use selected object data, otherwise empty
-       if (mode === 'translate') {
-           setHudState({ type: 'move', data: selectedObject ? { 
-             x: selectedObject.pos[0], y: selectedObject.pos[1], z: selectedObject.pos[2] 
-           } : {} });
-       } else if (mode === 'rotate') {
-           setHudState({ type: 'rotate', data: selectedObject ? { 
-             rx: THREE.MathUtils.radToDeg(selectedObject.rot[0]), 
-             ry: THREE.MathUtils.radToDeg(selectedObject.rot[1]), 
-             rz: THREE.MathUtils.radToDeg(selectedObject.rot[2]) 
-           } : {} });
-       } else if (mode === 'scale') {
-           const s = selectedObject?.scale || [1, 1, 1];
-           setHudState({ type: 'scale', data: selectedObject ? { 
-             sx: s[0], sy: s[1], sz: s[2] 
-           } : {} });
-       }
-    } 
+      // For translate/rotate/scale, try to use selected object data, otherwise empty
+      if (mode === 'translate') {
+        setHudState({
+          type: 'move', data: selectedObject ? {
+            x: selectedObject.pos[0], y: selectedObject.pos[1], z: selectedObject.pos[2]
+          } : {}
+        });
+      } else if (mode === 'rotate') {
+        setHudState({
+          type: 'rotate', data: selectedObject ? {
+            rx: THREE.MathUtils.radToDeg(selectedObject.rot[0]),
+            ry: THREE.MathUtils.radToDeg(selectedObject.rot[1]),
+            rz: THREE.MathUtils.radToDeg(selectedObject.rot[2])
+          } : {}
+        });
+      } else if (mode === 'scale') {
+        const s = selectedObject?.scale || [1, 1, 1];
+        setHudState({
+          type: 'scale', data: selectedObject ? {
+            sx: s[0], sy: s[1], sz: s[2]
+          } : {}
+        });
+      }
+    }
 
   };
 
@@ -200,7 +207,7 @@ function EditorContent() {
     if (!alignEnabled) {
       setPendingAlignFace(null);
     }
-    
+
     if (transformMode !== "ruler" && transformMode !== "drill") {
       setRulerPoints([]);
       setDrillCandidates([]);
@@ -227,9 +234,9 @@ function EditorContent() {
     if (transformMode === 'drill') {
       setHudState({
         type: 'drill',
-        data: { 
-            snapped: drillGhost?.snapped,
-            position: drillGhost?.position
+        data: {
+          snapped: drillGhost?.snapped,
+          position: drillGhost?.position
         }
       });
     }
@@ -289,7 +296,7 @@ function EditorContent() {
 
       // 1️⃣ 找到当前 hover 的对象 X (Use flatObjects to find it!)
       const baseObj = flatObjects.find((o) => o.id === partId);
-      
+
 
 
 
@@ -356,7 +363,7 @@ function EditorContent() {
         const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(obj.worldQuat);
         const az = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.worldQuat);
         const axes = { ax, ay, az };
-        
+
         const halfDepth = projectedHalfExtentAlongAxis(
           planeNormalB,
           obj.dims || {},
@@ -381,111 +388,111 @@ function EditorContent() {
         const projectedOnA = new THREE.Vector3();
         planeA.projectPoint(projectedOnB, projectedOnA);
 
-      // 3️⃣ Calculate Intersection of Face A and Face B (Projected)
-      // We need to work in the 2D plane of Face A to find the overlap area.
-      
-      // Helper to get 2D dimensions and axes based on face name
-      const getFace2DInfo = (faceName, size3D) => {
-        if (!faceName || !size3D) return null;
-        if (faceName.includes("X")) return { dims: [size3D[1], size3D[2]], axesIndices: [1, 2] }; // Y, Z
-        if (faceName.includes("Y")) return { dims: [size3D[0], size3D[2]], axesIndices: [0, 2] }; // X, Z
-        if (faceName.includes("Z")) return { dims: [size3D[0], size3D[1]], axesIndices: [0, 1] }; // X, Y
-        return null; // Fallback or io-cutout
-      };
+        // 3️⃣ Calculate Intersection of Face A and Face B (Projected)
+        // We need to work in the 2D plane of Face A to find the overlap area.
 
-      const faceAInfo = getFace2DInfo(face, faceSize);
-      // If we can't determine axes (e.g. io-cutout), fallback to simple projection
-      if (!faceAInfo || !info.quaternion) {
-         // Fallback to simple distance check (relaxed)
-         const candidateMaxDim = Math.max(obj.dims.w || 0, obj.dims.h || 0, obj.dims.d || 0);
-         const threshold = (maxDim / 2) + (candidateMaxDim / 2);
-         if (projectedOnB.distanceTo(faceCenterVecB) < threshold) {
+        // Helper to get 2D dimensions and axes based on face name
+        const getFace2DInfo = (faceName, size3D) => {
+          if (!faceName || !size3D) return null;
+          if (faceName.includes("X")) return { dims: [size3D[1], size3D[2]], axesIndices: [1, 2] }; // Y, Z
+          if (faceName.includes("Y")) return { dims: [size3D[0], size3D[2]], axesIndices: [0, 2] }; // X, Z
+          if (faceName.includes("Z")) return { dims: [size3D[0], size3D[1]], axesIndices: [0, 1] }; // X, Y
+          return null; // Fallback or io-cutout
+        };
+
+        const faceAInfo = getFace2DInfo(face, faceSize);
+        // If we can't determine axes (e.g. io-cutout), fallback to simple projection
+        if (!faceAInfo || !info.quaternion) {
+          // Fallback to simple distance check (relaxed)
+          const candidateMaxDim = Math.max(obj.dims.w || 0, obj.dims.h || 0, obj.dims.d || 0);
+          const threshold = (maxDim / 2) + (candidateMaxDim / 2);
+          if (projectedOnB.distanceTo(faceCenterVecB) < threshold) {
             newCandidates.push(projectedOnA);
-         }
-         return;
-      }
+          }
+          return;
+        }
 
-      // Construct Basis for Face A
-      const qA = new THREE.Quaternion(...info.quaternion);
-      const basis = [
-        new THREE.Vector3(1, 0, 0).applyQuaternion(qA),
-        new THREE.Vector3(0, 1, 0).applyQuaternion(qA),
-        new THREE.Vector3(0, 0, 1).applyQuaternion(qA),
-      ];
-      const rightAxis = basis[faceAInfo.axesIndices[0]];
-      const upAxis = basis[faceAInfo.axesIndices[1]];
+        // Construct Basis for Face A
+        const qA = new THREE.Quaternion(...info.quaternion);
+        const basis = [
+          new THREE.Vector3(1, 0, 0).applyQuaternion(qA),
+          new THREE.Vector3(0, 1, 0).applyQuaternion(qA),
+          new THREE.Vector3(0, 0, 1).applyQuaternion(qA),
+        ];
+        const rightAxis = basis[faceAInfo.axesIndices[0]];
+        const upAxis = basis[faceAInfo.axesIndices[1]];
 
-      // Rect A (Local 2D centered at 0,0)
-      const halfWA = faceAInfo.dims[0] / 2;
-      const halfHA = faceAInfo.dims[1] / 2;
-      const minA = [-halfWA, -halfHA];
-      const maxA = [halfWA, halfHA];
+        // Rect A (Local 2D centered at 0,0)
+        const halfWA = faceAInfo.dims[0] / 2;
+        const halfHA = faceAInfo.dims[1] / 2;
+        const minA = [-halfWA, -halfHA];
+        const maxA = [halfWA, halfHA];
 
-      // Rect B (Projected into Face A's 2D space)
-      // Calculate 8 corners of obj in World Space
-      const dimsB = obj.dims || { w: 10, h: 10, d: 10 };
-      const halfWB = (dimsB.w || 0) / 2;
-      const halfHB = (dimsB.h || 0) / 2;
-      const halfDB = (dimsB.d || 0) / 2;
-      
-      const cornersLocal = [
-        new THREE.Vector3(halfWB, halfHB, halfDB),
-        new THREE.Vector3(halfWB, halfHB, -halfDB),
-        new THREE.Vector3(halfWB, -halfHB, halfDB),
-        new THREE.Vector3(halfWB, -halfHB, -halfDB),
-        new THREE.Vector3(-halfWB, halfHB, halfDB),
-        new THREE.Vector3(-halfWB, halfHB, -halfDB),
-        new THREE.Vector3(-halfWB, -halfHB, halfDB),
-        new THREE.Vector3(-halfWB, -halfHB, -halfDB),
-      ];
+        // Rect B (Projected into Face A's 2D space)
+        // Calculate 8 corners of obj in World Space
+        const dimsB = obj.dims || { w: 10, h: 10, d: 10 };
+        const halfWB = (dimsB.w || 0) / 2;
+        const halfHB = (dimsB.h || 0) / 2;
+        const halfDB = (dimsB.d || 0) / 2;
 
-      // Use pre-calculated World Transforms
-      const posB = obj.worldPos;
-      const qB = obj.worldQuat;
-
-      let minB = [Infinity, Infinity];
-      let maxB = [-Infinity, -Infinity];
-
-      cornersLocal.forEach(p => {
-        // Local (relative to center) -> World
-        const pWorld = p.clone().applyQuaternion(qB).add(posB);
-        
-        // World -> Face A 2D Plane
-        const relP = pWorld.sub(planePointA);
-        const x = relP.dot(rightAxis);
-        const y = relP.dot(upAxis);
-
-        minB[0] = Math.min(minB[0], x);
-        minB[1] = Math.min(minB[1], y);
-        maxB[0] = Math.max(maxB[0], x);
-        maxB[1] = Math.max(maxB[1], y);
-      });
-
-      // Intersection
-      const overlapMin = [
-        Math.max(minA[0], minB[0]),
-        Math.max(minA[1], minB[1])
-      ];
-      const overlapMax = [
-        Math.min(maxA[0], maxB[0]),
-        Math.min(maxA[1], maxB[1])
-      ];
-
-      // Check if overlapping
-      if (overlapMin[0] < overlapMax[0] && overlapMin[1] < overlapMax[1]) {
-        // Center of overlap
-        const centerOverlap2D = [
-          (overlapMin[0] + overlapMax[0]) / 2,
-          (overlapMin[1] + overlapMax[1]) / 2
+        const cornersLocal = [
+          new THREE.Vector3(halfWB, halfHB, halfDB),
+          new THREE.Vector3(halfWB, halfHB, -halfDB),
+          new THREE.Vector3(halfWB, -halfHB, halfDB),
+          new THREE.Vector3(halfWB, -halfHB, -halfDB),
+          new THREE.Vector3(-halfWB, halfHB, halfDB),
+          new THREE.Vector3(-halfWB, halfHB, -halfDB),
+          new THREE.Vector3(-halfWB, -halfHB, halfDB),
+          new THREE.Vector3(-halfWB, -halfHB, -halfDB),
         ];
 
-        // Unproject back to World Space (on Plane A)
-        const worldOverlap = planePointA.clone()
-          .add(rightAxis.clone().multiplyScalar(centerOverlap2D[0]))
-          .add(upAxis.clone().multiplyScalar(centerOverlap2D[1]));
-        
-        newCandidates.push(worldOverlap);
-      }
+        // Use pre-calculated World Transforms
+        const posB = obj.worldPos;
+        const qB = obj.worldQuat;
+
+        let minB = [Infinity, Infinity];
+        let maxB = [-Infinity, -Infinity];
+
+        cornersLocal.forEach(p => {
+          // Local (relative to center) -> World
+          const pWorld = p.clone().applyQuaternion(qB).add(posB);
+
+          // World -> Face A 2D Plane
+          const relP = pWorld.sub(planePointA);
+          const x = relP.dot(rightAxis);
+          const y = relP.dot(upAxis);
+
+          minB[0] = Math.min(minB[0], x);
+          minB[1] = Math.min(minB[1], y);
+          maxB[0] = Math.max(maxB[0], x);
+          maxB[1] = Math.max(maxB[1], y);
+        });
+
+        // Intersection
+        const overlapMin = [
+          Math.max(minA[0], minB[0]),
+          Math.max(minA[1], minB[1])
+        ];
+        const overlapMax = [
+          Math.min(maxA[0], maxB[0]),
+          Math.min(maxA[1], maxB[1])
+        ];
+
+        // Check if overlapping
+        if (overlapMin[0] < overlapMax[0] && overlapMin[1] < overlapMax[1]) {
+          // Center of overlap
+          const centerOverlap2D = [
+            (overlapMin[0] + overlapMax[0]) / 2,
+            (overlapMin[1] + overlapMax[1]) / 2
+          ];
+
+          // Unproject back to World Space (on Plane A)
+          const worldOverlap = planePointA.clone()
+            .add(rightAxis.clone().multiplyScalar(centerOverlap2D[0]))
+            .add(upAxis.clone().multiplyScalar(centerOverlap2D[1]));
+
+          newCandidates.push(worldOverlap);
+        }
       });
 
       setDrillCandidates(newCandidates);
@@ -632,12 +639,12 @@ function EditorContent() {
     if (id === null) {
       setSelectedIds([]);
       setPendingAlignFace(null);
-      
+
       // Only persist HUD for ruler/drill, otherwise clear it
       if (transformMode !== 'ruler' && transformMode !== 'drill') {
         setHudState(null);
       }
-      
+
       if (transformMode === "ruler") {
         setRulerPoints([]);
       }
@@ -657,25 +664,31 @@ function EditorContent() {
     } else {
       // Single selection
       setSelectedIds([id]);
-      
+
       // Initialize HUD with object properties
       const obj = objects.find(o => o.id === id);
       if (obj) {
         if (transformMode === 'translate') {
-           setHudState({ type: 'move', data: { 
-             x: obj.pos[0], y: obj.pos[1], z: obj.pos[2] 
-           }});
+          setHudState({
+            type: 'move', data: {
+              x: obj.pos[0], y: obj.pos[1], z: obj.pos[2]
+            }
+          });
         } else if (transformMode === 'rotate') {
-           setHudState({ type: 'rotate', data: { 
-             rx: THREE.MathUtils.radToDeg(obj.rot[0]), 
-             ry: THREE.MathUtils.radToDeg(obj.rot[1]), 
-             rz: THREE.MathUtils.radToDeg(obj.rot[2]) 
-           }});
+          setHudState({
+            type: 'rotate', data: {
+              rx: THREE.MathUtils.radToDeg(obj.rot[0]),
+              ry: THREE.MathUtils.radToDeg(obj.rot[1]),
+              rz: THREE.MathUtils.radToDeg(obj.rot[2])
+            }
+          });
         } else if (transformMode === 'scale') {
-           const s = obj.scale || [1, 1, 1];
-           setHudState({ type: 'scale', data: { 
-               sx: s[0], sy: s[1], sz: s[2], factor: s[0] 
-           }});
+          const s = obj.scale || [1, 1, 1];
+          setHudState({
+            type: 'scale', data: {
+              sx: s[0], sy: s[1], sz: s[2], factor: s[0]
+            }
+          });
         }
       }
     }
@@ -807,7 +820,7 @@ function EditorContent() {
       setTransformMode('translate');
     } else {
       // Enter Cut Mode
-      setTransformMode('cut'); 
+      setTransformMode('cut');
     }
   }, [transformMode]);
 
@@ -817,20 +830,20 @@ function EditorContent() {
       return;
     }
     if (selectedIds.length === 0) {
-       showToast({ type: "error", text: "No objects selected to split", ttl: 2000 });
-       return;
+      showToast({ type: "error", text: "No objects selected to split", ttl: 2000 });
+      return;
     }
 
     const planePos = new THREE.Vector3(...cutterFace.point);
     const planeNormal = new THREE.Vector3(...cutterFace.normal).normalize();
-    
+
     // Create a quaternion for the plane rotation (Z axis aligned to normal)
     const defaultUp = new THREE.Vector3(0, 0, 1);
     const planeQuat = new THREE.Quaternion().setFromUnitVectors(defaultUp, planeNormal);
     const planeRot = new THREE.Euler().setFromQuaternion(planeQuat);
 
     const huge = 10000;
-    
+
     // Box Right Center (Along Normal)
     const boxRightPos = planePos.clone().add(planeNormal.clone().multiplyScalar(huge / 2));
     // Box Left Center (Opposite to Normal)
@@ -863,128 +876,137 @@ function EditorContent() {
         const isZ = Math.abs(Math.abs(localNormal.z) - 1) < 0.01;
 
         if (isX || isY || isZ) {
-            // --- Perform Actual Geometry Split ---
-            console.log("Axis Aligned Split Detected:", { isX, isY, isZ });
-            
-            const dims = original.dims || { w: 10, h: 10, d: 10 };
-            let axis = 'w'; // Default w (x)
-            let splitPos = localPoint.x;
-            let size = dims.w;
+          // --- Perform Actual Geometry Split ---
+          console.log("Axis Aligned Split Detected:", { isX, isY, isZ });
 
-            if (isY) { axis = 'h'; splitPos = localPoint.y; size = dims.h; }
-            if (isZ) { axis = 'd'; splitPos = localPoint.z; size = dims.d; }
+          const dims = original.dims || { w: 10, h: 10, d: 10 };
+          let axis = 'w'; // Default w (x)
+          let splitPos = localPoint.x;
+          let size = dims.w;
 
-            // Validate split position is inside object
-            if (Math.abs(splitPos) >= size / 2) {
-                console.warn("Split plane is outside object bounds");
-                return; // Skip this object
-            }
+          if (isY) { axis = 'h'; splitPos = localPoint.y; size = dims.h; }
+          if (isZ) { axis = 'd'; splitPos = localPoint.z; size = dims.d; }
 
-            // Part A: Negative Side
-            // New Size = splitPos - (-size/2) = splitPos + size/2
-            // New Center = -size/2 + newSize/2 = -size/2 + (splitPos + size/2)/2 = (splitPos - size/2) / 2 ??
-            // Let's re-derive:
-            // Range: [-size/2, splitPos]
-            // Length: splitPos - (-size/2) = splitPos + size/2
-            // Midpoint: (splitPos + -size/2) / 2
-            
-            const sizeA = splitPos + size / 2;
-            const centerA_Local = (splitPos - size / 2) / 2;
+          // Validate split position is inside object
+          if (Math.abs(splitPos) >= size / 2) {
+            console.warn("Split plane is outside object bounds");
+            return; // Skip this object
+          }
 
-            // Part B: Positive Side
-            // Range: [splitPos, size/2]
-            // Length: size/2 - splitPos
-            // Midpoint: (size/2 + splitPos) / 2
-            
-            const sizeB = size / 2 - splitPos;
-            const centerB_Local = (size / 2 + splitPos) / 2;
+          // Part A: Negative Side
+          // New Size = splitPos - (-size/2) = splitPos + size/2
+          // New Center = -size/2 + newSize/2 = -size/2 + (splitPos + size/2)/2 = (splitPos - size/2) / 2 ??
+          // Let's re-derive:
+          // Range: [-size/2, splitPos]
+          // Length: splitPos - (-size/2) = splitPos + size/2
+          // Midpoint: (splitPos + -size/2) / 2
 
-            // Create Part A
-            const partA = duplicateObject(original, 0);
-            partA.id = generateObjectId(original.type);
-            partA.name = `${original.name || original.type} (A)`;
-            partA.dims = { ...dims, [axis]: sizeA };
-            
-            // Transform local center back to world
-            const localCenterVecA = new THREE.Vector3();
-            if (isX) localCenterVecA.set(centerA_Local, 0, 0);
-            if (isY) localCenterVecA.set(0, centerA_Local, 0);
-            if (isZ) localCenterVecA.set(0, 0, centerA_Local);
-            
-            const worldCenterA = localCenterVecA.applyQuaternion(objQuat).add(objPos);
-            partA.pos = worldCenterA.toArray();
+          const sizeA = splitPos + size / 2;
+          const centerA_Local = (splitPos - size / 2) / 2;
 
-            // Create Part B
-            const partB = duplicateObject(original, 0);
-            partB.id = generateObjectId(original.type);
-            partB.name = `${original.name || original.type} (B)`;
-            partB.dims = { ...dims, [axis]: sizeB };
+          // Part B: Positive Side
+          // Range: [splitPos, size/2]
+          // Length: size/2 - splitPos
+          // Midpoint: (size/2 + splitPos) / 2
 
-            const localCenterVecB = new THREE.Vector3();
-            if (isX) localCenterVecB.set(centerB_Local, 0, 0);
-            if (isY) localCenterVecB.set(0, centerB_Local, 0);
-            if (isZ) localCenterVecB.set(0, 0, centerB_Local);
+          const sizeB = size / 2 - splitPos;
+          const centerB_Local = (size / 2 + splitPos) / 2;
 
-            const worldCenterB = localCenterVecB.applyQuaternion(objQuat).add(objPos);
-            partB.pos = worldCenterB.toArray();
+          // Helper to adjust CSG operations for center shift
+          // (Now using imported utility)
 
-            newObjects.push(partA, partB);
-            newSelection.push(partA.id, partB.id);
-            objectsToRemove.push(id);
+          // Create Part A
+          const partA = duplicateObject(original, 0);
+          partA.id = generateObjectId(original.type);
+          partA.name = `${original.name || original.type} (A)`;
+          partA.dims = { ...dims, [axis]: sizeA };
+
+          // Transform local center back to world
+          const localCenterVecA = new THREE.Vector3();
+          if (isX) localCenterVecA.set(centerA_Local, 0, 0);
+          if (isY) localCenterVecA.set(0, centerA_Local, 0);
+          if (isZ) localCenterVecA.set(0, 0, centerA_Local);
+
+          const worldCenterA = localCenterVecA.applyQuaternion(objQuat).add(objPos);
+          partA.pos = worldCenterA.toArray();
+
+          // Adjust CSG for Part A
+          partA.csgOperations = adjustCSGOperations(partA, objPos, objQuat);
+
+          // Create Part B
+          const partB = duplicateObject(original, 0);
+          partB.id = generateObjectId(original.type);
+          partB.name = `${original.name || original.type} (B)`;
+          partB.dims = { ...dims, [axis]: sizeB };
+
+          const localCenterVecB = new THREE.Vector3();
+          if (isX) localCenterVecB.set(centerB_Local, 0, 0);
+          if (isY) localCenterVecB.set(0, centerB_Local, 0);
+          if (isZ) localCenterVecB.set(0, 0, centerB_Local);
+
+          const worldCenterB = localCenterVecB.applyQuaternion(objQuat).add(objPos);
+          partB.pos = worldCenterB.toArray();
+
+          // Adjust CSG for Part B
+          partB.csgOperations = adjustCSGOperations(partB, objPos, objQuat);
+
+          newObjects.push(partA, partB);
+          newSelection.push(partA.id, partB.id);
+          objectsToRemove.push(id);
 
         } else {
-            // --- Fallback to CSG Split (Non-Axis Aligned) ---
-            console.log("Non-Axis Aligned Split - Using CSG");
+          // --- Fallback to CSG Split (Non-Axis Aligned) ---
+          console.log("Non-Axis Aligned Split - Using CSG");
 
-            // Helper to get relative transform
-            const getRelTransform = (targetObj, cutterWorldPos, cutterWorldRot) => {
-                const targetPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
-                const targetRot = new THREE.Euler(...(targetObj.rot || [0, 0, 0]));
-                const targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
-                const invTargetQuat = targetQuat.clone().invert();
+          // Helper to get relative transform
+          const getRelTransform = (targetObj, cutterWorldPos, cutterWorldRot) => {
+            const targetPos = new THREE.Vector3(...(targetObj.pos || [0, 0, 0]));
+            const targetRot = new THREE.Euler(...(targetObj.rot || [0, 0, 0]));
+            const targetQuat = new THREE.Quaternion().setFromEuler(targetRot);
+            const invTargetQuat = targetQuat.clone().invert();
 
-                const relPos = cutterWorldPos.clone().sub(targetPos).applyQuaternion(invTargetQuat);
-                
-                const cutterQuat = new THREE.Quaternion().setFromEuler(cutterWorldRot);
-                const relQuat = invTargetQuat.clone().multiply(cutterQuat);
-                const relEuler = new THREE.Euler().setFromQuaternion(relQuat);
-                
-                return { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
-            };
+            const relPos = cutterWorldPos.clone().sub(targetPos).applyQuaternion(invTargetQuat);
 
-            // Part A (Keep "Left" / Negative Side) -> Subtract "Right" Box
-            const partA = duplicateObject(original, 0);
-            partA.id = generateObjectId(original.type);
-            partA.name = `${original.name || original.type} (A)`;
-            
-            const boxRightRel = getRelTransform(partA, boxRightPos, planeRot);
-            if (!partA.csgOperations) partA.csgOperations = [];
-            partA.csgOperations.push({
-                type: 'box', 
-                dims: { w: huge, h: huge, d: huge },
-                relativeTransform: boxRightRel,
-                operation: 'subtract',
-                id: generateObjectId('cut_r')
-            });
+            const cutterQuat = new THREE.Quaternion().setFromEuler(cutterWorldRot);
+            const relQuat = invTargetQuat.clone().multiply(cutterQuat);
+            const relEuler = new THREE.Euler().setFromQuaternion(relQuat);
 
-            // Part B (Keep "Right" / Positive Side) -> Subtract "Left" Box
-            const partB = duplicateObject(original, 0);
-            partB.id = generateObjectId(original.type);
-            partB.name = `${original.name || original.type} (B)`;
-            
-            const boxLeftRel = getRelTransform(partB, boxLeftPos, planeRot);
-            if (!partB.csgOperations) partB.csgOperations = [];
-            partB.csgOperations.push({
-                type: 'box', 
-                dims: { w: huge, h: huge, d: huge },
-                relativeTransform: boxLeftRel,
-                operation: 'subtract',
-                id: generateObjectId('cut_l')
-            });
+            return { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
+          };
 
-            newObjects.push(partA, partB);
-            newSelection.push(partA.id, partB.id);
-            objectsToRemove.push(id);
+          // Part A (Keep "Left" / Negative Side) -> Subtract "Right" Box
+          const partA = duplicateObject(original, 0);
+          partA.id = generateObjectId(original.type);
+          partA.name = `${original.name || original.type} (A)`;
+
+          const boxRightRel = getRelTransform(partA, boxRightPos, planeRot);
+          if (!partA.csgOperations) partA.csgOperations = [];
+          partA.csgOperations.push({
+            type: 'box',
+            dims: { w: huge, h: huge, d: huge },
+            relativeTransform: boxRightRel,
+            operation: 'subtract',
+            id: generateObjectId('cut_r')
+          });
+
+          // Part B (Keep "Right" / Positive Side) -> Subtract "Left" Box
+          const partB = duplicateObject(original, 0);
+          partB.id = generateObjectId(original.type);
+          partB.name = `${original.name || original.type} (B)`;
+
+          const boxLeftRel = getRelTransform(partB, boxLeftPos, planeRot);
+          if (!partB.csgOperations) partB.csgOperations = [];
+          partB.csgOperations.push({
+            type: 'box',
+            dims: { w: huge, h: huge, d: huge },
+            relativeTransform: boxLeftRel,
+            operation: 'subtract',
+            id: generateObjectId('cut_l')
+          });
+
+          newObjects.push(partA, partB);
+          newSelection.push(partA.id, partB.id);
+          objectsToRemove.push(id);
         }
       });
 
@@ -1123,16 +1145,16 @@ function EditorContent() {
   const handleFacePick = useCallback(
     (faceInfo) => {
       alog("pick", { faceInfo, pending: pendingAlignFace, mode: transformMode });
-      
+
       if (transformMode === 'cut') {
         if (faceInfo.event.shiftKey) {
           // faceInfo.point is already an array [x,y,z] from MovablePart
           // faceInfo.normal might be an array or Vector3
           const localNormal = faceInfo.normal.isVector3 ? faceInfo.normal.clone() : new THREE.Vector3(...faceInfo.normal);
           const worldNormal = localNormal.transformDirection(faceInfo.object.matrixWorld).normalize();
-          
+
           setCutterFace({
-            point: faceInfo.point, 
+            point: faceInfo.point,
             normal: worldNormal.toArray()
           });
           showToast({ type: "info", text: "Split plane set", ttl: 1500 });
@@ -1156,10 +1178,10 @@ function EditorContent() {
 
       if (transformMode === "drill") {
         // Use ghost position if available (snapped), otherwise click point
-        const targetPoint = drillGhost?.snapped ? drillGhost.position : (faceInfo.point || [0,0,0]);
-        
+        const targetPoint = drillGhost?.snapped ? drillGhost.position : (faceInfo.point || [0, 0, 0]);
+
         if (!targetPoint) return;
-        
+
         const obj = expandedObjects.find((o) => o.id === faceInfo.partId);
         if (!obj) return;
 
@@ -1175,19 +1197,19 @@ function EditorContent() {
         // Let's assume for now we can't easily convert back without the matrix.
         // Let's use the 'localPoint' from faceInfo if not snapped.
         // If snapped, we might be slightly off if we don't convert correctly.
-        
+
         // BETTER APPROACH:
         // In MovablePart, we have the ref. We can expose a method or use the existing 'onFacePick' 
         // to handle the conversion if we pass the snapped world point back?
         // No, 'onFacePick' is called by MovablePart.
-        
+
         // Let's try to compute local from world here using the object's pos/rot/dims.
         // It's a bit manual but possible for simple transforms.
         // Local = (World - Pos).applyQuaternion(InverseRot)
-        
+
         const worldP = new THREE.Vector3(...targetPoint);
-        const pos = new THREE.Vector3(...(obj.pos || [0,0,0]));
-        
+        const pos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+
         // Use the World Quaternion passed from MovablePart if available (handles groups/parents)
         // Otherwise fall back to object rotation (only works for top-level objects)
         let invQ;
@@ -1195,7 +1217,7 @@ function EditorContent() {
           const worldQ = new THREE.Quaternion(...faceInfo.quaternion);
           invQ = worldQ.clone().invert();
         } else {
-          const rot = new THREE.Euler(...(obj.rot || [0,0,0]));
+          const rot = new THREE.Euler(...(obj.rot || [0, 0, 0]));
           const q = new THREE.Quaternion().setFromEuler(rot);
           invQ = q.clone().invert();
         }
@@ -1210,7 +1232,7 @@ function EditorContent() {
         const newHole = {
           id: `hole_${Date.now()}`,
           type: drillParams.drillType === 'nut' ? 'nut' : 'counterbore',
-          diameter: drillParams.drillType === 'nut' ? (drillParams.nutDiameter || 6) : drillParams.holeDiameter, 
+          diameter: drillParams.drillType === 'nut' ? (drillParams.nutDiameter || 6) : drillParams.holeDiameter,
           position: localP.toArray(),
           direction: localNormal.toArray(),
           depth: drillParams.drillType === 'nut' ? (drillParams.nutDepth || 2.5) : drillParams.holeDepth,
@@ -1229,7 +1251,7 @@ function EditorContent() {
             return o;
           })
         );
-        
+
         showToast({
           type: "success",
           text: "Hole drilled!",
@@ -1267,8 +1289,8 @@ function EditorContent() {
         } else {
           const p1 = rulerStartRef.current;
           if (!p1) {
-             setRulerPoints([]);
-             return;
+            setRulerPoints([]);
+            return;
           }
           const p2 = newPoint;
 
@@ -1297,7 +1319,7 @@ function EditorContent() {
           }
 
           setRulerPoints([p1.center, p2Final]);
-          
+
           const dx = Math.abs(p1.center.x - p2.center.x);
           const dy = Math.abs(p1.center.y - p2.center.y);
           const dz = Math.abs(p1.center.z - p2.center.z);
@@ -1311,13 +1333,13 @@ function EditorContent() {
               label,
             },
           ]);
-          
+
           showToast({
             type: "success",
             text: `${label}: ${dist.toFixed(2)}mm (X: ${dx.toFixed(2)}, Y: ${dy.toFixed(2)}, Z: ${dz.toFixed(2)})`,
             ttl: 5000,
           });
-          
+
           // setRulerPoints([]); // Removed to keep points selected until manual clear
           rulerStartRef.current = null;
         }
@@ -1365,10 +1387,10 @@ function EditorContent() {
         // Rotate movingObj so that movingTransform.normal aligns with anchorTransform.normal
         const startNormal = movingTransform.normal.clone();
         const targetNormal = anchorTransform.normal.clone();
-        
+
         // Calculate the rotation needed to align the normals
         const alignQuat = new THREE.Quaternion().setFromUnitVectors(startNormal, targetNormal);
-        
+
         // Apply this rotation to the object's current rotation
         const currentQuat = new THREE.Quaternion().setFromEuler(
           new THREE.Euler(
@@ -1378,7 +1400,7 @@ function EditorContent() {
             "XYZ"
           )
         );
-        
+
         // Pre-multiply because we are rotating the object in world space?
         // If we want to rotate the vector N by Q, and N is attached to the object...
         // NewOrientation = Q * OldOrientation
@@ -1395,7 +1417,7 @@ function EditorContent() {
               : obj
           )
         );
-        
+
         setSelectedIds([movingObj.id]);
         setPendingAlignFace(null);
         showToast({
@@ -1740,25 +1762,25 @@ function EditorContent() {
       // Calculate hole world position and direction
       const holeLocalPos = new THREE.Vector3(...hole.pos);
       const holeLocalNormal = new THREE.Vector3(...(hole.normal || [0, -1, 0]));
-      
+
       const holeWorldPos = holeLocalPos.clone().applyQuaternion(sourceObjFlat.worldQuat).add(sourceObjFlat.worldPos);
       const holeWorldNormal = holeLocalNormal.clone().applyQuaternion(sourceObjFlat.worldQuat).normalize();
-      
+
       // Raycast down (direction of normal)
       raycaster.set(holeWorldPos, holeWorldNormal);
-      
+
       let bestHit = null;
       let minDistance = Infinity;
 
       flatObjects.forEach(target => {
         if (target.id === selectedObject.id) return; // Skip self
-        
+
         // Create OBB for target
         const invTargetQuat = target.worldQuat.clone().invert();
         const rayOriginLocal = holeWorldPos.clone().sub(target.worldPos).applyQuaternion(invTargetQuat);
         const rayDirLocal = holeWorldNormal.clone().applyQuaternion(invTargetQuat).normalize();
         const localRay = new THREE.Ray(rayOriginLocal, rayDirLocal);
-        
+
         const halfW = (target.dims?.w || 0) / 2;
         const halfH = (target.dims?.h || 0) / 2;
         const halfD = (target.dims?.d || 0) / 2;
@@ -1766,27 +1788,27 @@ function EditorContent() {
           new THREE.Vector3(-halfW, -halfH, -halfD),
           new THREE.Vector3(halfW, halfH, halfD)
         );
-        
+
         const intersection = localRay.intersectBox(box, new THREE.Vector3());
         if (intersection) {
-           const dist = rayOriginLocal.distanceTo(intersection);
-           if (dist < minDistance && dist > 0.1) { // 0.1 tolerance
-             minDistance = dist;
-             bestHit = { target, point: intersection, dist };
-           }
+          const dist = rayOriginLocal.distanceTo(intersection);
+          if (dist < minDistance && dist > 0.1) { // 0.1 tolerance
+            minDistance = dist;
+            bestHit = { target, point: intersection, dist };
+          }
         }
       });
 
       if (bestHit) {
         // Calculate World Hit Point
         const worldHit = bestHit.point.clone().applyQuaternion(bestHit.target.worldQuat).add(bestHit.target.worldPos);
-        
+
         // Standoff up is opposite to hole normal (which points down)
         const up = new THREE.Vector3(0, 1, 0);
         const targetUp = holeWorldNormal.clone().negate();
         const q = new THREE.Quaternion().setFromUnitVectors(up, targetUp);
         const euler = new THREE.Euler().setFromQuaternion(q);
-        
+
         newStandoffs.push({
           id: generateObjectId("standoff"),
           type: "standoff",
@@ -1826,8 +1848,8 @@ function EditorContent() {
 
     let type = typeArg;
     if (!type) {
-       // Fallback to prompt if no type provided (e.g. from TopBar if we kept it)
-       type = window.prompt("Enter connection type (half-lap, external-plate, blind-joint, cross-lap, shear-boss):", "half-lap");
+      // Fallback to prompt if no type provided (e.g. from TopBar if we kept it)
+      type = window.prompt("Enter connection type (half-lap, external-plate, blind-joint, cross-lap, shear-boss):", "half-lap");
     }
     if (!type) return;
 
@@ -1874,7 +1896,7 @@ function EditorContent() {
         onGenerateStandoffs={handleGenerateStandoffs}
         onConnect={() => {
           if (activeConnectorId) {
-             setActiveConnectorId(null);
+            setActiveConnectorId(null);
           }
         }}
         onToggleCut={handleToggleCutMode}

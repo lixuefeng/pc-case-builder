@@ -1956,6 +1956,7 @@ function EditorContent() {
               selectedIds={selectedIds}
               objects={objects}
               setObjects={setObjects}
+              connections={connections}
               activeConnectorId={activeConnectorId}
               setActiveConnectorId={setActiveConnectorId}
               onApplyConnectorOrientation={handleApplyConnectorOrientation}

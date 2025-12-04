@@ -119,6 +119,8 @@ const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => 
   const position = Array.isArray(connector?.pos) && connector.pos.length === 3
     ? connector.pos
     : [0, 0, 0];
+  
+
 
   const radius = connector.visualRadius ?? 4;
   const stemLength = connector.visualStem ?? 10;

@@ -7,6 +7,9 @@ import { getRelativeTransform } from "../../utils/mathUtils";
 import { calculateMortiseTenon, calculateCrossLap } from "../../utils/connectionUtils";
 import { calculateHalfLapTransforms, validateHalfLapCompatibility } from "../../utils/halfLapUtils";
 import { useToast } from "../../context/ToastContext";
+import { buildGpuFingerPlacement } from "../../utils/gpuPcieSpec";
+import { buildMotherboardLayout } from "../../config/motherboardPresets";
+import { Vector3Input, DimensionsInput, SectionLabel, NumberInput } from "./InputComponents";
 
 const RightSidebar = ({
   selectedIds,
@@ -21,12 +24,29 @@ const RightSidebar = ({
   onUngroup,
   onDuplicate,
   onDelete,
+  connections,
 }) => {
   const { t } = useLanguage();
   const { showToast } = useToast();
   const [connectionType, setConnectionType] = React.useState("mortise-tenon");
   const [connectionDepth, setConnectionDepth] = React.useState(5);
   const [lapLength, setLapLength] = React.useState(20);
+
+  const getInitialIoCutout = (obj) => {
+    if (obj.meta?.ioCutout) return obj.meta.ioCutout;
+    const layout = buildMotherboardLayout(obj);
+    if (layout?.chipset) {
+      return {
+        x: layout.chipset.fromLeft,
+        z: layout.chipset.fromTop,
+        w: layout.chipset.size.w,
+        h: layout.chipset.size.h,
+        depth: layout.chipset.size.d,
+        y: layout.chipset.offsetY || 0
+      };
+    }
+    return { x: 0, z: 0, w: 158.75, h: 44.45, y: 0, depth: 2 };
+  };
   const [clearance, setClearance] = React.useState(0.1);
 
   const cardStyle = {
@@ -671,7 +691,41 @@ const RightSidebar = ({
 
   const handleDimChange = (dim, value) => {
     const newDims = { ...selectedObject.dims, [dim]: Number(value) };
-    handleChange("dims", newDims);
+    
+    // If GPU, recalculate connectors (fingers)
+    let newConnectors = selectedObject.connectors;
+    let newPos = selectedObject.pos;
+
+    if (selectedObject.type === "gpu") {
+      console.log("[RightSidebar] Updating GPU dims:", newDims);
+      try {
+        const fingerPlacement = buildGpuFingerPlacement({ 
+          dims: newDims, 
+          pcie: selectedObject.meta?.pcie || {} 
+        });
+        
+        // Find existing fingers connector or create new list if needed
+        // Assuming single connector for now as per presets
+        newConnectors = [
+          {
+            id: `${selectedObject.key || selectedObject.id}-pcie-fingers`,
+            label: "PCIe Fingers",
+            type: "pcie-fingers",
+            pos: fingerPlacement.connectorPos,
+            normal: [0, -1, 0],
+            up: [1, 0, 0],
+            span: fingerPlacement.length,
+          },
+        ];
+
+      } catch (e) {
+        console.error("[RightSidebar] Failed to update GPU fingers:", e);
+      }
+    }
+
+    setObjects((prev) =>
+      prev.map((o) => (o.id === selectedObject.id ? { ...o, dims: newDims, connectors: newConnectors } : o))
+    );
   };
 
   const handleRotChange = (axis, value) => {
@@ -753,82 +807,127 @@ const RightSidebar = ({
         <div style={{ ...sectionStyle, marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.transform")}</div>
 
-          <label style={labelStyle}>{t("prop.position")}</label>
-          <div style={rowStyle}>
-            <input
-              type="number"
-              style={inputStyle}
-              value={selectedObject.pos?.[0] ?? 0}
-              onChange={(e) => handlePosChange("x", e.target.value)}
-              placeholder="X"
-            />
-            <input
-              type="number"
-              style={inputStyle}
-              value={selectedObject.pos?.[1] ?? 0}
-              onChange={(e) => handlePosChange("y", e.target.value)}
-              placeholder="Y"
-            />
-            <input
-              type="number"
-              style={inputStyle}
-              value={selectedObject.pos?.[2] ?? 0}
-              onChange={(e) => handlePosChange("z", e.target.value)}
-              placeholder="Z"
-            />
-          </div>
+          <SectionLabel>{t("prop.position")}</SectionLabel>
+          <Vector3Input
+            values={selectedObject.pos || [0, 0, 0]}
+            onChange={(axis, val) => handlePosChange(axis, val)}
+            keys={["x", "y", "z"]}
+          />
 
-          <label style={labelStyle}>{t("prop.rotation") || "Rotation (Deg)"}</label>
-          <div style={rowStyle}>
-            <input
-              type="number"
-              style={inputStyle}
-              value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0))}
-              onChange={(e) => handleRotChange("x", e.target.value)}
-              placeholder="X"
-            />
-            <input
-              type="number"
-              style={inputStyle}
-              value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[1] ?? 0))}
-              onChange={(e) => handleRotChange("y", e.target.value)}
-              placeholder="Y"
-            />
-            <input
-              type="number"
-              style={inputStyle}
-              value={Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[2] ?? 0))}
-              onChange={(e) => handleRotChange("z", e.target.value)}
-              placeholder="Z"
-            />
-          </div>
+          <SectionLabel>{t("prop.rotation") || "Rotation (Deg)"}</SectionLabel>
+          <Vector3Input
+            values={[
+              Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0)),
+              Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[1] ?? 0)),
+              Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[2] ?? 0))
+            ]}
+            onChange={(axis, val) => handleRotChange(axis, val)}
+            keys={["x", "y", "z"]}
+          />
 
-          <label style={labelStyle}>{t("prop.dimensions")}</label>
-          <div style={rowStyle}>
-            <input
-              type="number"
-              style={inputStyle}
-              value={selectedObject.dims?.w ?? 0}
-              onChange={(e) => handleDimChange("w", e.target.value)}
-              placeholder="W"
+          <SectionLabel>{t("prop.dimensions")}</SectionLabel>
+          <DimensionsInput
+            values={selectedObject.dims}
+            onChange={(axis, val) => handleDimChange(axis, val)}
+          />
+        </div>
+      </div>
+
+      {/* Motherboard IO Config */}
+      {(selectedObject.type === "motherboard" || selectedObject.meta?.ioCutout) && (
+        <div style={cardStyle}>
+          <div style={{ ...sectionStyle, marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>IO Cutout</div>
+            
+            <SectionLabel>Position (X, Y, Z)</SectionLabel>
+            <Vector3Input
+              values={selectedObject.meta?.ioCutout || {x:0, y:0, z:0}}
+              onChange={(axis, val) => {
+                  const currentIo = getInitialIoCutout(selectedObject);
+                  const newMeta = { ...selectedObject.meta, ioCutout: { ...currentIo, [axis]: Number(val) } };
+                  handleChange("meta", newMeta);
+              }}
+              keys={["x", "y", "z"]}
             />
-            <input
-              type="number"
-              style={inputStyle}
-              value={selectedObject.dims?.h ?? 0}
-              onChange={(e) => handleDimChange("h", e.target.value)}
-              placeholder="H"
-            />
-            <input
-              type="number"
-              style={inputStyle}
-              value={selectedObject.dims?.d ?? 0}
-              onChange={(e) => handleDimChange("d", e.target.value)}
-              placeholder="D"
+
+            <SectionLabel>Size (W, H, Depth)</SectionLabel>
+            <Vector3Input
+              values={selectedObject.meta?.ioCutout || {w:0, h:0, depth:0}}
+              onChange={(axis, val) => {
+                  const currentIo = getInitialIoCutout(selectedObject);
+                  const newMeta = { ...selectedObject.meta, ioCutout: { ...currentIo, [axis]: Number(val) } };
+                  handleChange("meta", newMeta);
+              }}
+              keys={["w", "h", "depth"]}
+              labels={["W", "H", "Depth"]}
+              placeholders={["W", "H", "Depth"]}
             />
           </div>
         </div>
-      </div>
+      )}
+
+      {/* GPU Body Config */}
+      {selectedObject.type === "gpu" && (
+        <div style={cardStyle}>
+          <div style={{ ...sectionStyle, marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>GPU Body</div>
+            <SectionLabel>Dimensions (Length, Height, Thickness)</SectionLabel>
+            <Vector3Input
+              values={selectedObject.dims}
+              onChange={(axis, val) => handleDimChange(axis, val)}
+              keys={["w", "h", "d"]}
+              labels={["W", "H", "D"]}
+              placeholders={["Len", "H", "Thick"]}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* GPU Bracket Config */}
+      {(selectedObject.type === "gpu" || selectedObject.meta?.bracket) && (
+        <div style={cardStyle}>
+          <div style={{ ...sectionStyle, marginBottom: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>GPU Bracket</div>
+            
+            <SectionLabel>Slot Count</SectionLabel>
+            <NumberInput
+              value={selectedObject.meta?.bracket?.slotCount ?? 2}
+              onChange={(val) => {
+                const currentBracket = selectedObject.meta?.bracket || { slotCount: 2, height: 120, thickness: 2, dropBelowBody: 30, xOffset: -0.8 };
+                const newMeta = { ...selectedObject.meta, bracket: { ...currentBracket, slotCount: Number(val) } };
+                handleChange("meta", newMeta);
+              }}
+              placeholder="Slots"
+            />
+
+            <SectionLabel>Bracket Dimensions (H, Thickness)</SectionLabel>
+            <Vector3Input
+              values={selectedObject.meta?.bracket || {height: 120, thickness: 2}}
+              onChange={(key, val) => {
+                const currentBracket = selectedObject.meta?.bracket || { slotCount: 2, height: 120, thickness: 2, dropBelowBody: 30, xOffset: -0.8 };
+                const newMeta = { ...selectedObject.meta, bracket: { ...currentBracket, [key]: Number(val) } };
+                handleChange("meta", newMeta);
+              }}
+              keys={["height", "thickness"]}
+              labels={["H", "Thick"]}
+              placeholders={["Height", "Thick"]}
+            />
+
+            <SectionLabel>Position (Drop, Offset)</SectionLabel>
+            <Vector3Input
+              values={selectedObject.meta?.bracket || {dropBelowBody: 30, xOffset: -0.8}}
+              onChange={(key, val) => {
+                const currentBracket = selectedObject.meta?.bracket || { slotCount: 2, height: 120, thickness: 2, dropBelowBody: 30, xOffset: -0.8 };
+                const newMeta = { ...selectedObject.meta, bracket: { ...currentBracket, [key]: Number(val) } };
+                handleChange("meta", newMeta);
+              }}
+              keys={["dropBelowBody", "xOffset"]}
+              labels={["Drop", "Offset"]}
+              placeholders={["Drop", "Offset"]}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Appearance */}
       <div style={cardStyle}>

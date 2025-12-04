@@ -63,8 +63,11 @@ export const ensureObjectConnectors = (obj) => {
   // Nothing to hydrate from preset; leave unchanged
   if (!presetConnectors.length) return obj;
 
-  const shouldReplace =
-    !hasConnectors || !connectorsEqual(obj.connectors, presetConnectors);
+  // If object already has connectors, assume they are correct/customized.
+  // Only hydrate if missing.
+  if (hasConnectors) return obj;
+
+  const shouldReplace = !hasConnectors;
 
   if (shouldReplace) {
     return {

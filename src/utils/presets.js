@@ -219,6 +219,7 @@ export const PRESETS = {
           presetKey: "itx",
           holeMap: ITX_HOLES_MM,
           ramSlots: { fromRight: 14, fromTop: 139 },
+          ioCutout: { x: 12.56, z: -1.14, w: 160.75, h: 44.45, y: -6, depth: 19 }, // Matches legacy chipset position
         },
       };
       preset.connectors = createMotherboardConnectors(preset);
@@ -228,14 +229,22 @@ export const PRESETS = {
       key: "matx",
       label: "mATX 244×244",
       dims: { w: 244, h: 2, d: 244 },
-      meta: { presetKey: "matx", holeMap: [] },
+      meta: {
+        presetKey: "matx",
+        holeMap: [],
+        ioCutout: { x: 13.56, z: -1.14, w: 158.75, h: 44.45, y: -6, depth: 19 },
+      },
       connectors: [],
     },
     {
       key: "atx",
       label: "ATX 305×244",
       dims: { w: 305, h: 2, d: 244 },
-      meta: { presetKey: "atx", holeMap: [] },
+      meta: {
+        presetKey: "atx",
+        holeMap: [],
+        ioCutout: { x: 13.56, z: -1.14, w: 158.75, h: 44.45, y: -6, depth: 19 },
+      },
       connectors: [],
     },
   ],
@@ -244,7 +253,7 @@ export const PRESETS = {
       key: "std",
       label: "GPU 267×112×42",
       type: "gpu", // Changed to gpu to use GPUMesh
-      dims: { w: 267, h: 112, d: 42 }, // Body dimensions
+      dims: { w: 267, h: 112, d: 51 }, // Body dimensions
       meta: {
         presetKey: "std",
         layoutVersion: 2,
@@ -256,6 +265,13 @@ export const PRESETS = {
           fingerDrop: -5, // 7mm offset to raise GPU body 5.5mm above PCB (12.5 - 7 = 5.5 insertion)
           __debugLog: true,
         },
+        bracket: {
+          slotCount: 2,
+          height: 120,
+          thickness: 2,
+          dropBelowBody: 30,
+          xOffset: -0.8
+        }
       },
       connectors: [],
     },

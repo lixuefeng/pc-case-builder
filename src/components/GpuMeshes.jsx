@@ -35,15 +35,22 @@ const buildPcieBracketGeometry = ({ width, height, thickness }) => {
 };
 
 export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount }) {
+  const { meta = {} } = obj;
+  const bracketSpec = meta.bracket || GPU_BRACKET_SPEC;
+
+  // Calculate width based on slot count if provided, otherwise fallback to spec or default
+  const bracketWidth = bracketSpec.slotCount 
+    ? (bracketSpec.slotCount * 20.32) - 2.5 // Approx 20.32mm per slot, minus some gap
+    : (bracketSpec.width || GPU_BRACKET_SPEC.width);
 
   const bracketGeometry = useMemo(
     () =>
       buildPcieBracketGeometry({
-        width: GPU_BRACKET_SPEC.width,
-        height: GPU_BRACKET_SPEC.height,
-        thickness: GPU_BRACKET_SPEC.thickness,
+        width: bracketWidth,
+        height: bracketSpec.height || GPU_BRACKET_SPEC.height,
+        thickness: bracketSpec.thickness || GPU_BRACKET_SPEC.thickness,
       }),
-    []
+    [bracketSpec, bracketWidth]
   );
 
   return (
@@ -72,14 +79,17 @@ export function GPUMesh({ obj, selected, selectionOrder, selectedCount }) {
   const coolerColor = selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#475569";
 
   const fingerPlacement = useMemo(
-    () => buildGpuFingerPlacement({ dims, pcie: meta.pcie || {} }),
+    () => {
+      const fp = buildGpuFingerPlacement({ dims, pcie: meta.pcie || {} });
+      return fp;
+    },
     [dims, meta.pcie]
   );
 
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh>
-        <boxGeometry args={[BODY_LENGTH, dims.h, dims.d]} />
+        <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
           color={coolerColor}
           metalness={0.6}

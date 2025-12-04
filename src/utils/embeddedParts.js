@@ -112,7 +112,56 @@ export const buildMotherboardEmbeddedParts = (obj) => {
       parts.push(featureToEmbed(slot, dims, `${slot.key || "pcie"}-${index}`, `PCIe ${index + 1}`));
     });
   }
-  if (layout?.chipset) {
+  // Handle IO Shield / Cutout
+  // If obj.meta.ioCutout exists, use it. Otherwise fall back to layout.chipset (legacy)
+  const ioCutout = obj.meta?.ioCutout;
+  if (ioCutout) {
+    // Map from our {x, y, z, w, h, depth} to embedded part format
+    // x is from left edge of board (assuming board center is 0,0)
+    // z is from top edge of board
+    // We need to convert to localCenter relative to board center
+
+    // Board dimensions
+    const boardW = dims.w;
+    const boardH = dims.h; // Thickness
+    const boardD = dims.d;
+
+    // Calculate center based on top-left-back anchor
+    // Top-Left-Back is at: x = -boardW/2, y = boardH/2, z = -boardD/2
+    // Our ioCutout.x/z are offsets from there.
+    // However, in our presets, we defined x/z as 0,0 for default.
+    // And we want it to be at the "IO area".
+
+    // Let's interpret x/z as offsets from the Top-Left corner of the board.
+    // x: positive right
+    // z: positive forward (down in 2D)
+
+    const centerX = (-boardW / 2) + ioCutout.x + (ioCutout.w / 2);
+    // y is offset from surface?
+    // If board is at 0, surface is at boardH/2.
+    // So centerY = boardH/2 + ioCutout.y + ioCutout.h/2 ? 
+    // Wait, ioCutout.h is the height of the shield (vertical).
+    // ioCutout.depth is the thickness (Z-depth in local terms? No, depth usually means thickness).
+
+    // Let's stick to the coordinate system we visualized:
+    // w = width (along X)
+    // h = height (along Y, vertical)
+    // depth = thickness (along Z)
+
+    // But wait, IO shield is usually along the back edge (Z-min).
+    // So its "thickness" is along Z. Its "width" is along X. Its "height" is along Y.
+
+    const centerY = (boardH / 2) + ioCutout.y + (ioCutout.h / 2);
+    const centerZ = (-boardD / 2) + ioCutout.z + (ioCutout.depth / 2);
+
+    parts.push({
+      key: "io-shield",
+      name: "IO Shield",
+      localCenter: [centerX, centerY, centerZ],
+      size: [ioCutout.w, ioCutout.h, ioCutout.depth],
+      color: "#a3a3a3",
+    });
+  } else if (layout?.chipset) {
     parts.push(featureToEmbed(layout.chipset, dims, "chipset", "Chipset"));
   }
 
@@ -130,9 +179,17 @@ export const buildGpuEmbeddedParts = (obj) => {
   // In presets.js, bracket holes are at bracketHoleZ = -dims.w / 2 + 10.
   // So the bracket is at the -dims.w / 2 end.
 
-  const bracketCenterX = -(dims.w / 2) + GPU_BRACKET_SPEC.xOffset;
-  const bracketCenterY =
-    -dims.h / 2 - GPU_BRACKET_SPEC.dropBelowBody + GPU_BRACKET_SPEC.height / 2;
+  const bracketSpec = obj.meta?.bracket || GPU_BRACKET_SPEC;
+  const xOffset = bracketSpec.xOffset ?? GPU_BRACKET_SPEC.xOffset;
+  const dropBelowBody = bracketSpec.dropBelowBody ?? GPU_BRACKET_SPEC.dropBelowBody;
+  const height = bracketSpec.height ?? GPU_BRACKET_SPEC.height;
+  const thickness = bracketSpec.thickness ?? GPU_BRACKET_SPEC.thickness;
+  const width = bracketSpec.slotCount
+    ? (bracketSpec.slotCount * 20.32) - 2.5
+    : (bracketSpec.width || GPU_BRACKET_SPEC.width);
+
+  const bracketCenterX = -(dims.w / 2) + xOffset;
+  const bracketCenterY = -dims.h / 2 - dropBelowBody + height / 2;
 
   parts.push({
     key: "bracket",
@@ -140,11 +197,12 @@ export const buildGpuEmbeddedParts = (obj) => {
     type: "gpu-bracket",
     localCenter: [bracketCenterX, bracketCenterY, 0],
     size: [
-      GPU_BRACKET_SPEC.thickness,
-      GPU_BRACKET_SPEC.height,
-      GPU_BRACKET_SPEC.width,
+      thickness,
+      height,
+      width,
     ],
     color: "#e2e8f0",
+    meta: obj.meta, // Pass parent meta so GPUBracketMesh can read config
   });
 
   return parts;
@@ -205,6 +263,7 @@ const processEmbeds = (embeds, obj, expanded, embedCounters, existingIds) => {
       color: embed.color || "#94a3b8",
       visible: obj.visible,
       includeInExport: false,
+      meta: embed.meta, // Pass meta from embed definition
       // Pass through any other props needed for rendering
       parentDims: obj.dims, // Useful for bracket to know full size?
     });

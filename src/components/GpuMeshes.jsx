@@ -38,10 +38,18 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
   const { meta = {} } = obj;
   const bracketSpec = meta.bracket || GPU_BRACKET_SPEC;
 
-  // Calculate width based on slot count if provided, otherwise fallback to spec or default
-  const bracketWidth = bracketSpec.slotCount 
-    ? (bracketSpec.slotCount * 20.32) - 2.5 // Approx 20.32mm per slot, minus some gap
-    : (bracketSpec.width || GPU_BRACKET_SPEC.width);
+  // Calculate width based on slot count
+  const slotCount = bracketSpec.slotCount || 1;
+  const bracketWidth = slotCount === 1 
+    ? (bracketSpec.width || 18.42)
+    : ((slotCount - 1) * 20.32 + (bracketSpec.width || 18.42));
+
+  // Calculate Z offset to keep the primary slot centered
+  // If expanding to 2 slots, the bracket center shifts by half the pitch (10.16mm)
+  // Assuming expansion is in -Z direction (down the motherboard)
+  // PLUS the standard 5.09mm offset from connector center to bracket datum
+  const alignmentOffset = 5.09;
+  const zOffset = (slotCount > 1 ? -((slotCount - 1) * 20.32) / 2 : 0) + alignmentOffset;
 
   const bracketGeometry = useMemo(
     () =>
@@ -59,6 +67,7 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
         <mesh
           geometry={bracketGeometry}
           rotation={[0, Math.PI / 2, 0]}
+          position={[0, 0, zOffset]}
         >
           <meshStandardMaterial
             color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : "#9ca3af"}

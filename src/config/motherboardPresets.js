@@ -76,9 +76,10 @@ export const MOTHERBOARD_LAYOUT_BUILDERS = {
         {
           key: "pcie16",
           size: { w: 7.2, h: 11, d: 89.5 },
-          fromLeft: 3,
-          fromTop: 42,
+          fromLeft: dims.w - 163 - 3.6,
+          fromTop: 45.5,
           color: "#1e293b",
+          offsetY: dims.h / 2,
         },
       ],
       chipset: {

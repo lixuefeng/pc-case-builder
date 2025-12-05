@@ -62,20 +62,34 @@ const createMotherboardConnectors = (preset) => {
     });
   };
 
+  // Standardized ATX PCIe Slot 1 Position
+  // ATX Hole F/H is at 6.45" (163.83mm) from Top.
+  // Origin (-w/2) is Bottom. Top is (+w/2).
+  // So position from Top is w - 163.83.
+  const pcieX = dims.w - 163;
+  const pcieZ = 45.5 + (89.5 / 2);
+
+  const finalPos = posFromTopLeftBack([pcieX, -dims.h, pcieZ]);
+  console.log(`[Presets] MB ${key} dims:`, dims);
+  console.log(`[Presets] PCIe Slot 1: pcieX=${pcieX} (Vert), pcieZ=${pcieZ} (Horiz)`);
+  console.log(`[Presets] PCIe Slot 1 Final Pos:`, finalPos);
+
+  const slotY = (dims.h / 2) + PCIE_SLOT_SPEC.slotHeightMm - PCIE_SLOT_SPEC.contactOffsetMm;
+
+  // Add primary PCIe x16 slot for all form factors
+  addSurfaceConnector({
+    id: `${key}-pcie-x16`,
+    label: "PCIe x16 Slot",
+    x: pcieX,
+    z: pcieZ,
+    length: 89.5,
+    type: "pcie-slot",
+    y: slotY,
+  });
+
   if (key === "itx") {
     const ramFromRight = requireParam(meta?.ramSlots?.fromRight, "meta.ramSlots.fromRight");
     const ramFromTop = requireParam(meta?.ramSlots?.fromTop, "meta.ramSlots.fromTop");
-    const slotY = (dims.h / 2) + PCIE_SLOT_SPEC.slotHeightMm - PCIE_SLOT_SPEC.contactOffsetMm;
-
-    addSurfaceConnector({
-      id: `${key}-pcie-x16`,
-      label: "PCIe x16 Slot",
-      x: 6.6, // Aligned with visual slot center (3mm fromLeft + 7.2mm width / 2)
-      z: 42 + 89.5 / 2,
-      length: 89.5,
-      type: "pcie-slot",
-      y: slotY,
-    });
 
     const ramX = dims.w - ramFromRight - 127 / 2;
     const ramZStart = ramFromTop + 6 / 2;
@@ -92,25 +106,6 @@ const createMotherboardConnectors = (preset) => {
       });
     });
   } else {
-    const pcieOffsets = {
-      matx: { x: 15, z: dims.d * 0.32 },
-      atx: { x: 18, z: dims.d * 0.34 },
-    };
-    const { x, z } = pcieOffsets[key] || {
-      x: 15,
-      z: 0,
-    };
-    const slotY = (dims.h / 2) + PCIE_SLOT_SPEC.slotHeightMm - PCIE_SLOT_SPEC.contactOffsetMm;
-    addSurfaceConnector({
-      id: `${key}-pcie-x16`,
-      label: "PCIe x16 Slot",
-      x,
-      z,
-      length: 89.5,
-      type: "pcie-slot",
-      y: slotY,
-    });
-
     const ramCount = key === "atx" ? 4 : 2;
     const ramX = dims.w - 20;
     const ramBase = dims.d - 60;
@@ -261,7 +256,7 @@ export const PRESETS = {
           fingerLength: 89,
           fingerHeight: 12.5,
           fingerThickness: 1.6,
-          fingerOffsetFromBracket: 42,
+          fingerOffsetFromBracket: 45.5,
           fingerDrop: -5, // 7mm offset to raise GPU body 5.5mm above PCB (12.5 - 7 = 5.5 insertion)
           __debugLog: true,
         },

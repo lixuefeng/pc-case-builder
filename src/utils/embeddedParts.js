@@ -34,6 +34,12 @@ const featureToEmbed = (feature, dims, key, label) => {
   const extrudeBelow = Math.max(0, feature.extrudeBelow ?? 0);
   const extrudeAbove = Math.max(0, feature.extrudeAbove ?? 0);
   const height = feature.size.h + extrudeAbove + extrudeBelow;
+  // centerY is relative to the board's center (y=0).
+  // If offsetY is provided, it shifts the center.
+  // To place on top surface (y = dims.h/2), offsetY should be dims.h/2 + size.h/2.
+  // Current logic: (size.h / 2) + offsetY.
+  // If offsetY = dims.h/2 (as set in motherboardPresets), then y = size.h/2 + dims.h/2.
+  // This places the BOTTOM of the part at y = dims.h/2 (Surface).
   const centerY = (feature.size.h + extrudeAbove - extrudeBelow) / 2 + offsetY;
 
   return {
@@ -109,7 +115,10 @@ export const buildMotherboardEmbeddedParts = (obj) => {
   }
   if (Array.isArray(layout?.pcieSlots)) {
     layout.pcieSlots.forEach((slot, index) => {
-      parts.push(featureToEmbed(slot, dims, `${slot.key || "pcie"}-${index}`, `PCIe ${index + 1}`));
+      const part = featureToEmbed(slot, dims, `${slot.key || "pcie"}-${index}`, `PCIe ${index + 1}`);
+      console.log(`[EmbeddedParts] PCIe Slot ${index} fromLeft:`, slot.fromLeft);
+      console.log(`[EmbeddedParts] PCIe Slot ${index} Calculated Center:`, part.localCenter);
+      parts.push(part);
     });
   }
   // Handle IO Shield / Cutout

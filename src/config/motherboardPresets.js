@@ -1,12 +1,14 @@
+import { MOTHERBOARD_SPECS } from "../constants";
+
 const approxEqual = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
 export const getMotherboardIoCutoutBounds = (dims = {}) => {
   if (!dims?.w || !dims?.d) {
     return null;
   }
-  const width = Math.min(45, Math.max(30, dims.w * 0.28));
-  const height = Math.max(8, dims.h * 0.85 || 8);
-  const depth = Math.max(3, dims.d * 0.05 || 3);
+  const width = Math.min(MOTHERBOARD_SPECS.IO_CUTOUT.WIDTH_MAX, Math.max(MOTHERBOARD_SPECS.IO_CUTOUT.WIDTH_MIN, dims.w * MOTHERBOARD_SPECS.IO_CUTOUT.FACTOR_W));
+  const height = Math.max(MOTHERBOARD_SPECS.IO_CUTOUT.HEIGHT_MIN, dims.h * MOTHERBOARD_SPECS.IO_CUTOUT.FACTOR_H || MOTHERBOARD_SPECS.IO_CUTOUT.HEIGHT_MIN);
+  const depth = Math.max(MOTHERBOARD_SPECS.IO_CUTOUT.DEPTH_MIN, dims.d * MOTHERBOARD_SPECS.IO_CUTOUT.FACTOR_D || MOTHERBOARD_SPECS.IO_CUTOUT.DEPTH_MIN);
   const centerX = dims.w / 2 - width / 2;
   const centerY = 0;
   const centerZ = dims.d / 2 - depth / 2;
@@ -18,18 +20,18 @@ export const getMotherboardIoCutoutBounds = (dims = {}) => {
 };
 
 export const MOTHERBOARD_DIMENSIONS = {
-  itx: { w: 170, d: 170 },
-  matx: { w: 244, d: 244 },
-  atx: { w: 305, d: 244 },
+  itx: MOTHERBOARD_SPECS.DIMENSIONS.ITX,
+  matx: MOTHERBOARD_SPECS.DIMENSIONS.MATX,
+  atx: MOTHERBOARD_SPECS.DIMENSIONS.ATX,
 };
 
 export const MOTHERBOARD_LAYOUT_BUILDERS = {
   // ATX 2.2 https://cdn.instructables.com/ORIG/FS8/5ILB/GU59Z1AT/FS85ILBGU59Z1AT.pdf
   itx: (dims) => {
-    const keepoutSize = 77.5;
-    const keepoutLeft = 61.3;
-    const keepoutTop = 51.3;
-    const cpuSocketSize = { w: 45, h: 4.5, d: 37.5 };
+    const keepoutSize = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.KEEPOUT_SIZE;
+    const keepoutLeft = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.KEEPOUT_LEFT;
+    const keepoutTop = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.KEEPOUT_TOP;
+    const cpuSocketSize = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.CPU_SOCKET;
     const cpuSocketLeft = keepoutLeft + (keepoutSize - cpuSocketSize.w) / 2;
     const cpuSocketTop = keepoutTop + (keepoutSize - cpuSocketSize.d) / 2;
 
@@ -49,24 +51,24 @@ export const MOTHERBOARD_LAYOUT_BUILDERS = {
       },
       ramSlots: {
         count: 2,
-        size: { w: 127, h: 4, d: 6 },
-        fromRight: 14,
-        fromTop: 139,
-        pitch: 9.5,
+        size: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_SLOT,
+        fromRight: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_OFFSET_RIGHT,
+        fromTop: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_OFFSET_TOP,
+        pitch: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_PITCH,
         anchor: "right",
         colors: ["#e2e8f0", "#cbd5f5"],
       },
       powerConnectors: [
         {
           key: "eps8",
-          size: { w: 10, h: 5, d: 18.75 },
+          size: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.EPS8,
           fromRight: 0,
           fromTop: 42,
           color: "#1e293b",
         },
         {
           key: "atx24",
-          size: { w: 52, h: 5, d: 10 },
+          size: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.ATX24,
           fromRight: 11.5,
           fromBottom: 1,
           color: "#334155",
@@ -75,17 +77,17 @@ export const MOTHERBOARD_LAYOUT_BUILDERS = {
       pcieSlots: [
         {
           key: "pcie16",
-          size: { w: 7.2, h: 11, d: 89.5 },
-          fromLeft: dims.w - 163 - 3.6,
-          fromTop: 45.5,
+          size: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.PCIE_X16,
+          fromLeft: dims.w - MOTHERBOARD_SPECS.ATX_HOLE_FH_TOP_OFFSET - 3.6,
+          fromTop: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.PCIE_OFFSET_TOP,
           color: "#1e293b",
           offsetY: dims.h / 2,
         },
       ],
       chipset: {
-        size: { w: 158.75, h: 44.45, d: 19 }, // h includes keepout 2.53mm
-        fromLeft: 13.56,
-        fromTop: -1.14,
+        size: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.CHIPSET, // h includes keepout 2.53mm
+        fromLeft: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.CHIPSET_OFFSET_LEFT,
+        fromTop: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.CHIPSET_OFFSET_TOP,
         color: "#475569",
         offsetY: -5,
       },

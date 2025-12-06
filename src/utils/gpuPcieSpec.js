@@ -1,4 +1,5 @@
 import { anchorPoint, addVec } from "./anchors";
+import { GPU_PCIE_FINGER_DEFAULTS } from "../constants";
 
 const requireParam = (value, name) => {
   if (value === undefined || value === null) {
@@ -6,14 +7,6 @@ const requireParam = (value, name) => {
   }
   return value;
 };
-
-export const GPU_PCIE_FINGER_DEFAULTS = Object.freeze({
-  height: 12.5, // mm finger height
-  visualDrop: 0, // mm; 0 keeps finger top flush with GPU bottom face
-  insertionDepth: 5, // mm; intended slot engagement depth (does not move mesh center)
-  zOffsetFromBack: 3, // mm from back face (PCB side) to finger center along Z
-  connectorEpsUp: 0.1, // mm; lift connector slightly above bottom edge to avoid being under geometry
-});
 
 /**
  * Derive a unified finger placement spec to keep mesh, connectors, and logic aligned.

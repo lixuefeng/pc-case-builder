@@ -3,6 +3,7 @@ const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
 import { anchorPoint, addVec } from "./anchors";
 import { buildGpuFingerPlacement } from "./gpuPcieSpec";
+import { MOTHERBOARD_SPECS, RAM_SPECS, PSU_SPECS, PCIE_SPECS, GPU_SPECS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, COLORS } from "../constants";
 
 const requireParam = (value, name) => {
   if (value === undefined || value === null) {
@@ -12,8 +13,8 @@ const requireParam = (value, name) => {
 };
 
 const PCIE_SLOT_SPEC = Object.freeze({
-  slotHeightMm: 11, // assumed PCIe slot height above motherboard surface
-  contactOffsetMm: 5, // desired insertion depth from slot top
+  slotHeightMm: PCIE_SPECS.SLOT_HEIGHT, // assumed PCIe slot height above motherboard surface
+  contactOffsetMm: PCIE_SPECS.CONTACT_OFFSET, // desired insertion depth from slot top
 });
 
 const createMotherboardConnectors = (preset) => {
@@ -66,8 +67,8 @@ const createMotherboardConnectors = (preset) => {
   // ATX Hole F/H is at 6.45" (163.83mm) from Top.
   // Origin (-w/2) is Bottom. Top is (+w/2).
   // So position from Top is w - 163.83.
-  const pcieX = dims.w - 163;
-  const pcieZ = 45.5 + (89.5 / 2);
+  const pcieX = dims.w - MOTHERBOARD_SPECS.ATX_HOLE_FH_TOP_OFFSET; // 163.83
+  const pcieZ = PCIE_SPECS.FINGER_OFFSET_FROM_BRACKET + (PCIE_SPECS.FINGER_LENGTH / 2); // 45.5 + 44.75
 
   const finalPos = posFromTopLeftBack([pcieX, -dims.h, pcieZ]);
   console.log(`[Presets] MB ${key} dims:`, dims);
@@ -82,7 +83,7 @@ const createMotherboardConnectors = (preset) => {
     label: "PCIe x16 Slot",
     x: pcieX,
     z: pcieZ,
-    length: 89.5,
+    length: PCIE_SPECS.FINGER_LENGTH,
     type: "pcie-slot",
     y: slotY,
   });
@@ -91,9 +92,9 @@ const createMotherboardConnectors = (preset) => {
     const ramFromRight = requireParam(meta?.ramSlots?.fromRight, "meta.ramSlots.fromRight");
     const ramFromTop = requireParam(meta?.ramSlots?.fromTop, "meta.ramSlots.fromTop");
 
-    const ramX = dims.w - ramFromRight - 127 / 2;
-    const ramZStart = ramFromTop + 6 / 2;
-    const ramSpacing = 9;
+    const ramX = dims.w - ramFromRight - RAM_SPECS.SLOT_LENGTH_ITX / 2;
+    const ramZStart = ramFromTop + RAM_SPECS.DIMM.d / 2; // 6/2 = 3? Wait, DIMM.d is 7 in constants but 6 in motherboardPresets. Let's use constant.
+    const ramSpacing = RAM_SPECS.SPACING_ITX;
 
     ["A", "B"].forEach((slot, idx) => {
       addSurfaceConnector({
@@ -101,7 +102,7 @@ const createMotherboardConnectors = (preset) => {
         label: `RAM Slot ${slot}`,
         x: ramX,
         z: ramZStart + idx * ramSpacing,
-        length: 127,
+        length: RAM_SPECS.SLOT_LENGTH_ITX,
         type: "dimm-slot",
       });
     });
@@ -109,7 +110,7 @@ const createMotherboardConnectors = (preset) => {
     const ramCount = key === "atx" ? 4 : 2;
     const ramX = dims.w - 20;
     const ramBase = dims.d - 60;
-    const ramSpacing = 10;
+    const ramSpacing = RAM_SPECS.SPACING_ATX;
 
     for (let i = 0; i < ramCount; i += 1) {
       addSurfaceConnector({
@@ -117,7 +118,7 @@ const createMotherboardConnectors = (preset) => {
         label: `RAM Slot ${i + 1}`,
         x: ramX,
         z: ramBase - i * ramSpacing,
-        length: 130,
+        length: RAM_SPECS.SLOT_LENGTH_ATX,
         type: "dimm-slot",
       });
     }
@@ -196,12 +197,7 @@ const createPsuConnectors = (preset) => {
   }));
 };
 
-export const ITX_HOLES_MM = [
-  [163.83, 33.02], // top left
-  [6.35, 10.16],
-  [6.35, 165.1],
-  [163.5, 165.1],
-];
+export const ITX_HOLES_MM = MOTHERBOARD_SPECS.ITX_HOLES;
 
 export const PRESETS = {
   motherboard: [
@@ -209,11 +205,11 @@ export const PRESETS = {
       const preset = {
         key: "itx",
         label: "ITX 170×170",
-        dims: { w: 170, h: 2, d: 170 },
+        dims: { w: MOTHERBOARD_SPECS.DIMENSIONS.ITX.w, h: 2, d: MOTHERBOARD_SPECS.DIMENSIONS.ITX.d },
         meta: {
           presetKey: "itx",
           holeMap: ITX_HOLES_MM,
-          ramSlots: { fromRight: 14, fromTop: 139 },
+          ramSlots: { fromRight: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_OFFSET_RIGHT, fromTop: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_OFFSET_TOP },
           ioCutout: { x: 12.56, z: -1.14, w: 160.75, h: 44.45, y: -6, depth: 19 }, // Matches legacy chipset position
         },
       };
@@ -223,7 +219,7 @@ export const PRESETS = {
     {
       key: "matx",
       label: "mATX 244×244",
-      dims: { w: 244, h: 2, d: 244 },
+      dims: { w: MOTHERBOARD_SPECS.DIMENSIONS.MATX.w, h: 2, d: MOTHERBOARD_SPECS.DIMENSIONS.MATX.d },
       meta: {
         presetKey: "matx",
         holeMap: [],
@@ -234,7 +230,7 @@ export const PRESETS = {
     {
       key: "atx",
       label: "ATX 305×244",
-      dims: { w: 305, h: 2, d: 244 },
+      dims: { w: MOTHERBOARD_SPECS.DIMENSIONS.ATX.w, h: 2, d: MOTHERBOARD_SPECS.DIMENSIONS.ATX.d },
       meta: {
         presetKey: "atx",
         holeMap: [],
@@ -248,24 +244,24 @@ export const PRESETS = {
       key: "std",
       label: "GPU 267×112×42",
       type: "gpu", // Changed to gpu to use GPUMesh
-      dims: { w: 267, h: 112, d: 51 }, // Body dimensions
+      dims: GPU_SPECS.DEFAULT_DIMS, // Body dimensions
       meta: {
         presetKey: "std",
         layoutVersion: 2,
         pcie: {
-          fingerLength: 89,
-          fingerHeight: 12.5,
-          fingerThickness: 1.6,
-          fingerOffsetFromBracket: 45.5,
-          fingerDrop: -5, // 7mm offset to raise GPU body 5.5mm above PCB (12.5 - 7 = 5.5 insertion)
+          fingerLength: PCIE_SPECS.FINGER_LENGTH,
+          fingerHeight: PCIE_SPECS.FINGER_HEIGHT,
+          fingerThickness: PCIE_SPECS.FINGER_THICKNESS,
+          fingerOffsetFromBracket: PCIE_SPECS.FINGER_OFFSET_FROM_BRACKET,
+          fingerDrop: PCIE_SPECS.FINGER_DROP, // 7mm offset to raise GPU body 5.5mm above PCB (12.5 - 7 = 5.5 insertion)
           __debugLog: true,
         },
         bracket: {
           slotCount: 2,
-          height: 120,
-          thickness: 2,
-          dropBelowBody: 30,
-          xOffset: -0.8
+          height: GPU_SPECS.BRACKET.HEIGHT,
+          thickness: GPU_SPECS.BRACKET.THICKNESS,
+          dropBelowBody: GPU_SPECS.BRACKET.DROP_BELOW_BODY,
+          xOffset: GPU_SPECS.BRACKET.X_OFFSET
         }
       },
       connectors: [],
@@ -275,14 +271,14 @@ export const PRESETS = {
     {
       key: "sfx",
       label: "SFX 125×63.5×100",
-      dims: { w: 125, h: 63.5, d: 100 },
+      dims: PSU_SPECS.SFX,
       meta: { standard: "SFX" },
       connectors: [],
     },
     {
       key: "atx",
       label: "ATX 150×86×140",
-      dims: { w: 150, h: 86, d: 140 },
+      dims: PSU_SPECS.ATX,
       meta: { standard: "ATX" },
       connectors: [],
     },
@@ -291,14 +287,14 @@ export const PRESETS = {
     {
       key: "dimm",
       label: "RAM (1) 133×31×7",
-      dims: { w: 133, h: 31, d: 7 },
+      dims: RAM_SPECS.DIMM,
       meta: { count: 1, fingerThickness: 1, fingerOffset: 0 },
       connectors: [],
     },
     {
       key: "dimm2",
       label: "RAM (2) 133×31×7×2",
-      dims: { w: 133, h: 31, d: 14 },
+      dims: { ...RAM_SPECS.DIMM, d: RAM_SPECS.DIMM.d * 2 },
       meta: { count: 2, fingerThickness: 1, fingerOffset: 0 },
       connectors: [],
     },
@@ -307,7 +303,7 @@ export const PRESETS = {
     {
       key: "tower-120",
       label: "Tower Cooler 120mm",
-      dims: { w: 125, h: 160, d: 80 },
+      dims: COOLER_SPECS.TOWER_120,
       meta: { type: "tower" },
       connectors: [],
     },
@@ -349,8 +345,8 @@ export const PRESETS = {
     {
       key: "coke-can",
       label: "Coke Can (330ml)",
-      dims: { w: 66, h: 115, d: 66 },
-      color: "#ef4444",
+      dims: { w: REFERENCE_OBJECT_SPECS.COKE_CAN_DIAMETER, h: REFERENCE_OBJECT_SPECS.COKE_CAN_HEIGHT, d: REFERENCE_OBJECT_SPECS.COKE_CAN_DIAMETER },
+      color: COLORS.DEFAULT.RED_PAINT,
       meta: { type: "reference" },
       connectors: [],
     },

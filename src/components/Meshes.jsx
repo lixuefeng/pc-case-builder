@@ -4,20 +4,21 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 import { anchorPoint, addVec } from "../utils/anchors";
 import { Geometry, Base, Subtraction } from "@react-three/csg";
+import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS } from "../constants";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
 export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
   const topLeftBack = useMemo(() => anchorPoint(dims, "top-left-back"), [dims]);
-  const selColor = selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : null;
+  const selColor = selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null;
 
   return (
     <group>
       <mesh userData={{ objectId: obj.id }}>
         <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
-          color={selColor || color || "#81a1c1"}
+          color={selColor || color || COLORS.DEFAULT.MOTHERBOARD}
           opacity={selected ? 0.7 : 0.95}
           transparent
         />
@@ -31,7 +32,7 @@ export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }
               position={addVec(topLeftBack, [x, -dims.h / 2, z])}
             >
               <cylinderGeometry args={[1.6, 1.6, 1.2, 24]} />
-              <meshStandardMaterial color="#202020" />
+              <meshStandardMaterial color={COLORS.DEFAULT.MOTHERBOARD_HOLE} />
             </mesh>
           ))}
         </group>
@@ -82,7 +83,7 @@ export function GroupMesh({ obj, selected, selectionOrder, selectedCount }) {
           ]}
         />
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : "#4f46e5"}
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : COLORS.DEFAULT.GROUP_GHOST}
           transparent
           opacity={selected ? 0.2 : 0.1}
         />
@@ -119,7 +120,7 @@ const getRelativeTransform = (targetObj, sourceObj) => {
 
 export function PartBox({ obj, selected, modifiers = [], selectionOrder, selectedCount }) {
   const { dims, color, type } = obj;
-  const defaultColor = (type === "structure" || type === "cube") ? "#d1d5db" : "#ffaa44";
+  const defaultColor = (type === "structure" || type === "cube") ? COLORS.DEFAULT.STRUCTURE : COLORS.DEFAULT.GENERIC_PART;
 
   // Validate dimensions to prevent crashes
   if (!dims || dims.w <= 0 || dims.h <= 0 || dims.d <= 0) {
@@ -174,7 +175,7 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
           })}
         </Geometry>
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || defaultColor}
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || defaultColor}
           opacity={selected ? 0.7 : 1}
           transparent={true}
         />
@@ -190,7 +191,7 @@ export function SphereMesh({ obj, selected, selectionOrder, selectedCount }) {
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <sphereGeometry args={[0.5, 32, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#d1d5db"}
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.STRUCTURE}
           opacity={selected ? 0.7 : 1}
           transparent={true}
         />
@@ -217,7 +218,7 @@ export function CylinderMesh({ obj, selected, selectionOrder, selectedCount }) {
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <cylinderGeometry args={[radiusTop, radiusBottom, 1, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#d1d5db"}
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.STRUCTURE}
           opacity={selected ? 0.7 : 1}
           transparent={true}
         />
@@ -268,7 +269,7 @@ export function ImportedMesh({ obj, selected, selectionOrder, selectedCount }) {
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        color={selected ? (selectedCount > 2 ? "#60a5fa" : (selectionOrder === 0 ? "#60a5fa" : (selectionOrder === 1 ? "#eab308" : "#60a5fa"))) : "#94a3b8"}
+        color={selected ? (selectedCount > 2 ? COLORS.SELECTION.IMPORTED : (selectionOrder === 0 ? COLORS.SELECTION.IMPORTED : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.IMPORTED))) : COLORS.DEFAULT.IMPORTED_DEFAULT}
         metalness={0.3}
         roughness={0.6}
         opacity={selected ? 0.7 : 1}
@@ -286,8 +287,8 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
   const isCokeCan = key === "coke-can" || (obj.name && obj.name.toLowerCase().includes("coke"));
 
   if (isCokeCan) {
-    const radius = (dims.w || 66) / 2;
-    const height = dims.h || 115;
+    const radius = (dims.w || REFERENCE_OBJECT_SPECS.COKE_CAN_DIAMETER) / 2;
+    const height = dims.h || REFERENCE_OBJECT_SPECS.COKE_CAN_HEIGHT;
     const halfHeight = height / 2;
 
     // Define the profile points
@@ -313,7 +314,7 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
 
     const silverMaterial = (
       <meshStandardMaterial
-        color="#e2e8f0"
+        color={COLORS.DEFAULT.SILVER}
         metalness={0.8}
         roughness={0.2}
         opacity={selected ? 0.7 : 1}
@@ -323,7 +324,7 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
 
     const paintMaterial = (
       <meshStandardMaterial
-        color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#ef4444"}
+        color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.RED_PAINT}
         metalness={0.6}
         roughness={0.3}
         opacity={selected ? 0.7 : 1}
@@ -355,15 +356,15 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
   }
 
   // Default cylinder for other reference objects
-  const radius = (dims.w || 66) / 2;
-  const height = dims.h || 115;
+  const radius = (dims.w || REFERENCE_OBJECT_SPECS.COKE_CAN_DIAMETER) / 2;
+  const height = dims.h || REFERENCE_OBJECT_SPECS.COKE_CAN_HEIGHT;
 
   return (
     <group userData={{ objectId: obj.id }}>
       <mesh>
         <cylinderGeometry args={[radius, radius, height, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? "#ef4444" : (selectionOrder === 0 ? "#ef4444" : (selectionOrder === 1 ? "#eab308" : "#ef4444"))) : color || "#ef4444"}
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.RED_PAINT}
           metalness={0.6}
           roughness={0.3}
           opacity={selected ? 0.7 : 1}
@@ -381,7 +382,7 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
   // Heatsink (Silver)
   const heatsinkMaterial = (
     <meshStandardMaterial
-      color="#e2e8f0"
+      color={COLORS.DEFAULT.SILVER}
       metalness={0.7}
       roughness={0.3}
       opacity={selected ? 0.7 : 1}
@@ -392,7 +393,7 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
   // Fan (Black) - Simplified as a block on the front
   const fanMaterial = (
     <meshStandardMaterial
-      color="#1e293b"
+      color={COLORS.DEFAULT.FAN_BLACK}
       metalness={0.2}
       roughness={0.8}
       opacity={selected ? 0.7 : 1}
@@ -400,8 +401,8 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
     />
   );
 
-  const fanDepth = 25;
-  const heatsinkDepth = Math.max(10, d - fanDepth);
+  const fanDepth = COOLER_SPECS.FAN_DEPTH;
+  const heatsinkDepth = Math.max(COOLER_SPECS.MIN_HEATSINK_DEPTH, d - fanDepth);
 
   return (
     <group userData={{ objectId: obj.id }}>

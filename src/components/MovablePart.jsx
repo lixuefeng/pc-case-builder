@@ -1553,7 +1553,11 @@ export default function MovablePart({
 
   const hoveredFaceDetails = useMemo(() => {
     if (!hoveredFace) return null;
-    return getFaceDetails({ obj, ref: groupRef, faceName: hoveredFace });
+    const details = getFaceDetails({ obj, ref: groupRef, faceName: hoveredFace });
+    if (obj.type === 'gpu') {
+        console.log("DebugGPU: hoveredFaceDetails", { hoveredFace, details });
+    }
+    return details;
   }, [hoveredFace, obj]);
 
   useEffect(() => {
@@ -1677,6 +1681,14 @@ export default function MovablePart({
       let resolvedFace = candidates.reduce((prev, cur) =>
         cur.value < prev.value ? cur : prev
       ).face;
+
+      if (event.shiftKey && obj.type === 'gpu') {
+         console.log("DebugGPU: resolveHoveredFace", {
+            face: resolvedFace,
+            localPoint: localPoint.toArray(),
+            candidates
+         });
+      }
 
 
 
@@ -1826,6 +1838,13 @@ export default function MovablePart({
               return;
             }
             dlog("pointer:face-pick", { partId: obj.id, face: hoveredFace });
+            if (obj.type === 'gpu') {
+                console.log("DebugGPU: onFacePick", { 
+                    partId: obj.id, 
+                    face: hoveredFace, 
+                    shift: e.shiftKey 
+                });
+            }
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
             return;
           }

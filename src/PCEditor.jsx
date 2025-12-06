@@ -16,8 +16,9 @@ import { getMotherboardIoCutoutBounds } from "./config/motherboardPresets";
 import { expandObjectsWithEmbedded } from "./utils/embeddedParts";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { adjustCSGOperations } from "./utils/csgUtils";
+import { EDITOR_CONFIG } from "./constants";
 
-const DUPLICATE_OFFSET = 25;
+const DUPLICATE_OFFSET = EDITOR_CONFIG.DUPLICATE_OFFSET;
 const alog = () => { };
 
 const deepCloneObject = (value) => JSON.parse(JSON.stringify(value));
@@ -242,7 +243,7 @@ function EditorContent() {
     }
   }, [transformMode, drillGhost, setHudState]);
 
-  const snapThreshold = 10; // mm
+  const snapThreshold = EDITOR_CONFIG.SNAP_THRESHOLD; // mm
 
   const handleDrillHover = useCallback(
     (info) => {
@@ -349,7 +350,7 @@ function EditorContent() {
       // 用来限制候选点不要离 B 面中心太远（在面内的“半径”过滤）
       const maxDim = faceSize
         ? Math.max(faceSize[0], faceSize[1], faceSize[2])
-        : 1000;
+        : EDITOR_CONFIG.DRILL_MAX_DIM;
       const faceCenterVecB = planePointB.clone();
 
       flatObjects.forEach((obj) => {
@@ -375,7 +376,7 @@ function EditorContent() {
         const signedDist = planeB.distanceToPoint(objCenter);
 
         // 只有当对象的包围盒真正与 B 平面有交集时，才认为是“与 B 面附近相交”
-        const margin = 0.5; // 适当放宽一点，避免数值误差
+        const margin = EDITOR_CONFIG.DRILL_MARGIN; // 适当放宽一点，避免数值误差
         if (Math.abs(signedDist) > halfDepth + margin) {
           return;
         }

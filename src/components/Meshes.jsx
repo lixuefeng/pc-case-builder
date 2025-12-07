@@ -11,8 +11,12 @@ export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
-  const topLeftBack = useMemo(() => anchorPoint(dims, "top-left-back"), [dims]);
+  // Switch to Top-Right-Back as reference (User Request)
+  const topRightBack = useMemo(() => anchorPoint(dims, "top-right-back"), [dims]);
   const selColor = selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null;
+
+  // Virtual Anchor Offset (Same as in presets.js)
+  const anchorOffset = MOTHERBOARD_SPECS.ANCHOR || { x: 0, y: 0 };
 
   return (
     <group>
@@ -27,10 +31,11 @@ export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }
 
       {holeMap.length > 0 && (
         <group position={[0, dims.h / 2, 0]}>
-          {holeMap.map(([x, z], i) => (
+          {holeMap.map(([relX, relZ], i) => (
             <mesh
               key={i}
-              position={addVec(topLeftBack, [x, -dims.h / 2, z])}
+              // Physical Pos = TopRightBack + VirtualAnchorOffset + RelativeDist
+              position={addVec(topRightBack, [relX + anchorOffset.x, -dims.h / 2, relZ + anchorOffset.y])}
             >
               <cylinderGeometry args={[1.6, 1.6, 1.2, 24]} />
               <meshStandardMaterial color={COLORS.DEFAULT.MOTHERBOARD_HOLE} />
@@ -38,6 +43,15 @@ export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }
           ))}
         </group>
       )}
+
+      {/* Debug: Visual Anchor Point */}
+      <mesh
+        position={addVec(topRightBack, [anchorOffset.x, 0, anchorOffset.y])}
+        userData={{ type: "anchor-debug" }}
+      >
+        <sphereGeometry args={[1.5, 16, 16]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
+      </mesh>
 
       {/* Additional motherboard features are rendered as embedded parts */}
     </group>

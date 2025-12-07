@@ -42,21 +42,52 @@ export const MOTHERBOARD_SPECS = {
         ATX24: { w: 52, h: 5, d: 10 },
         PCIE_X16: { w: 7.2, h: 11, d: 89.5 },
         PCIE_OFFSET_TOP: 45.5,
-        // Renamed from CHIPSET to IO_APERTURE (Standard ATX I/O Cutout)
         IO_APERTURE: { w: 158.75, h: 44.45, d: 19 },
         IO_APERTURE_OFFSET_LEFT: 13.56,
         IO_APERTURE_OFFSET_TOP: -1.14,
-        IO_KEEPOUT: 2.54, // 0.1 inch outer frame
-        IO_SHIELD_RECESS_DEPTH: 2.0, // Width of the "protrusion" rim
-        IO_BODY_VERTICAL_OFFSET: 40.64, // Distance from motherboard surface to IO Body top edge (40.64mm)
-        IO_BODY_HORIZONTAL_OFFSET: 2.44, // Distance from motherboard +x face to IO Body +x face
-        IO_BODY_Z_OFFSET: 3.43, // Distance from motherboard -z face to IO Body -z face
+        IO_KEEPOUT: 2.54,
+        IO_SHIELD_RECESS_DEPTH: 2.0,
+        IO_BODY_VERTICAL_OFFSET: 40.64,
+        IO_BODY_HORIZONTAL_OFFSET: 2.44,
+        IO_BODY_Z_OFFSET: 3.43,
     },
+
+    // Virtual Origin for Alignment (0.4" from Left, 0.25" from Top)
+    ANCHOR: { x: -6.35, y: 10.16 },
+
+    // Hole coordinates relative to ANCHOR
+    // Standard ATX Layout (IO 'Up'):
+    // C: Top-Left  (6.35, 10.16)
+    // F: Top-Right (163.83, 33.02)
+
+    // ITX: C, F, H, J
     ITX_HOLES: [
-        [163.83, 33.02],
-        [6.35, 10.16],
-        [6.35, 165.1],
-        [163.5, 165.1],
+        [-157.48, 0],    // C
+        [0, 22.86],   // F: Aligned Top with C (User request)
+        [-157.48, 154.94],  // H
+        [0, 154.94], // J
+    ],
+    // mATX: C, F, H, J, L, M
+    MATX_HOLES: [
+        [-157.48, 0],     // C
+        [0, 22.86],       // F: Dropped 0.9" from Anchor
+        [-157.48, 154.94],// H
+        [0, 154.94],      // J
+        [-157.48, 233.68],// L: Bottom-Left-Far
+        [0, 233.68],      // M
+    ],
+    // ATX: C, F, H, J, L, M, A, G, K 
+    // Hole A is at Top-Right Corner (Anchor). C/F are to the left.
+    ATX_HOLES: [
+        [-271.78, 0],     // C: Top-Left (Far Left)
+        [-114.3, 22.86],  // F: Top-Middle (Dropped)
+        [-271.78, 154.94],// H
+        [-114.3, 154.94], // J
+        [-271.78, 233.68],// L
+        [-114.3, 233.68], // M
+        [0, 0],           // A: Top-Right (Anchor)
+        [0, 154.94],      // G
+        [0, 233.68],      // K
     ],
     ATX_HOLE_FH_TOP_OFFSET: 163.83,
 };

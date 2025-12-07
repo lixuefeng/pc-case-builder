@@ -201,23 +201,15 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
     ? (bracketSpec.width || GPU_SPECS.BRACKET_WIDTH_SINGLE)
     : ((slotCount - 1) * GPU_SPECS.SLOT_PITCH + (bracketSpec.width || GPU_SPECS.BRACKET_WIDTH_SINGLE));
 
-  // Determine Z offset relative to the finger position specific to this object
-  const fingerPlacement = buildGpuFingerPlacement({ dims: obj.dims, pcie: meta.pcie || {} });
-  const fingerZ = fingerPlacement.center[2];
-  
-  // Base offset calibration: 
-  // In the default model (d=51, zOff=3, bracketZ=5.09), the distance from Finger to Bracket is fixed.
-  // defaultFingerZ = -51/2 + 3 = -22.5
-  // defaultBracketZ = 5.09
-  // relativeOffset = 5.09 - (-22.5) = 27.59
-  const defaultFingerZ = -GPU_SPECS.DEFAULT_DIMS.d / 2 + (3); 
-  const defaultBracketZ = GPU_SPECS.ALIGNMENT_OFFSET;
-  const relativeOffset = defaultBracketZ - defaultFingerZ;
-  
-  // New Bracket Z follows the actual finger position + standard relative spacing
-  const bracketBaseZ = fingerZ + relativeOffset;
-  
-  const zOffset = (slotCount > 1 ? -((slotCount - 1) * GPU_SPECS.SLOT_PITCH) / 2 : 0) + bracketBaseZ;
+  // Z-Offset is now handled in embeddedParts.js (localCenter), so we render at 0.
+  // This ensures the Logical Hit Box and Visual Mesh are synchronized.
+
+  // Output for debugging
+  console.log(`[GPUBracketMesh] Debug ID=${obj.id}`, {
+      slotCount,
+      slotPitch: GPU_SPECS.SLOT_PITCH,
+      localSlot0X: -((slotCount - 1) * GPU_SPECS.SLOT_PITCH) / 2,
+  });
 
   const { mainGeo, flangeGeo } = useMemo(
     () =>
@@ -250,7 +242,7 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
   const yShift = -(bracketSpec.height || 120) / 2;
 
   return (
-    <group userData={{ objectId: obj.id }} position={[0, 0, zOffset]}>
+    <group userData={{ objectId: obj.id }} position={[0, 0, 0]}>
       {mainGeo && (
         <group position={[0, yShift, 0]} rotation={[0, Math.PI / 2, 0]}>
              <mesh geometry={mainGeo}>

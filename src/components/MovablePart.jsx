@@ -1,4 +1,3 @@
-
 // components/MovablePart.jsx
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import * as THREE from "three";
@@ -1663,14 +1662,26 @@ export default function MovablePart({
         new THREE.Vector3(-halfW, -halfH, -halfD),
         new THREE.Vector3(halfW, halfH, halfD)
       );
+
       const localPoint =
         localRay.intersectBox(localBox, hitPoint) ||
         event.point.clone().sub(worldPos).applyQuaternion(invQuat);
+
       // 记录：局部空间的命中点，以及对应的世界坐标命中点（而不是物体中心）
       const worldHitPoint = localPoint
         .clone()
         .applyQuaternion(worldQuat)
         .add(worldPos);
+
+      // Debug Hit Context
+      if (obj.type === 'gpu-bracket') {
+          console.log(`[MovablePart Debug] Hit Test ${obj.id}`, {
+              dims: obj.dims,
+              localPoint,
+              worldHitPoint,
+              candidates: [], // will be filled next
+          });
+      }
 
       lastHoverSampleRef.current = {
         local: localPoint.clone(),
@@ -1877,6 +1888,12 @@ export default function MovablePart({
         onClick={(e) => e.stopPropagation()}
         onPointerUp={(e) => e.stopPropagation()}
       >
+        {(() => {
+           if (obj.name && (obj.name.includes("IO") || obj.type === "io-shield")) {
+               console.log("[MovablePart] Rendering IO Object:", { id: obj.id, name: obj.name, type: obj.type });
+           }
+           return null;
+        })()}
         {obj.type === "motherboard" ? (
           <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "gpu" ? (

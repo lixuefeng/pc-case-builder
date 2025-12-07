@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 import { anchorPoint, addVec } from "../utils/anchors";
+import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
 import { Geometry, Base, Subtraction } from "@react-three/csg";
 import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from "../constants";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
@@ -54,6 +55,7 @@ export function ChildMeshRenderer({ obj }) {
     case "cylinder":
       return <CylinderMesh obj={obj} selected={false} />;
     case "io-shield":
+      console.log("[ChildMeshRenderer] Rendering io-shield", obj.id);
       return <IOShieldMesh obj={obj} selected={false} />;
     case "cone":
       // Re-using CylinderMesh for now, but we might want a dedicated ConeMesh later
@@ -377,6 +379,74 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
   );
 }
 
+// ... existing imports
+
+export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
+  const { dims, color } = obj;
+  const { w, h, d } = dims;
+
+  // Constants for geometry
+  const recess = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_SHIELD_RECESS_DEPTH || 2.0;
+  const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
+
+  // Geometry Strategy: Overlapping Boxes to create a "Step" / "Rabbet"
+  // Goal: "Cut away edge 2mm deep" at the Front Face (-Z).
+  // Body (Center): Full Depth `d`. Represents the protruding connectors.
+  // Flange (Rim): Depth `d - recess`. Shifted back so it starts 2mm deeper than Body.
+  
+  // 1. Body: Full Size w * h * d. Centered at 0.
+  const bodyW = w;
+  const bodyH = h;
+  const bodyD = d;
+  const bodyZ = 0; // Center of [-d/2, d/2]
+
+  // 2. Flange: Wide w+2k * h+2k. Depth d-recess.
+  // Starts at -d/2 + recess. Ends at d/2.
+  // Center = (-d/2 + recess + d/2) / 2 = recess / 2.
+  const flangeW = w + keepout * 2;
+  const flangeH = h + keepout * 2;
+  const flangeD = d - recess;
+  const flangeZ = recess / 2;
+
+  // Debug Log
+  console.log(`[IOShieldMesh] Debug ${obj.id}`, {
+      dims: {w, h, d},
+      recess,
+      body: { w: bodyW, h: bodyH, d: bodyD, z: bodyZ },
+      flange: { w: flangeW, h: flangeH, d: flangeD, z: flangeZ }
+  });
+
+  const selColor = selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null;
+  const mainColor = color || "#555";
+  const flangeColor = "#a3a3a3";
+
+  return (
+    <group userData={{ objectId: obj.id }}>
+      {/* Main Body (Protruding Center) */}
+      <mesh position={[0, 0, bodyZ]}>
+        <boxGeometry args={[bodyW, bodyH, bodyD]} />
+        <meshStandardMaterial
+           color={selColor || mainColor}
+           opacity={selected ? 0.7 : 1}
+           transparent={selected}
+        />
+      </mesh>
+
+      {/* Flange (Recessed Rim) - Overlaps Body but starts deeper */}
+      <mesh position={[0, 0, flangeZ]}>
+         <boxGeometry args={[flangeW, flangeH, flangeD]} />
+         <meshStandardMaterial
+            color={selColor || flangeColor}
+            opacity={selected ? 0.7 : 1}
+            transparent={selected}
+            metalness={0.6}
+            roughness={0.4}
+         />
+      </mesh>
+    </group>
+  );
+}
+
 export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
   const { dims, color } = obj;
   const { w, h, d } = dims;
@@ -423,85 +493,5 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
   );
 }
 
-export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
-  const { dims, color } = obj;
-  const { w, h, d } = dims;
-
-  console.log("[IOShieldMesh] Rendering...", { w, h, d });
-
-  // keepout adds a flange around the aperture.
-  const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
-  
-  // User request correction: "Enlarge cutout, then cut away edge 1-2mm deep"
-  // This means the Object is mostly the Full Size, but the Edge is thinner by 2mm.
-  // Implementation:
-  // 1. Base Block (Flange): Size = Enlarged (W+K). Thickness = D - Recess.
-  // 2. Cap Block (Body): Size = Normal (W). Thickness = Recess. (Sits on top/front of Base).
-  
-  const recessDepth = 2.0; 
-  
-  // Dimensions
-  const flangeW = w + keepout * 2;
-  const flangeH = h + keepout * 2;
-  const flangeD = d - recessDepth; // Thicker base (e.g. 17mm)
-
-  const bodyW = w;
-  const bodyH = h;
-  const bodyD = recessDepth; // Thin cap (e.g. 2mm) to bring center to full depth
-
-  // Z positioning (Inverted based on feedback)
-  // Previous: Flange (Back) -> Body (Front). Result: Pyramid.
-  // User says "Reversed".
-  // New: Body (Back) -> Flange (Front). Result: Wide Face at Front.
-  
-  // Body (Narrow Cap) at Z-min (Back/Inside)
-  // Width: w, Height: h, Depth: recessDepth (Thin)
-  // Wait, if we want the "Main Mass" to be the Body vs Flange.
-  // Step 364 Logic: Flange = Thick (D-2), Body = Thin (2).
-  // If we just swap Z:
-  // Back: Body (Thin, Narrow).
-  // Front: Flange (Thick, Wide).
-  // Visual: A thick wide block with a small thin protrusion on the BACK.
-  
-  // Wait, if "Cut edge on Outer Face" implies the OUTER face is the one with the step.
-  // If Outer Face is Front.
-  // Step on Front => Front is Narrow. (My previous code).
-  // User says Reversed.
-  // Maybe "Front" is Inside?
-  // Let's assume Z-Flip is the request.
-  
-  // Layout:
-  // 1. Body (Narrow) at -Z side.
-  // 2. Flange (Wide) at +Z side.
-  
-  // Body Center Z: -d/2 + bodyD/2
-  // Flange Center Z: -d/2 + bodyD + flangeD/2
-  
-  return (
-    <group userData={{ objectId: obj.id }}>
-      {/* Main Body (Narrow Part - Stem) */}
-      <mesh position={[0, 0, -d/2 + bodyD/2]}>
-        <boxGeometry args={[bodyW, bodyH, bodyD]} />
-        <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || "#a3a3a3"}
-          metalness={0.6}
-          roughness={0.4}
-          opacity={selected ? 0.7 : 1}
-          transparent={selected}
-        />
-      </mesh>
-
-      {/* Flange (Wide Part - Cap) */}
-      <mesh position={[0, 0, -d/2 + bodyD + flangeD/2]}> 
-         <boxGeometry args={[flangeW, flangeH, flangeD]} />
-         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : "#9ca3af"}
-          metalness={0.5}
-          roughness={0.5}
-          opacity={selected ? 0.7 : 1}
-          transparent={selected}
-        />
-      </mesh>
-    </group>
-  );
-}
+// Duplicate function removed.
+// End of file

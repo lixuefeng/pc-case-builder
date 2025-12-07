@@ -4,6 +4,8 @@ import {
   getMotherboardIoCutoutBounds,
 } from "../config/motherboardPresets";
 import { GPU_BRACKET_SPEC } from "./gpuBracketSpec";
+import { MOTHERBOARD_SPECS, GPU_SPECS } from "../constants";
+import { buildGpuFingerPlacement } from "./gpuPcieSpec";
 
 const computeCenterFromEdges = (dims, size, feature) => {
   let x = 0;
@@ -126,95 +128,63 @@ export const buildMotherboardEmbeddedParts = (obj) => {
   const ioCutout = obj.meta?.ioCutout;
   const layoutIoShield = layout?.ioShield;
 
+
   if (ioCutout) {
-    // ... [Same ioCutout logic as before, calculating from absolute meta params] ...
     const centerX = (-dims.w / 2) + ioCutout.x + (ioCutout.w / 2);
     const centerY = (dims.h / 2) + ioCutout.y + (ioCutout.h / 2);
     const centerZ = (-dims.d / 2) + ioCutout.z + (ioCutout.depth / 2);
 
-    // Split into Base (Wide/Front) and Protrusion (Narrow/Back)
-    // Based on user feedback: Protrusion is towards "Outside".
-    // Assuming +Z is Front/Outside? Or -Z?
-    // Step 372 Implementation:
-    // Body (Narrow) at -Z side (Back).
-    // Flange (Wide) at +Z side (Front).
-    // Let's replicate this geometry with two independent objects.
+    // Split IO Ports into Body and Flange
+    const recess = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_SHIELD_RECESS_DEPTH || 2.0;
+    const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
 
-    // Total Depth D = ioCutout.depth
-    // Recess R = 2.0
-    // Base Depth = D - R (Thick)
-    // Proto Depth = R (Thin)
-
-    // Original Center Z = centerZ
-    // Z Extent: [centerZ - D/2, centerZ + D/2]
-
-    // Part 1: Protrusion (Body/Narrow)
-    // Size: [W, H, R]
-    // Z Position: Back (Z-min end).
-    // Center Z_p = (centerZ - D/2) + R/2
-
-    // Part 2: Base (Flange/Wide)
-    // Size: [W + 2K, H + 2K, D - R]
-    // Z Position: Front (Z-max end).
-    // Center Z_b = (centerZ + D/2) - (D - R)/2 = centerZ + D/2 - D/2 + R/2 = centerZ + R/2 ?
-    // Wait: (centerZ - D/2) is back edge.
-    // Flange starts at (centerZ - D/2 + R) and ends at (centerZ + D/2).
-    // Midpoint = (Start + End) / 2 = (centerZ - D/2 + R + centerZ + D/2) / 2 = (2*centerZ + R) / 2 = centerZ + R/2. Correct.
-
-    const recess = 2.0;
-    const keepout = 2.54;
-
-    const protoZ = centerZ - (ioCutout.depth / 2) + (recess / 2);
-    const baseZ = centerZ + (recess / 2);
+    const bodyD = ioCutout.depth; // 19
+    const flangeD = ioCutout.depth - recess; // 17
 
     parts.push({
-      key: "io-shield-protrusion",
-      name: "IO Shield Protrusion",
-      type: "cube", // Use standard box
-      localCenter: [centerX, centerY, protoZ],
-      size: [ioCutout.w, ioCutout.h, recess],
+      key: "io-body",
+      name: "IO Ports Body",
+      type: "box",
+      localCenter: [centerX, centerY, centerZ],
+      size: [ioCutout.w, ioCutout.h, bodyD],
+      color: "#555",
+    });
+
+    parts.push({
+      key: "io-flange",
+      name: "IO Shield Flange",
+      type: "box",
+      localCenter: [centerX, centerY, centerZ + recess / 2],
+      size: [ioCutout.w + keepout * 2, ioCutout.h + keepout * 2, flangeD],
       color: "#a3a3a3",
     });
 
-    parts.push({
-      key: "io-shield-base",
-      name: "IO Shield Base",
-      type: "cube",
-      localCenter: [centerX, centerY, baseZ],
-      size: [ioCutout.w + keepout * 2, ioCutout.h + keepout * 2, ioCutout.depth - recess],
-      color: "#9ca3af", // Slightly darker
-    });
   } else if (layoutIoShield) {
-    // ... [Standard layout-based generation] ...
-    const part = featureToEmbed(layoutIoShield, dims, "io-shield", "IO Shield");
-    const recess = 2.0;
-    const keepout = 2.54;
-    const { w, h, d } = part.size; // These are array refs? No featureToEmbed returns object with size array
-    // part.size is [w, h, d]
-    const [W, H, D] = part.size;
-    const [cX, cY, cZ] = part.localCenter;
+    // Standard Layout Path
+    const [x, z] = computeCenterFromEdges(dims, layoutIoShield.size, layoutIoShield);
+    const offsetY = layoutIoShield.offsetY ?? 0;
+    const centerY = (layoutIoShield.size.h / 2) + offsetY;
 
-    const protoZ = cZ - (D / 2) + (recess / 2);
-    const baseZ = cZ + (recess / 2);
+    const recess = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_SHIELD_RECESS_DEPTH || 2.0;
+    const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
+    const depth = layoutIoShield.size.d || 19;
 
-    // Push Protrusion
     parts.push({
-      key: "io-shield-protrusion",
-      name: "IO Shield Protrusion",
-      type: "cube",
-      localCenter: [cX, cY, protoZ],
-      size: [W, H, recess],
-      color: "#a3a3a3"
+      key: "io-body",
+      name: "IO Ports Body",
+      type: "box",
+      localCenter: [x, centerY, z],
+      size: [layoutIoShield.size.w, layoutIoShield.size.h, depth],
+      color: "#555",
     });
 
-    // Push Base
     parts.push({
-      key: "io-shield-base",
-      name: "IO Shield Base",
-      type: "cube",
-      localCenter: [cX, cY, baseZ],
-      size: [W + keepout * 2, H + keepout * 2, D - recess],
-      color: "#9ca3af"
+      key: "io-flange",
+      name: "IO Shield Flange",
+      type: "box",
+      localCenter: [x, centerY, z + recess / 2], // Z is typically centerZ
+      size: [layoutIoShield.size.w + keepout * 2, layoutIoShield.size.h + keepout * 2, depth - recess],
+      color: "#a3a3a3",
     });
   }
 
@@ -244,11 +214,19 @@ export const buildGpuEmbeddedParts = (obj) => {
   const bracketCenterX = -(dims.w / 2) + xOffset;
   const bracketCenterY = -dims.h / 2 - dropBelowBody + height / 2;
 
+  // Calculate Z Offset (moved from GpuMeshes.jsx to ensure logical/visual sync)
+  const fingerPlacement = buildGpuFingerPlacement({ dims: obj.dims, pcie: obj.meta?.pcie || {} });
+  const fingerZ = fingerPlacement.center[2];
+  const bracketBaseZ = fingerZ + GPU_SPECS.ALIGNMENT_OFFSET;
+  const slotCount = bracketSpec.slotCount || 1;
+  // GroupZ + LocalSlot0 = bracketBaseZ => GroupZ = bracketBaseZ + Offset.
+  const zOffset = (slotCount > 1 ? +((slotCount - 1) * GPU_SPECS.SLOT_PITCH) / 2 : 0) + bracketBaseZ;
+
   parts.push({
     key: "bracket",
     name: "PCIe Bracket",
     type: "gpu-bracket",
-    localCenter: [bracketCenterX, bracketCenterY, 0],
+    localCenter: [bracketCenterX, bracketCenterY, zOffset],
     size: [
       thickness,
       height,

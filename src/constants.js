@@ -2,7 +2,7 @@
 export const GPU_SPECS = {
     BRACKET_WIDTH_SINGLE: 18.42,
     SLOT_PITCH: 20.32,
-    ALIGNMENT_OFFSET: 5.09,
+    ALIGNMENT_OFFSET: 6.54, // Updated from 5.09 based on user calc
     DEFAULT_BODY_LENGTH: 265,
     DEFAULT_DIMS: { w: 267, h: 112, d: 51 },
     BRACKET: {
@@ -56,6 +56,7 @@ export const MOTHERBOARD_SPECS = {
         IO_APERTURE_OFFSET_LEFT: 13.56,
         IO_APERTURE_OFFSET_TOP: -1.14,
         IO_KEEPOUT: 2.54, // 0.1 inch outer frame
+        IO_SHIELD_RECESS_DEPTH: 2.0, // Width of the "protrusion" rim
     },
     ITX_HOLES: [
         [163.83, 33.02],

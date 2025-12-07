@@ -210,7 +210,7 @@ export const PRESETS = {
           presetKey: "itx",
           holeMap: ITX_HOLES_MM,
           ramSlots: { fromRight: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_OFFSET_RIGHT, fromTop: MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.RAM_OFFSET_TOP },
-          ioCutout: { x: 12.56, z: -1.14, w: 160.75, h: 44.45, y: -6, depth: 19 }, // Matches legacy chipset position
+          // ioCutout removed to use central definition from motherboardPresets.js
         },
       };
       preset.connectors = createMotherboardConnectors(preset);
@@ -223,7 +223,6 @@ export const PRESETS = {
       meta: {
         presetKey: "matx",
         holeMap: [],
-        ioCutout: { x: 13.56, z: -1.14, w: 158.75, h: 44.45, y: -6, depth: 19 },
       },
       connectors: [],
     },
@@ -234,7 +233,6 @@ export const PRESETS = {
       meta: {
         presetKey: "atx",
         holeMap: [],
-        ioCutout: { x: 13.56, z: -1.14, w: 158.75, h: 44.45, y: -6, depth: 19 },
       },
       connectors: [],
     },

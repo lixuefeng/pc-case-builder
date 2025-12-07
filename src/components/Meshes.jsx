@@ -4,7 +4,7 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 import { anchorPoint, addVec } from "../utils/anchors";
 import { Geometry, Base, Subtraction } from "@react-three/csg";
-import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS } from "../constants";
+import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from "../constants";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
 export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }) {
@@ -53,6 +53,8 @@ export function ChildMeshRenderer({ obj }) {
       return <PartBox obj={obj} selected={false} />;
     case "cylinder":
       return <CylinderMesh obj={obj} selected={false} />;
+    case "io-shield":
+      return <IOShieldMesh obj={obj} selected={false} />;
     case "cone":
       // Re-using CylinderMesh for now, but we might want a dedicated ConeMesh later
       // For now, CylinderMesh uses cylinderGeometry which supports radiusTop/Bottom
@@ -416,6 +418,89 @@ export function CPUCoolerMesh({ obj, selected, selectionOrder }) {
       <mesh position={[0, 0, heatsinkDepth / 2]}>
         <boxGeometry args={[w, h, fanDepth]} />
         {fanMaterial}
+      </mesh>
+    </group>
+  );
+}
+
+export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
+  const { dims, color } = obj;
+  const { w, h, d } = dims;
+
+  console.log("[IOShieldMesh] Rendering...", { w, h, d });
+
+  // keepout adds a flange around the aperture.
+  const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
+  
+  // User request correction: "Enlarge cutout, then cut away edge 1-2mm deep"
+  // This means the Object is mostly the Full Size, but the Edge is thinner by 2mm.
+  // Implementation:
+  // 1. Base Block (Flange): Size = Enlarged (W+K). Thickness = D - Recess.
+  // 2. Cap Block (Body): Size = Normal (W). Thickness = Recess. (Sits on top/front of Base).
+  
+  const recessDepth = 2.0; 
+  
+  // Dimensions
+  const flangeW = w + keepout * 2;
+  const flangeH = h + keepout * 2;
+  const flangeD = d - recessDepth; // Thicker base (e.g. 17mm)
+
+  const bodyW = w;
+  const bodyH = h;
+  const bodyD = recessDepth; // Thin cap (e.g. 2mm) to bring center to full depth
+
+  // Z positioning (Inverted based on feedback)
+  // Previous: Flange (Back) -> Body (Front). Result: Pyramid.
+  // User says "Reversed".
+  // New: Body (Back) -> Flange (Front). Result: Wide Face at Front.
+  
+  // Body (Narrow Cap) at Z-min (Back/Inside)
+  // Width: w, Height: h, Depth: recessDepth (Thin)
+  // Wait, if we want the "Main Mass" to be the Body vs Flange.
+  // Step 364 Logic: Flange = Thick (D-2), Body = Thin (2).
+  // If we just swap Z:
+  // Back: Body (Thin, Narrow).
+  // Front: Flange (Thick, Wide).
+  // Visual: A thick wide block with a small thin protrusion on the BACK.
+  
+  // Wait, if "Cut edge on Outer Face" implies the OUTER face is the one with the step.
+  // If Outer Face is Front.
+  // Step on Front => Front is Narrow. (My previous code).
+  // User says Reversed.
+  // Maybe "Front" is Inside?
+  // Let's assume Z-Flip is the request.
+  
+  // Layout:
+  // 1. Body (Narrow) at -Z side.
+  // 2. Flange (Wide) at +Z side.
+  
+  // Body Center Z: -d/2 + bodyD/2
+  // Flange Center Z: -d/2 + bodyD + flangeD/2
+  
+  return (
+    <group userData={{ objectId: obj.id }}>
+      {/* Main Body (Narrow Part - Stem) */}
+      <mesh position={[0, 0, -d/2 + bodyD/2]}>
+        <boxGeometry args={[bodyW, bodyH, bodyD]} />
+        <meshStandardMaterial
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || "#a3a3a3"}
+          metalness={0.6}
+          roughness={0.4}
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
+        />
+      </mesh>
+
+      {/* Flange (Wide Part - Cap) */}
+      <mesh position={[0, 0, -d/2 + bodyD + flangeD/2]}> 
+         <boxGeometry args={[flangeW, flangeH, flangeD]} />
+         <meshStandardMaterial
+          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : "#9ca3af"}
+          metalness={0.5}
+          roughness={0.5}
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
+        />
       </mesh>
     </group>
   );

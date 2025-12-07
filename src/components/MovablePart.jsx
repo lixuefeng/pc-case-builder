@@ -10,6 +10,7 @@ import {
   ImportedMesh,
   ReferenceMesh,
   CPUCoolerMesh,
+  IOShieldMesh,
 } from "./Meshes.jsx";
 import CSGStandoff from "./CSGStandoff";
 import Cylinder from "./primitives/Cylinder";
@@ -490,7 +491,11 @@ export default function MovablePart({
   const controlsRef = useRef();
   const hoverFaceMeshRef = useRef(null);
   const [hoveredFace, setHoveredFace] = useState(null);
+
   const stretchStateRef = useRef(null);
+  
+  // Calculate modifiers unconditionally at top level
+  const modifiers = usePartModifiers(obj, connections, rawObjects);
 
   // Helper to determine selection color
   const getSelectionColor = () => {
@@ -1302,6 +1307,12 @@ export default function MovablePart({
         spec.size?.[1] ?? height,
         thickness,
       ];
+      size = [
+        spec.size?.[0] ?? width,
+        spec.size?.[1] ?? height,
+        thickness,
+      ];
+
     } else {
       const sign = currentFaceName[0] === "+" ? 1 : -1;
       switch (currentFaceName) {
@@ -1610,6 +1621,9 @@ export default function MovablePart({
         width = obj.outerDiameter || 6;
         height = obj.height || 10;
         depth = obj.outerDiameter || 6;
+        height = obj.height || 10;
+        depth = obj.outerDiameter || 6;
+
       } else {
         const dims = obj.dims || {};
         width = dims.w ?? 0;
@@ -1852,10 +1866,12 @@ export default function MovablePart({
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
             return;
           }
-          if (e.shiftKey || e?.nativeEvent?.shiftKey) {
+          // Allow Shift for multi-select if we aren't in a mode that consumes it
+          const isSpecialMode = alignMode || mode === "scale" || mode === "ruler" || mode === "cut";
+          if ((e.shiftKey || e?.nativeEvent?.shiftKey) && isSpecialMode) {
             return;
           }
-          const multi = e.ctrlKey || e.metaKey;
+          const multi = e.ctrlKey || e.metaKey || e.shiftKey;
           onSelect?.(obj.id, multi);
         }}
         onClick={(e) => e.stopPropagation()}
@@ -1875,6 +1891,8 @@ export default function MovablePart({
           <CPUCoolerMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "gpu-bracket" ? (
           <GPUBracketMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+        ) : obj.type === "io-shield" ? (
+          <IOShieldMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "standoff" ? (
           <CSGStandoff {...obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "cylinder" ? (
@@ -1908,7 +1926,7 @@ export default function MovablePart({
             selectionOrder={selectionOrder}
             connections={connections}
             rawObjects={rawObjects}
-            modifiers={usePartModifiers(obj, connections, rawObjects)}
+            modifiers={modifiers}
           />
         )}
         {showTransformControls && Array.isArray(obj.connectors) && obj.connectors

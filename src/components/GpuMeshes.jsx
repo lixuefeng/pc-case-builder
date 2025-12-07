@@ -63,29 +63,130 @@ const buildPcieBracketGeometry = ({ width, height, thickness, slotCount = 1 }) =
     bevelEnabled: false,
     curveSegments: 12,
   });
-  // Build Top Flange (Horizontal Tab)
-  // Box: Width=width, Height=thickness (it's flat), Depth=flangeLength
+
+  // Build Top Flange (Horizontal Tab) with Screw Holes
+  // We use ExtrudeGeometry again to support holes.
   
   if (width < 1 || height < 1) {
       console.warn("buildPcieBracketGeometry: Invalid dims", { width, height });
   }
 
-  const flangeGeo = new THREE.BoxGeometry(width, thickness, flangeLength);
-  
+  const flangeShape = new THREE.Shape();
+  // Flange shape is a rectangle in X-Z plane (visually), but we'll draw it in X-Y and rotate/extrude.
+  // We want width along X, and Length (flangeLength) along Y (which will become Z).
+  // Center X is 0.
+  const fXLeft = -width / 2;
+  const fXRight = width / 2;
+  const fYBottom = 0;
+  const fYTop = flangeLength;
+
+  flangeShape.moveTo(fXLeft, fYBottom);
+  flangeShape.lineTo(fXRight, fYBottom);
+  flangeShape.lineTo(fXRight, fYTop);
+  flangeShape.lineTo(fXLeft, fYTop);
+  flangeShape.closePath();
+
+  // Add Screw Holes
+  // One hole per slot.
+  const holeRadius = (GPU_SPECS.BRACKET.HOLE_DIA || 4.0) / 2;
+  const holeOffset = GPU_SPECS.BRACKET.HOLE_OFFSET_Z || 6.0;
+  const holeXShift = GPU_SPECS.BRACKET.HOLE_X_OFFSET || 0;
+
+  for (let i = 0; i < slotCount; i++) {
+    // Calculate X center for this slot
+    // We apply the shift to align with the visual "edge" requirement
+    const slotCenterX = (i - (slotCount - 1) / 2) * PITCH + holeXShift;
+    
+    const holePath = new THREE.Path();
+    // Start at right edge of circle (relative to center)
+    // Center of hole is at (slotCenterX, holeOffset)
+    
+    holePath.absarc(slotCenterX, holeOffset, holeRadius, 0, Math.PI * 2, false);
+    flangeShape.holes.push(holePath);
+  }
+
+  const flangeGeo = new THREE.ExtrudeGeometry(flangeShape, {
+    depth: thickness, // Extrude quantity (thickness)
+    bevelEnabled: false,
+    curveSegments: 24, // smoother circles
+  });
+
   // Position it at the top.
-  const yTrans = yTop + thickness/2;
-  // Flip force direction: user reported it ran into the card.
-  // Previously: zTrans = flangeLength/2 - thickness/2 (Positive Z).
-  // Now: - (flangeLength/2 - thickness/2) (Negative Z, bends other way)
-  // Actually, we want the FACE of the flange to flush with the bracket face (Z=0)
-  // And extend outwards (-Z or +Z).
-  // If thickness is centered at Z=0.
-  // We want flange to start at Z = thickness/2 (Outer face) and go to Z = thickness/2 + flangeLength? 
-  // Or start at -thickness/2?
-  // Let's just Negate the previous center-point translation.
-  const zTrans = -(flangeLength/2 - thickness/2);
+  // The shape is drawn in X-Y. Extrusion gives it Depth in Z.
+  // We want the Flange Plane to be X-Z (Horizontal).
+  // So we need to Rotate X by 90 deg.
+  // Before rotation: width is X, length is Y, thickness is Z.
+  // After Rotate X (+90?): Y becomes -Z, Z becomes Y.
+  // Let's visualize: 
+  // Initial: Shape on XY plane. Extruded in +Z by `thickness`.
+  // Rotate X(-90): 
+  //   Old X -> New X
+  //   Old Y -> New -Z (Flange extends away from camera? or usually towards 'back' of case? typical bracket bends OUT of the case? No, bends IN usually to sit on chassis shelf).
+  //   Wait, PC case rear: GPU is inside. Bracket is at back. 
+  //   The bent part sits on the "shelf" of the case frame. 
+  //   The shelf is usually OUTSIDE the vertical plane of the slot openings? Or inside?
+  //   Usually the bracket L-shape goes OUT. 
+  //   Let's assume "Back" of case is -Z (or +Z). 
+  //   If we look at `zTrans = -(flangeLength/2 - thickness/2)` in old code, it implies direction.
+  //   Old code: BoxGeometry(width, thickness, flangeLength).
+  //   Let's align with that.
+
+  // Let's keep it simple: Create, then rotate/translate to match previous placement.
+  // Previous Box Center: (0, yTop + thickness/2, -(flangeLength/2 - thickness/2))
+  // Previous Box Size: (width, thickness, flangeLength)
+  // Which means it spanned:
+  //   X: -w/2 to w/2
+  //   Y: yTop to yTop + thickness
+  //   Z: It was centered at -flangeLength/2 + thickness/2.
+  //      Extent: Z_center - L/2 to Z_center + L/2
+  //      Min Z = (-L/2 + t/2) - L/2 = -L + t/2. 
+  //      Max Z = (-L/2 + t/2) + L/2 = t/2.
+  //      So it went from Z = t/2 (front face of bracket main?) back to -L + t/2.
+  //      So it extends in Negative Z.
   
-  flangeGeo.translate(0, yTrans, zTrans); 
+  // New Geometry:
+  //   Shape in XY. Y is Length (0 to L). X is Width. 
+  //   Extruded Z is Thickness (0 to t).
+  //   We want:
+  //     Dimension corresponds to Width -> X (Already X)
+  //     Dimension corresponds to Thickness -> Y (Was Z in extrude)
+  //     Dimension corresponds to Length -> Z (Was Y in shape, need to be -Z)
+
+  // Step 1: Center the extrude geo on X-axis? X is -w/2 to w/2, so it's centered.
+  // Step 2: Rotate so Shape-Y points to -Z. 
+  //         Rotate X by -90 deg. 
+  //         (x, y, z) -> (x, z, -y).
+  //         Shape Y (0 to L) becomes -Z (0 to -L). Correct (extends negative).
+  //         Extrude Z (0 to t) becomes Y (0 to t). Correct (thickness goes Up).
+  flangeGeo.rotateX(-Math.PI / 2);
+
+  // Now bounding box is:
+  // X: -w/2 to +w/2
+  // Y: 0 to thickness
+  // Z: -flangeLength to 0
+  
+  // We want to place it on top of the main bracket.
+  // Main bracket top is at `yTop`.
+  // So we translate Y by `yTop`.
+  // Z alignment: The "Face" of the main bracket is centered at Z=Thickness/2 ? 
+  // Earlier mainGeo extrude depth=thickness. It goes Z=0 to Z=depth.
+  // So front face is at Z=thickness (or 0 depending on view). 
+  // The bracket is usually flush.
+  // Let's assume Main Bracket is Z=0 to Z=thickness.
+  // Our Flange (curr Z: -L to 0) needs to start at Z=thickness? No, usually the bend is flush with the face.
+  // The code `zTrans = -(flangeLength/2 - thickness/2)` suggested valid range.
+  // If we want the vertical face (Z=0..t) and horizontal shelf to meet at the top-front edge?
+  // Usually it bends at the top. The material thickness is constant.
+  // If we take a metal sheet, bend 90 deg. 
+  // Vertical part Z=0..t. Horizontal part Y=Top..Top+t.
+  // Horizontal part should extend from Z=0 back to Z=-Lungth? Or Z=t back?
+  // Standard: The "outside" surface is continuous.
+  // Providing the previous logic was "roughly right", let's try to match:
+  // Previous Max Z = t/2. Min Z = -L + t/2.
+  // Our rotated one: Max Z = 0. Min Z = -L.
+  // Shift Z by +thickness/2? => Max Z=t/2. Min Z=-L+t/2. Yes.
+  
+  flangeGeo.translate(0, yTop, thickness/2); 
   
   return { mainGeo, flangeGeo };
 };

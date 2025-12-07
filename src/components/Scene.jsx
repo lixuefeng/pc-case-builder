@@ -52,11 +52,18 @@ export default function Scene({
         setIsAltPressed(false);
       }
     };
+    // Fix: Reset state on window blur (e.g. Alt-Tab)
+    const blur = () => {
+      setIsAltPressed(false);
+    };
+
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
     };
   }, []);
 

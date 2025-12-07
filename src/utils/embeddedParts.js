@@ -116,62 +116,106 @@ export const buildMotherboardEmbeddedParts = (obj) => {
   if (Array.isArray(layout?.pcieSlots)) {
     layout.pcieSlots.forEach((slot, index) => {
       const part = featureToEmbed(slot, dims, `${slot.key || "pcie"}-${index}`, `PCIe ${index + 1}`);
-      console.log(`[EmbeddedParts] PCIe Slot ${index} fromLeft:`, slot.fromLeft);
-      console.log(`[EmbeddedParts] PCIe Slot ${index} Calculated Center:`, part.localCenter);
       parts.push(part);
     });
   }
   // Handle IO Shield / Cutout
   // If obj.meta.ioCutout exists, use it. Otherwise fall back to layout.chipset (legacy)
+  // Handle IO Shield / Cutout
+  // STRICT: Either meta.ioCutout OR layout.ioShield must be present.
   const ioCutout = obj.meta?.ioCutout;
+  const layoutIoShield = layout?.ioShield;
+
   if (ioCutout) {
-    // Map from our {x, y, z, w, h, depth} to embedded part format
-    // x is from left edge of board (assuming board center is 0,0)
-    // z is from top edge of board
-    // We need to convert to localCenter relative to board center
+    // ... [Same ioCutout logic as before, calculating from absolute meta params] ...
+    const centerX = (-dims.w / 2) + ioCutout.x + (ioCutout.w / 2);
+    const centerY = (dims.h / 2) + ioCutout.y + (ioCutout.h / 2);
+    const centerZ = (-dims.d / 2) + ioCutout.z + (ioCutout.depth / 2);
 
-    // Board dimensions
-    const boardW = dims.w;
-    const boardH = dims.h; // Thickness
-    const boardD = dims.d;
+    // Split into Base (Wide/Front) and Protrusion (Narrow/Back)
+    // Based on user feedback: Protrusion is towards "Outside".
+    // Assuming +Z is Front/Outside? Or -Z?
+    // Step 372 Implementation:
+    // Body (Narrow) at -Z side (Back).
+    // Flange (Wide) at +Z side (Front).
+    // Let's replicate this geometry with two independent objects.
 
-    // Calculate center based on top-left-back anchor
-    // Top-Left-Back is at: x = -boardW/2, y = boardH/2, z = -boardD/2
-    // Our ioCutout.x/z are offsets from there.
-    // However, in our presets, we defined x/z as 0,0 for default.
-    // And we want it to be at the "IO area".
+    // Total Depth D = ioCutout.depth
+    // Recess R = 2.0
+    // Base Depth = D - R (Thick)
+    // Proto Depth = R (Thin)
 
-    // Let's interpret x/z as offsets from the Top-Left corner of the board.
-    // x: positive right
-    // z: positive forward (down in 2D)
+    // Original Center Z = centerZ
+    // Z Extent: [centerZ - D/2, centerZ + D/2]
 
-    const centerX = (-boardW / 2) + ioCutout.x + (ioCutout.w / 2);
-    // y is offset from surface?
-    // If board is at 0, surface is at boardH/2.
-    // So centerY = boardH/2 + ioCutout.y + ioCutout.h/2 ? 
-    // Wait, ioCutout.h is the height of the shield (vertical).
-    // ioCutout.depth is the thickness (Z-depth in local terms? No, depth usually means thickness).
+    // Part 1: Protrusion (Body/Narrow)
+    // Size: [W, H, R]
+    // Z Position: Back (Z-min end).
+    // Center Z_p = (centerZ - D/2) + R/2
 
-    // Let's stick to the coordinate system we visualized:
-    // w = width (along X)
-    // h = height (along Y, vertical)
-    // depth = thickness (along Z)
+    // Part 2: Base (Flange/Wide)
+    // Size: [W + 2K, H + 2K, D - R]
+    // Z Position: Front (Z-max end).
+    // Center Z_b = (centerZ + D/2) - (D - R)/2 = centerZ + D/2 - D/2 + R/2 = centerZ + R/2 ?
+    // Wait: (centerZ - D/2) is back edge.
+    // Flange starts at (centerZ - D/2 + R) and ends at (centerZ + D/2).
+    // Midpoint = (Start + End) / 2 = (centerZ - D/2 + R + centerZ + D/2) / 2 = (2*centerZ + R) / 2 = centerZ + R/2. Correct.
 
-    // But wait, IO shield is usually along the back edge (Z-min).
-    // So its "thickness" is along Z. Its "width" is along X. Its "height" is along Y.
+    const recess = 2.0;
+    const keepout = 2.54;
 
-    const centerY = (boardH / 2) + ioCutout.y + (ioCutout.h / 2);
-    const centerZ = (-boardD / 2) + ioCutout.z + (ioCutout.depth / 2);
+    const protoZ = centerZ - (ioCutout.depth / 2) + (recess / 2);
+    const baseZ = centerZ + (recess / 2);
 
     parts.push({
-      key: "io-shield",
-      name: "IO Shield",
-      localCenter: [centerX, centerY, centerZ],
-      size: [ioCutout.w, ioCutout.h, ioCutout.depth],
+      key: "io-shield-protrusion",
+      name: "IO Shield Protrusion",
+      type: "cube", // Use standard box
+      localCenter: [centerX, centerY, protoZ],
+      size: [ioCutout.w, ioCutout.h, recess],
       color: "#a3a3a3",
     });
-  } else if (layout?.chipset) {
-    parts.push(featureToEmbed(layout.chipset, dims, "chipset", "Chipset"));
+
+    parts.push({
+      key: "io-shield-base",
+      name: "IO Shield Base",
+      type: "cube",
+      localCenter: [centerX, centerY, baseZ],
+      size: [ioCutout.w + keepout * 2, ioCutout.h + keepout * 2, ioCutout.depth - recess],
+      color: "#9ca3af", // Slightly darker
+    });
+  } else if (layoutIoShield) {
+    // ... [Standard layout-based generation] ...
+    const part = featureToEmbed(layoutIoShield, dims, "io-shield", "IO Shield");
+    const recess = 2.0;
+    const keepout = 2.54;
+    const { w, h, d } = part.size; // These are array refs? No featureToEmbed returns object with size array
+    // part.size is [w, h, d]
+    const [W, H, D] = part.size;
+    const [cX, cY, cZ] = part.localCenter;
+
+    const protoZ = cZ - (D / 2) + (recess / 2);
+    const baseZ = cZ + (recess / 2);
+
+    // Push Protrusion
+    parts.push({
+      key: "io-shield-protrusion",
+      name: "IO Shield Protrusion",
+      type: "cube",
+      localCenter: [cX, cY, protoZ],
+      size: [W, H, recess],
+      color: "#a3a3a3"
+    });
+
+    // Push Base
+    parts.push({
+      key: "io-shield-base",
+      name: "IO Shield Base",
+      type: "cube",
+      localCenter: [cX, cY, baseZ],
+      size: [W + keepout * 2, H + keepout * 2, D - recess],
+      color: "#9ca3af"
+    });
   }
 
   const finalParts = parts.filter(Boolean);

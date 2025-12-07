@@ -10,6 +10,9 @@ export const GPU_SPECS = {
         THICKNESS: 2,
         DROP_BELOW_BODY: 30,
         X_OFFSET: -0.8,
+        HOLE_DIA: 4.0, // Clearance for #6-32
+        HOLE_OFFSET_Z: 6.0, // Distance from the bend (face) to center of hole
+        HOLE_X_OFFSET: -4.5, // Shift holes left to visually match "edge" alignment
     },
 };
 
@@ -47,9 +50,12 @@ export const MOTHERBOARD_SPECS = {
         ATX24: { w: 52, h: 5, d: 10 },
         PCIE_X16: { w: 7.2, h: 11, d: 89.5 },
         PCIE_OFFSET_TOP: 45.5,
-        CHIPSET: { w: 158.75, h: 44.45, d: 19 },
-        CHIPSET_OFFSET_LEFT: 13.56,
-        CHIPSET_OFFSET_TOP: -1.14,
+        PCIE_OFFSET_TOP: 45.5,
+        // Renamed from CHIPSET to IO_APERTURE (Standard ATX I/O Cutout)
+        IO_APERTURE: { w: 158.75, h: 44.45, d: 19 },
+        IO_APERTURE_OFFSET_LEFT: 13.56,
+        IO_APERTURE_OFFSET_TOP: -1.14,
+        IO_KEEPOUT: 2.54, // 0.1 inch outer frame
     },
     ITX_HOLES: [
         [163.83, 33.02],

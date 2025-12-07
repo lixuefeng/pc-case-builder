@@ -12,7 +12,7 @@ import HUD from "./components/UI/HUD";
 import { exportSTLFrom } from "./utils/exportSTL";
 import { useStore, useTemporalStore } from "./store";
 import { ensureSceneConnectors } from "./utils/connectors";
-import { getMotherboardIoCutoutBounds } from "./config/motherboardPresets";
+
 import { expandObjectsWithEmbedded } from "./utils/embeddedParts";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { adjustCSGOperations } from "./utils/csgUtils";

@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import {
   buildMotherboardLayout,
-  getMotherboardIoCutoutBounds,
 } from "../config/motherboardPresets";
 import { GPU_BRACKET_SPEC } from "./gpuBracketSpec";
 import { MOTHERBOARD_SPECS, GPU_SPECS } from "../constants";
@@ -128,176 +127,63 @@ export const buildMotherboardEmbeddedParts = (obj) => {
       parts.push(part);
     });
   }
+
   // Handle IO Shield / Cutout
-  // If obj.meta.ioCutout exists, use it. Otherwise fall back to layout.chipset (legacy)
-  // Handle IO Shield / Cutout
-  // STRICT: Either meta.ioCutout OR layout.ioShield must be present.
-  const ioCutout = obj.meta?.ioCutout;
-  const layoutIoShield = layout?.ioShield;
+  // Unified Logic: Always use standard ATX specs unless overridden by specific cutout params
+  // Priority: meta.ioCutout (custom) > layout.ioShield (preset) > standard ATX
 
+  const standardIo = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_APERTURE;
+  const sourceSpec = obj.meta?.ioCutout || layout?.ioShield || standardIo;
 
-  if (ioCutout) {
-    // RESTORED VARIABLES
-    // Original centerY calculation (might be unused for body Y, but kept for safety if needed later or just removed if truly unused, but centerZ IS needed)
-    // const centerY = (dims.h / 2) + ioCutout.y + (ioCutout.h / 2); // Replaced by bodyCenterY later
-    const centerZ = (-dims.d / 2) + ioCutout.z + (ioCutout.depth / 2);
+  const width = sourceSpec.w || sourceSpec.width || standardIo.w;
+  const height = sourceSpec.h || sourceSpec.height || standardIo.h;
+  // Custom cutouts might define 'depth', standard calls it 'd'. 
+  // For the BODY thickness, we use the recess depth (2mm usually).
+  const recess = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_SHIELD_RECESS_DEPTH || 2.0;
+  const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
 
-    const recess = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_SHIELD_RECESS_DEPTH || 2.0;
-    const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
-    const verticalOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_VERTICAL_OFFSET || 40.64;
-    const horizontalOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_HORIZONTAL_OFFSET || 2.44;
-    const zOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_Z_OFFSET || 3.43;
+  // 2. Determine Offsets (Anchors)
+  // Standard ATX defines these relative to specific board edges
+  const verticalOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_VERTICAL_OFFSET || 40.64;     // From Board Top Surface
+  const horizontalOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_HORIZONTAL_OFFSET || 2.44; // From Board Right Edge (+X)
+  const zOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_Z_OFFSET || 3.43;                  // From Board Back Edge (-Z)
 
-    // SWAPPED DIMENSIONS for correct orientation on -X face (YZ Plane Alignment)
-    // Size X = bodyD (Thickness)
-    // Size Y = ioCutout.h
-    // Size Z = ioCutout.w (Length along Z)
+  // 3. Calculate Body Position (Center)
+  // X: Anchored to Right Edge (+X) of Motherboard
+  const ioCenterX = (dims.w / 2) + horizontalOffset - (width / 2);
 
-    // Calculate X based on correct ATX Rear placement (Left/-X side)
-    // Motherboard -x = -dims.w / 2
-    // IO Body -x (Right side of part relative to center) = centerX - (bodyD / 2)?
-    // The part is centered at centerX. Its X-extent is [centerX - bodyD/2, centerX + bodyD/2].
-    // We want the OUTER face (-x local? or +x local?) relative to motherboards -x face.
-    // Let's assume user wants the OUTER face of the shield (facing away from board center) to be 2.44mm from Mobo Edge.
-    // Mobo Edge = -dims.w/2.
-    // If shield is inside, its MIN X is > Mobo Min X.
-    // Shield Min X = centerX - bodyD/2.
-    // (centerX - bodyD/2) - (-dims.w/2) = horizontalOffset.
-    // Calculate X based on request: Distance between IO-Body +x face and Motherboard +x face is 2.44mm
-    // Motherboard +x = dims.w / 2
-    // IO Body Width is X (ioCutout.w)
-    // Body Min X (Outer Face? No, X is width, usually center aligned?)
-    // Wait, if it's on the RIGHT (+X) side, the OUTER face is +X.
-    // Body Max X = centerX + Width/2.
-    // Body Max X = Mobo Max X + horizontalOffset.
-    // centerX + Width/2 = dims.w/2 + horizontalOffset.
-    // centerX = dims.w/2 + horizontalOffset - ioCutout.w / 2
-    const centerX = (dims.w / 2) + horizontalOffset - (ioCutout.w / 2);
+  // Y: Anchored to Top Surface (+Y) of Motherboard PCB
+  const ioCenterY = (dims.h / 2) + verticalOffset - (height / 2);
 
-    // Calculate Y based on vertical offset (from top surface of motherboard)
-    // Target: Top edge of IO Body = Top Surface + verticalOffset
-    // centerY = (Top Surface) + verticalOffset - (BodyHeight / 2)
-    const bodyCenterY = (dims.h / 2) + verticalOffset - (ioCutout.h / 2);
+  // Z: Anchored to Back Edge (-Z) of Motherboard
+  // IO Rear Face = -dims.d/2 - zOffset. Center is + recess/2 from there.
+  const ioCenterZ = (-dims.d / 2) - zOffset + (recess / 2);
 
-    // Calculate Z based on request: Distance between IO-Body -z face and Motherboard -z face is 3.43mm
-    // Motherboard -z = -dims.d / 2
-    // IO Body Thickness is Z (bodyD)
-    // Body Min Z (Rear Face) = bodyZ - bodyD / 2.
-    // Body Min Z = Mobo Min Z - zOffset. (Protruding backwards)
-    // bodyZ - bodyD / 2 = -dims.d / 2 - zOffset.
-    // bodyZ = -dims.d / 2 - zOffset + bodyD / 2.
-    const bodyZ = -zOffset - (dims.d / 2) + (bodyD / 2);
+  parts.push({
+    key: "io-body",
+    name: "IO Ports Body",
+    type: "box",
+    localCenter: [ioCenterX, ioCenterY, ioCenterZ],
+    size: [width, height, recess],
+    color: "#555",
+  });
 
-    console.log("DEBUG: IO Body (Cutout Path)", {
-      dims,
-      ioCutout,
-      offsets: { verticalOffset, horizontalOffset, zOffset },
-      calculated: { centerX, bodyCenterY, bodyZ },
-      raw: {
-        minX: centerX - bodyD / 2,
-        maxX: centerX + bodyD / 2,
-        minZ: bodyZ - ioCutout.w / 2,
-        maxZ: bodyZ + ioCutout.w / 2,
-      }
-    });
+  // 4. Generate Flange (The Inner Keepout/Rim)
+  // Flange sits *behind* the plate (+Z relative to plate)
+  const totalDepth = sourceSpec.d || sourceSpec.depth || 19;
+  const flangeDepth = Math.max(1, totalDepth - recess);
 
-    parts.push({
-      key: "io-body",
-      name: "IO Ports Body",
-      type: "box",
-      localCenter: [centerX, bodyCenterY, bodyZ],
-      size: [bodyD, ioCutout.h, ioCutout.w], // Swapped W/D
-      color: "#555",
-    });
+  // Flange starts where Body ends (Z max of body)
+  const flangeCenterZ = (ioCenterZ + (recess / 2)) + (flangeDepth / 2);
 
-    parts.push({
-      key: "io-flange",
-      name: "IO Shield Flange",
-      type: "box",
-      // Shift Flange inwards (+X direction)
-      localCenter: [centerX + (bodyD + flangeD) / 2, bodyCenterY, bodyZ],
-      size: [flangeD, ioCutout.h + keepout * 2, ioCutout.w + keepout * 2],
-      color: "#a3a3a3",
-    });
-
-  } else if (layoutIoShield) {
-    // Standard Layout Path
-    // RESTORED VARIABLES
-    // Use originalX to avoid name collision with new 'x'
-    const [originalX, z] = computeCenterFromEdges(dims, layoutIoShield.size, layoutIoShield);
-    const offsetY = layoutIoShield.offsetY ?? 0;
-
-    const recess = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_SHIELD_RECESS_DEPTH || 2.0;
-    const keepout = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_KEEPOUT || 2.54;
-    const verticalOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_VERTICAL_OFFSET || 40.64;
-    const horizontalOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_HORIZONTAL_OFFSET || 2.44;
-    const zOffset = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_BODY_Z_OFFSET || 3.43;
-
-    const depth = layoutIoShield.size.d || 19;
-    const bodyD = recess;
-    const flangeD = depth - recess;
-    // REVERTED to Z-Face Alignment (Standard ATX Orientation)
-    // Size X = Width (layoutIoShield.size.w)
-    // Size Y = Height
-    // Size Z = Thickness (bodyD)
-
-    // Calculate Z based on request: Distance between IO-Body -z face and Motherboard -z face is 3.43mm
-    // Motherboard -z = -dims.d / 2
-    // IO Body Thickness is Z (bodyD)
-    // Body Min Z (Rear Face) = bodyZ - bodyD/2
-    // Body Min Z = Mobo Min Z - zOffset (Protruding backwards/outside)
-    // bodyZ - bodyD/2 = -dims.d/2 - zOffset
-    // bodyZ = -dims.d/2 - zOffset + bodyD/2
-    const bodyZ = -zOffset - (dims.d / 2) + (bodyD / 2);
-
-    // Calculate X based on request: Distance between IO-Body +x face and Motherboard +x face is 2.44mm
-    // Motherboard +x = dims.w / 2
-    // Body Width is X (layoutIoShield.size.w)
-    // Body Max X (Right/Outer Face) = x + Width/2
-    // Body Max X = Mobo Max X + horizontalOffset (Protruding right/outside)
-    // x + width/2 = dims.w/2 + horizontalOffset
-    // x = dims.w/2 + horizontalOffset - layoutIoShield.size.w/2
-    const x = (dims.w / 2) + horizontalOffset - (layoutIoShield.size.w / 2);
-
-    // Calculate Y based on vertical offset (from top surface of motherboard)
-    // Target: Top edge of IO Body = Top Surface + verticalOffset
-    const bodyCenterY = (dims.h / 2) + verticalOffset - (layoutIoShield.size.h / 2);
-
-    console.log("DEBUG: IO Body (Standard Layout Path)", {
-      dims,
-      layoutIoShield,
-      offsets: { verticalOffset, horizontalOffset, zOffset },
-      calculated: { x, bodyCenterY, bodyZ },
-      raw: {
-        minX: x - layoutIoShield.size.w / 2,
-        maxX: x + layoutIoShield.size.w / 2,
-        minZ: bodyZ - bodyD / 2,
-        maxZ: bodyZ + bodyD / 2,
-      }
-    });
-
-    parts.push({
-      key: "io-body",
-      name: "IO Ports Body",
-      type: "box",
-      localCenter: [x, bodyCenterY, bodyZ],
-      size: [layoutIoShield.size.w, layoutIoShield.size.h, bodyD], // Standard [W, H, D]
-      color: "#555",
-    });
-
-    parts.push({
-      key: "io-flange",
-      name: "IO Shield Flange",
-      type: "box",
-      // Shift Flange INWARDS (+Z) to sit behind the Body faceplate
-      // Body Center = bodyZ. Body Max Z = bodyZ + bodyD/2.
-      // Flange Min Z = Body Max Z.
-      // Flange Center = Flange Min Z + flangeD/2 = bodyZ + bodyD/2 + flangeD/2
-      localCenter: [x, bodyCenterY, bodyZ + (bodyD + flangeD) / 2],
-      size: [layoutIoShield.size.w + keepout * 2, layoutIoShield.size.h + keepout * 2, flangeD], // Swapped W/D
-      color: "#a3a3a3",
-    });
-  }
+  parts.push({
+    key: "io-flange",
+    name: "IO Shield Flange",
+    type: "box",
+    localCenter: [ioCenterX, ioCenterY, flangeCenterZ],
+    size: [width + keepout * 2, height + keepout * 2, flangeDepth],
+    color: "#a3a3a3",
+  });
 
   const finalParts = parts.filter(Boolean);
   return finalParts;

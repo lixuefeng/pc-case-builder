@@ -2,22 +2,7 @@ import { MOTHERBOARD_SPECS } from "../constants";
 
 const approxEqual = (a, b, tolerance = 1) => Math.abs(a - b) <= tolerance;
 
-export const getMotherboardIoCutoutBounds = (dims = {}) => {
-  if (!dims?.w || !dims?.d) {
-    return null;
-  }
-  const width = Math.min(MOTHERBOARD_SPECS.IO_CUTOUT.WIDTH_MAX, Math.max(MOTHERBOARD_SPECS.IO_CUTOUT.WIDTH_MIN, dims.w * MOTHERBOARD_SPECS.IO_CUTOUT.FACTOR_W));
-  const height = Math.max(MOTHERBOARD_SPECS.IO_CUTOUT.HEIGHT_MIN, dims.h * MOTHERBOARD_SPECS.IO_CUTOUT.FACTOR_H || MOTHERBOARD_SPECS.IO_CUTOUT.HEIGHT_MIN);
-  const depth = Math.max(MOTHERBOARD_SPECS.IO_CUTOUT.DEPTH_MIN, dims.d * MOTHERBOARD_SPECS.IO_CUTOUT.FACTOR_D || MOTHERBOARD_SPECS.IO_CUTOUT.DEPTH_MIN);
-  const centerX = dims.w / 2 - width / 2;
-  const centerY = 0;
-  const centerZ = dims.d / 2 - depth / 2;
-  return {
-    size: [width, height, depth],
-    center: [centerX, centerY, centerZ],
-    normal: [0, 0, 1],
-  };
-};
+
 
 export const MOTHERBOARD_DIMENSIONS = {
   itx: MOTHERBOARD_SPECS.DIMENSIONS.ITX,

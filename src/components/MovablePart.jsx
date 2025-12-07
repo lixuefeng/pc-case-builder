@@ -14,7 +14,7 @@ import {
 import CSGStandoff from "./CSGStandoff";
 import Cylinder from "./primitives/Cylinder";
 import Cone from "./primitives/Cone";
-import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
+
 import { usePartModifiers } from "../hooks/usePartModifiers";
 import { useStore } from "../store";
 

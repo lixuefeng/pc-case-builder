@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 import { anchorPoint, addVec } from "../utils/anchors";
-import { getMotherboardIoCutoutBounds } from "../config/motherboardPresets";
+
 import { Geometry, Base, Subtraction } from "@react-three/csg";
 import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from "../constants";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";

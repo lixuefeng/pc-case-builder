@@ -28,15 +28,7 @@ export const MOTHERBOARD_SPECS = {
         MATX: { w: 244, d: 244 },
         ATX: { w: 305, d: 244 },
     },
-    IO_CUTOUT: {
-        WIDTH_MIN: 30,
-        WIDTH_MAX: 45,
-        HEIGHT_MIN: 8,
-        DEPTH_MIN: 3,
-        FACTOR_W: 0.28,
-        FACTOR_H: 0.85,
-        FACTOR_D: 0.05,
-    },
+
     LAYOUT_ATX_2_2: {
         KEEPOUT_SIZE: 77.5,
         KEEPOUT_LEFT: 61.3,
@@ -49,7 +41,6 @@ export const MOTHERBOARD_SPECS = {
         EPS8: { w: 10, h: 5, d: 18.75 },
         ATX24: { w: 52, h: 5, d: 10 },
         PCIE_X16: { w: 7.2, h: 11, d: 89.5 },
-        PCIE_OFFSET_TOP: 45.5,
         PCIE_OFFSET_TOP: 45.5,
         // Renamed from CHIPSET to IO_APERTURE (Standard ATX I/O Cutout)
         IO_APERTURE: { w: 158.75, h: 44.45, d: 19 },

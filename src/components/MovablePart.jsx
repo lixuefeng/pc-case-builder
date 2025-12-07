@@ -836,21 +836,21 @@ export default function MovablePart({
         if (DEBUG_LOG) console.log("[stretch/begin] aborted: existing session, forcing finish");
         requestFinish("begin-stale-session");
         if (stretchStateRef.current) {
-          return;
+          return false;
         }
       }
       if (!faceDetails) {
         if (DEBUG_LOG) console.log("[stretch/begin] aborted: no faceDetails");
-        return;
+        return false;
       }
       if (isEmbedded) {
         if (DEBUG_LOG) console.log("[stretch/begin] aborted: embedded part");
-        return;
+        return false;
       }
       const axisInfo = getStretchAxisInfo(obj, faceName);
       if (!axisInfo) {
         if (DEBUG_LOG) console.log("[stretch/begin] aborted: axisInfo missing");
-        return;
+        return false;
       }
       const axisDirection = new THREE.Vector3(...(faceDetails.normal || [0, 0, 1])).normalize();
       const axisOrigin = new THREE.Vector3(...(faceDetails.center || [0, 0, 0]));
@@ -869,7 +869,7 @@ export default function MovablePart({
           axisOrigin: axisOrigin.toArray(),
           axisDir: axisDirection.toArray(),
         });
-        return;
+        return false;
       }
       stretchStateRef.current = {
         faceName,
@@ -915,6 +915,7 @@ export default function MovablePart({
       window.addEventListener("pointerup", handleWindowPointerUp);
       window.addEventListener("pointercancel", handleWindowPointerCancel);
       window.addEventListener("blur", handleWindowBlur);
+      return true;
     },
     [
       computeAxisOffsetFromRay,
@@ -1853,14 +1854,12 @@ export default function MovablePart({
             hoveredFaceDetails
           ) {
             dlog("pointer:begin-stretch", { face: hoveredFace });
-            beginStretch(hoveredFace, hoveredFaceDetails, e);
-            return;
+            if (beginStretch(hoveredFace, hoveredFaceDetails, e)) return;
           }
           if (alignMode && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
             if (mode === "scale") {
               dlog("pointer:begin-stretch-align", { face: hoveredFace });
-              beginStretch(hoveredFace, hoveredFaceDetails, e);
-              return;
+              if (beginStretch(hoveredFace, hoveredFaceDetails, e)) return;
             }
             dlog("pointer:face-pick", { partId: obj.id, face: hoveredFace });
             if (obj.type === 'gpu') {

@@ -57,6 +57,9 @@ export const MOTHERBOARD_SPECS = {
         IO_APERTURE_OFFSET_TOP: -1.14,
         IO_KEEPOUT: 2.54, // 0.1 inch outer frame
         IO_SHIELD_RECESS_DEPTH: 2.0, // Width of the "protrusion" rim
+        IO_BODY_VERTICAL_OFFSET: 40.64, // Distance from motherboard surface to IO Body top edge (40.64mm)
+        IO_BODY_HORIZONTAL_OFFSET: 2.44, // Distance from motherboard +x face to IO Body +x face
+        IO_BODY_Z_OFFSET: 3.43, // Distance from motherboard -z face to IO Body -z face
     },
     ITX_HOLES: [
         [163.83, 33.02],

@@ -1279,7 +1279,6 @@ export default function MovablePart({
       height = targetObj.height || 10;
       depth = targetObj.outerDiameter || 6;
     }
-    const thickness = 0.2;
     const surfacePadding = 0.02;
 
     const currentFaceName = targetFace;
@@ -1315,23 +1314,29 @@ export default function MovablePart({
 
     } else {
       const sign = currentFaceName[0] === "+" ? 1 : -1;
+      // size is [width, height] for PlaneGeometry, NOT [x, y, z] for BoxGeometry.
+      // PlaneGeometry is rotated to face the normal direction during rendering.
       switch (currentFaceName) {
         case "+X":
         case "-X":
           localOffset = new THREE.Vector3(sign * (width / 2 + surfacePadding), 0, 0);
-          size = [thickness, height, depth];
+          // PlaneGeometry: [width, height] in plane's local XY
+          // For ±X face: plane is in YZ, so width=depth, height=height
+          size = [depth, height];
           localNormal = new THREE.Vector3(sign, 0, 0);
           break;
         case "+Y":
         case "-Y":
           localOffset = new THREE.Vector3(0, sign * (height / 2 + surfacePadding), 0);
-          size = [width, thickness, depth];
+          // For ±Y face: plane is in XZ, so width=width, height=depth
+          size = [width, depth];
           localNormal = new THREE.Vector3(0, sign, 0);
           break;
         case "+Z":
         case "-Z":
           localOffset = new THREE.Vector3(0, 0, sign * (depth / 2 + surfacePadding));
-          size = [width, height, thickness];
+          // For ±Z face: plane is in XY, so width=width, height=height
+          size = [width, height];
           localNormal = new THREE.Vector3(0, 0, sign);
           break;
         default:
@@ -1562,14 +1567,13 @@ export default function MovablePart({
     return getFaceDetails({ obj, ref: groupRef, faceName: face });
   }, [bestAlignCandidate, obj]);
 
+  // NOTE: obj.pos and obj.rot are included in dependencies to ensure the highlight
+  // position updates when the object is moved/rotated. Without these, the highlight
+  // could appear at stale positions if the object reference doesn't change.
   const hoveredFaceDetails = useMemo(() => {
     if (!hoveredFace) return null;
-    const details = getFaceDetails({ obj, ref: groupRef, faceName: hoveredFace });
-    if (obj.type === 'gpu') {
-        console.log("DebugGPU: hoveredFaceDetails", { hoveredFace, details });
-    }
-    return details;
-  }, [hoveredFace, obj]);
+    return getFaceDetails({ obj, ref: groupRef, faceName: hoveredFace });
+  }, [hoveredFace, obj, obj.pos, obj.rot]);
 
   useEffect(() => {
     if (!hoveredFace || !hoveredFaceDetails) return;
@@ -2018,33 +2022,61 @@ export default function MovablePart({
         />
       )}
 
-      {(alignMode || mode === "scale" || mode === "cut") && hoveredFaceDetails && (
-        <mesh
-          ref={hoverFaceMeshRef}
-          position={hoveredFaceDetails.center}
-          quaternion={hoveredFaceDetails.quaternion}
-          frustumCulled={false}
-          raycast={() => null}
-        >
-          <boxGeometry args={hoveredFaceDetails.size} />
-          <meshStandardMaterial
-            color="#67e8f9"
-            transparent
-            opacity={0.3}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      )}
+      {/* 
+        ========== FACE HIGHLIGHT IMPLEMENTATION NOTES ==========
+        1. We use PlaneGeometry instead of BoxGeometry because thin BoxGeometry
+           (0.2 thickness) appears as just a line when viewed edge-on at oblique angles.
+        2. The normal from getFaceDetails is already in WORLD coordinates (transformed by
+           object's quaternion), so we only need to compute rotation from +Z to targetNormal.
+           DO NOT multiply by object's quaternion again - that causes double rotation!
+        3. renderOrder is CRITICAL for long/thin planes (e.g., 258x10). Without it,
+           Three.js depth sorting (based on mesh center distance) can incorrectly
+           render the highlight behind the object. Higher renderOrder renders later.
+        4. depthTest={false} + depthWrite={false} ensures the highlight is always visible.
+        ============================================================
+      */}
+      {(alignMode || mode === "scale" || mode === "cut") && hoveredFaceDetails && (() => {
+        const defaultNormal = new THREE.Vector3(0, 0, 1);
+        const targetNormal = new THREE.Vector3(...(hoveredFaceDetails.normal || [0, 0, 1]));
+        const finalQuat = new THREE.Quaternion().setFromUnitVectors(defaultNormal, targetNormal);
+        
+        return (
+          <mesh
+            ref={hoverFaceMeshRef}
+            position={hoveredFaceDetails.center}
+            quaternion={finalQuat}
+            frustumCulled={false}
+            raycast={() => null}
+            renderOrder={99998} // Required for correct depth sorting with large/thin planes
+          >
+            <planeGeometry args={hoveredFaceDetails.size} />
+            <meshStandardMaterial
+              color="#67e8f9"
+              transparent
+              opacity={0.3}
+              depthWrite={false}
+              depthTest={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      })()}
 
-      {(alignMode || mode === "scale" || mode === "cut") && activeFaceDetails && (
+      {(alignMode || mode === "scale" || mode === "cut") && activeFaceDetails && (() => {
+        // See FACE HIGHLIGHT IMPLEMENTATION NOTES above for why we use PlaneGeometry and renderOrder
+        const defaultNormal = new THREE.Vector3(0, 0, 1);
+        const targetNormal = new THREE.Vector3(...(activeFaceDetails.normal || [0, 0, 1]));
+        const finalQuat = new THREE.Quaternion().setFromUnitVectors(defaultNormal, targetNormal);
+        
+        return (
         <mesh
           position={activeFaceDetails.center}
-          quaternion={activeFaceDetails.quaternion}
+          quaternion={finalQuat}
           frustumCulled={false}
           raycast={() => null}
+          renderOrder={99997}
         >
-          <boxGeometry args={activeFaceDetails.size} />
+          <planeGeometry args={activeFaceDetails.size} />
           <meshStandardMaterial
             color="#facc15"
             transparent
@@ -2053,7 +2085,8 @@ export default function MovablePart({
             side={THREE.DoubleSide}
           />
         </mesh>
-      )}
+        );
+      })()}
 
       {bestAlignCandidate && (
         <group>

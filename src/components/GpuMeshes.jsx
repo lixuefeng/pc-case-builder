@@ -204,13 +204,6 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
   // Z-Offset is now handled in embeddedParts.js (localCenter), so we render at 0.
   // This ensures the Logical Hit Box and Visual Mesh are synchronized.
 
-  // Output for debugging
-  console.log(`[GPUBracketMesh] Debug ID=${obj.id}`, {
-      slotCount,
-      slotPitch: GPU_SPECS.SLOT_PITCH,
-      localSlot0X: -((slotCount - 1) * GPU_SPECS.SLOT_PITCH) / 2,
-  });
-
   const { mainGeo, flangeGeo } = useMemo(
     () =>
       buildPcieBracketGeometry({

@@ -32,21 +32,6 @@ const RightSidebar = ({
   const [connectionDepth, setConnectionDepth] = React.useState(5);
   const [lapLength, setLapLength] = React.useState(20);
 
-  const getInitialIoCutout = (obj) => {
-    if (obj.meta?.ioCutout) return obj.meta.ioCutout;
-    const layout = buildMotherboardLayout(obj);
-    if (layout?.chipset) {
-      return {
-        x: layout.chipset.fromLeft,
-        z: layout.chipset.fromTop,
-        w: layout.chipset.size.w,
-        h: layout.chipset.size.h,
-        depth: layout.chipset.size.d,
-        y: layout.chipset.offsetY || 0
-      };
-    }
-    return { x: 0, z: 0, w: 158.75, h: 44.45, y: 0, depth: 2 };
-  };
   const [clearance, setClearance] = React.useState(0.1);
 
   const cardStyle = {
@@ -833,55 +818,6 @@ const RightSidebar = ({
         </div>
       </div>
 
-      {/* Motherboard IO Config */}
-      {(selectedObject.type === "motherboard" || selectedObject.meta?.ioCutout) && (
-        <div style={cardStyle}>
-          <div style={{ ...sectionStyle, marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>IO Cutout</div>
-            
-            <SectionLabel>Position (X, Y, Z)</SectionLabel>
-            <Vector3Input
-              values={selectedObject.meta?.ioCutout || {x:0, y:0, z:0}}
-              onChange={(axis, val) => {
-                  const currentIo = getInitialIoCutout(selectedObject);
-                  const newMeta = { ...selectedObject.meta, ioCutout: { ...currentIo, [axis]: Number(val) } };
-                  handleChange("meta", newMeta);
-              }}
-              keys={["x", "y", "z"]}
-            />
-
-            <SectionLabel>Size (W, H, Depth)</SectionLabel>
-            <Vector3Input
-              values={selectedObject.meta?.ioCutout || {w:0, h:0, depth:0}}
-              onChange={(axis, val) => {
-                  const currentIo = getInitialIoCutout(selectedObject);
-                  const newMeta = { ...selectedObject.meta, ioCutout: { ...currentIo, [axis]: Number(val) } };
-                  handleChange("meta", newMeta);
-              }}
-              keys={["w", "h", "depth"]}
-              labels={["W", "H", "Depth"]}
-              placeholders={["W", "H", "Depth"]}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* GPU Body Config */}
-      {selectedObject.type === "gpu" && (
-        <div style={cardStyle}>
-          <div style={{ ...sectionStyle, marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>GPU Body</div>
-            <SectionLabel>Dimensions (Length, Height, Thickness)</SectionLabel>
-            <Vector3Input
-              values={selectedObject.dims}
-              onChange={(axis, val) => handleDimChange(axis, val)}
-              keys={["w", "h", "d"]}
-              labels={["W", "H", "D"]}
-              placeholders={["Len", "H", "Thick"]}
-            />
-          </div>
-        </div>
-      )}
 
       {/* GPU Bracket Config */}
       {(selectedObject.type === "gpu" || selectedObject.meta?.bracket) && (

@@ -122,11 +122,9 @@ export const buildMotherboardEmbeddedParts = (obj) => {
   }
 
   // Handle IO Shield / Cutout
-  // Unified Logic: Always use standard ATX specs unless overridden by specific cutout params
-  // Priority: meta.ioCutout (custom) > layout.ioShield (preset) > standard ATX
-
+  // Use layout preset or fallback to standard ATX specs (custom meta.ioCutout removed)
   const standardIo = MOTHERBOARD_SPECS.LAYOUT_ATX_2_2.IO_APERTURE;
-  const sourceSpec = obj.meta?.ioCutout || layout?.ioShield || standardIo;
+  const sourceSpec = layout?.ioShield || standardIo;
 
   const width = sourceSpec.w || sourceSpec.width || standardIo.w;
   const height = sourceSpec.h || sourceSpec.height || standardIo.h;

@@ -1887,12 +1887,6 @@ export default function MovablePart({
         onClick={(e) => e.stopPropagation()}
         onPointerUp={(e) => e.stopPropagation()}
       >
-        {(() => {
-           if (obj.name && (obj.name.includes("IO") || obj.type === "io-shield")) {
-               console.log("[MovablePart] Rendering IO Object:", { id: obj.id, name: obj.name, type: obj.type });
-           }
-           return null;
-        })()}
         {obj.type === "motherboard" ? (
           <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
         ) : obj.type === "gpu" ? (

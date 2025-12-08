@@ -58,13 +58,6 @@ export const buildMotherboardEmbeddedParts = (obj) => {
   const parts = [];
   const layout = buildMotherboardLayout(obj);
 
-  console.log("DEBUG: buildMotherboardEmbeddedParts called", {
-    id: obj.id,
-    hasIoCutout: !!obj.meta?.ioCutout,
-    hasLayoutIoShield: !!layout?.ioShield,
-    layoutKeys: layout ? Object.keys(layout) : 'null'
-  });
-
   if (layout?.cpuKeepout) {
     parts.push(featureToEmbed(layout.cpuKeepout, dims, "cpu-keepout", "CPU Keepout"));
   }

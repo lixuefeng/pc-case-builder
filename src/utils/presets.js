@@ -23,22 +23,33 @@ const createMotherboardConnectors = (preset) => {
 
   const connectors = [];
   const holeMap = Array.isArray(meta.holeMap) ? meta.holeMap : [];
-  const topLeftBack = anchorPoint(dims, "top-left-back");
 
-  const posFromTopLeftBack = (offset) => addVec(topLeftBack, offset);
+  // Use same anchor logic as Meshes.jsx (topRightBack + anchorOffset)
+  const topRightBack = anchorPoint(dims, "top-right-back");
+  const anchorOffset = MOTHERBOARD_SPECS.ANCHOR || { x: 0, y: 0 };
 
-  holeMap.forEach(([x, z], index) => {
+  const posFromAnchor = (relX, relZ) => addVec(topRightBack, [
+    relX + anchorOffset.x,
+    -dims.h / 2,  // Position at board surface (same Y as screw holes)
+    relZ + anchorOffset.y
+  ]);
+
+  holeMap.forEach(([relX, relZ], index) => {
     connectors.push({
       id: `${key}-mount-${index + 1}`,
       label: `Mount Hole ${index + 1}`,
       type: "screw-m3",
       slotType: "mb-mount",
       size: 3,
-      pos: posFromTopLeftBack([x, -dims.h, z]), // drop to board mid-plane
+      pos: posFromAnchor(relX, relZ),
       normal: [0, -1, 0],
       up: [0, 0, 1],
     });
   });
+
+  // Keep topLeftBack for surface connectors (PCIe, RAM slots)
+  const topLeftBack = anchorPoint(dims, "top-left-back");
+  const posFromTopLeftBack = (offset) => addVec(topLeftBack, offset);
 
   const addSurfaceConnector = ({
     id,
@@ -69,11 +80,6 @@ const createMotherboardConnectors = (preset) => {
   // So position from Top is w - 163.83.
   const pcieX = dims.w - MOTHERBOARD_SPECS.ATX_HOLE_FH_TOP_OFFSET; // 163.83
   const pcieZ = PCIE_SPECS.FINGER_OFFSET_FROM_BRACKET + (PCIE_SPECS.FINGER_LENGTH / 2); // 45.5 + 44.75
-
-  const finalPos = posFromTopLeftBack([pcieX, -dims.h, pcieZ]);
-  console.log(`[Presets] MB ${key} dims:`, dims);
-  console.log(`[Presets] PCIe Slot 1: pcieX=${pcieX} (Vert), pcieZ=${pcieZ} (Horiz)`);
-  console.log(`[Presets] PCIe Slot 1 Final Pos:`, finalPos);
 
   const slotY = (dims.h / 2) + PCIE_SLOT_SPEC.slotHeightMm - PCIE_SLOT_SPEC.contactOffsetMm;
 

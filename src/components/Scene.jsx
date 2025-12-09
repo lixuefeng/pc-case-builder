@@ -31,6 +31,7 @@ export default function Scene({
   rulerPoints = [],
   cutPlaneTransform,
   onCutPlaneChange,
+  drillDebugIds = [],
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -200,7 +201,9 @@ export default function Scene({
             onDrillHover={onDrillHover}
             onHoleDelete={onHoleDelete}
             rulerPoints={rulerPoints}
-            rawObjects={objects}
+            customCutPlane={cutPlaneTransform}
+            onCutPlaneChange={onCutPlaneChange}
+            drillDebugIds={drillDebugIds}
           />
         ))}
         <RulerMarkers measurements={measurements} />

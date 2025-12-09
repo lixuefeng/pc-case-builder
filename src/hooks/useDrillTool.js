@@ -9,6 +9,7 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
     const { showToast } = useToast();
     const [drillGhost, setDrillGhost] = useState(null);
     const [drillCandidates, setDrillCandidates] = useState([]);
+    const [drillDebugIds, setDrillDebugIds] = useState([]);
 
     const snapThreshold = EDITOR_CONFIG.SNAP_THRESHOLD;
 
@@ -17,6 +18,7 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
         if (transformMode !== "drill") {
             setDrillGhost(null);
             setDrillCandidates([]);
+            setDrillDebugIds([]);
         }
     }, [transformMode]);
 
@@ -105,7 +107,8 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
                 const projectedOnB = new THREE.Vector3();
                 planeB.projectPoint(objCenter, projectedOnB);
 
-                const faceAInfo = getFace2DInfo(face, faceSize);
+                const targetInfo = baseObj ? [baseObj.dims.w, baseObj.dims.h, baseObj.dims.d] : faceSize;
+                const faceAInfo = getFace2DInfo(face, targetInfo);
                 if (!faceAInfo || !info.quaternion) {
                     const candidateMaxDim = Math.max(obj.dims.w || 0, obj.dims.h || 0, obj.dims.d || 0);
                     const threshold = (maxDim / 2) + (candidateMaxDim / 2);
@@ -191,6 +194,22 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
             });
 
             setDrillCandidates(newCandidates);
+
+            // DEBUG: Track ids of overlapping objects
+            const debugIds = flatObjects.filter(obj => {
+                if (obj.id === partId) return false;
+                const objCenter = obj.worldPos;
+                const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(obj.worldQuat);
+                const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(obj.worldQuat);
+                const az = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.worldQuat);
+                const axes = { ax, ay, az };
+                const halfDepth = projectedHalfExtentAlongAxis(planeNormalB, obj.dims || {}, axes);
+                if (halfDepth <= 0) return false;
+                const signedDist = planeB.distanceToPoint(objCenter);
+                const margin = EDITOR_CONFIG.DRILL_MARGIN;
+                return Math.abs(signedDist) <= halfDepth + margin;
+            }).map(o => o.id);
+            setDrillDebugIds(debugIds);
 
             let bestSnap = null;
             let minDist = snapThreshold;
@@ -392,7 +411,8 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
         handleDrillHover,
         handleDrillClick,
         handleHoleDelete,
-        handleGenerateStandoffs
+        handleGenerateStandoffs,
+        drillDebugIds
     };
 }
 

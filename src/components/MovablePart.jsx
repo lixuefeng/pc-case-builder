@@ -483,6 +483,7 @@ export default function MovablePart({
   onHoleDelete,
   rulerPoints,
   rawObjects,
+  isDebugHighlighted,
 }) {
   const { gl, camera } = useThree();
   const setHudState = useStore((state) => state.setHudState);
@@ -1924,28 +1925,29 @@ export default function MovablePart({
         onPointerUp={(e) => e.stopPropagation()}
       >
         {obj.type === "motherboard" ? (
-          <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <MotherboardMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "gpu" ? (
-          <GPUMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <GPUMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "group" ? (
-          <GroupMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <GroupMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "imported" ? (
-          <ImportedMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <ImportedMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "reference" ? (
-          <ReferenceMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <ReferenceMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "cpu-cooler" ? (
-          <CPUCoolerMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <CPUCoolerMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "gpu-bracket" ? (
-          <GPUBracketMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <GPUBracketMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "io-shield" ? (
-          <IOShieldMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <IOShieldMesh obj={obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "standoff" ? (
-          <CSGStandoff {...obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} />
+          <CSGStandoff {...obj} selected={selected} selectionOrder={selectionOrder} selectedCount={selectedCount} isDebugHighlighted={isDebugHighlighted} />
         ) : obj.type === "cylinder" ? (
           <Cylinder
             radius={obj.dims?.w ? obj.dims.w / 2 : 25}
             height={obj.dims?.h || 50}
             selected={selected}
+            isDebugHighlighted={isDebugHighlighted}
           >
             <meshStandardMaterial
               color={getSelectionColor()}
@@ -1958,6 +1960,7 @@ export default function MovablePart({
             radius={obj.dims?.w ? obj.dims.w / 2 : 25}
             height={obj.dims?.h || 50}
             selected={selected}
+            isDebugHighlighted={isDebugHighlighted}
           >
             <meshStandardMaterial
               color={getSelectionColor()}
@@ -1973,6 +1976,7 @@ export default function MovablePart({
             connections={connections}
             rawObjects={rawObjects}
             modifiers={modifiers}
+            isDebugHighlighted={isDebugHighlighted}
           />
         )}
         {showTransformControls && Array.isArray(obj.connectors) && obj.connectors

@@ -264,10 +264,10 @@ export function GPUBracketMesh({ obj, selected, selectionOrder, selectedCount })
   );
 }
 
-export function GPUMesh({ obj, selected, selectionOrder, selectedCount }) {
+export function GPUMesh({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted }) {
   const { dims, color, meta = {} } = obj;
   const BODY_LENGTH = GPU_SPECS.DEFAULT_BODY_LENGTH; // mm
-  const coolerColor = selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.GPU_BODY;
+  const coolerColor = isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.GPU_BODY);
 
   const fingerPlacement = useMemo(
     () => {

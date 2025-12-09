@@ -10,10 +10,11 @@ const StandoffMesh = ({
   color = "#d4af37", // Brass color default
   opacity = 1,
   transparent = false,
-  selected = false
+  selected = false,
+  isDebugHighlighted
 }) => {
   
-  const finalColor = selected ? "#ef4444" : color;
+  const finalColor = isDebugHighlighted ? "#d946ef" : (selected ? "#ef4444" : color);
 
   const geometry = useMemo(() => {
     // 1. Shaft (Cylinder)

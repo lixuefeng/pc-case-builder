@@ -12,9 +12,10 @@ const CSGStandoff = ({
   transparent = false,
   selected = false,
   id,
+  isDebugHighlighted,
   ...props
 }) => {
-  const finalColor = selected ? "#ef4444" : color;
+  const finalColor = isDebugHighlighted ? "#d946ef" : (selected ? "#ef4444" : color);
   
   // Ensure dimensions are numbers
   const h = Number(height) || 10;

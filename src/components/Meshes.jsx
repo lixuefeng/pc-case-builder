@@ -8,12 +8,12 @@ import { Geometry, Base, Subtraction } from "@react-three/csg";
 import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from "../constants";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
-export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount }) {
+export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
   // Switch to Top-Right-Back as reference (User Request)
   const topRightBack = useMemo(() => anchorPoint(dims, "top-right-back"), [dims]);
-  const selColor = selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null;
+  const selColor = isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null);
 
   // Virtual Anchor Offset (Same as in presets.js)
   const anchorOffset = MOTHERBOARD_SPECS.ANCHOR || { x: 0, y: 0 };
@@ -136,7 +136,7 @@ const getRelativeTransform = (targetObj, sourceObj) => {
   return { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
 };
 
-export function PartBox({ obj, selected, modifiers = [], selectionOrder, selectedCount }) {
+export function PartBox({ obj, selected, modifiers = [], selectionOrder, selectedCount, isDebugHighlighted }) {
   const { dims, color, type } = obj;
   const defaultColor = (type === "structure" || type === "cube") ? COLORS.DEFAULT.STRUCTURE : COLORS.DEFAULT.GENERIC_PART;
 
@@ -193,7 +193,7 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
           })}
         </Geometry>
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || defaultColor}
+          color={isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || defaultColor)}
           opacity={selected ? 0.7 : 1}
           transparent={true}
         />
@@ -218,7 +218,7 @@ export function SphereMesh({ obj, selected, selectionOrder, selectedCount }) {
   );
 }
 
-export function CylinderMesh({ obj, selected, selectionOrder, selectedCount }) {
+export function CylinderMesh({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted }) {
   const { dims, color, type } = obj;
   const isCone = type === 'cone' || obj.meta?.shape === 'cone';
 
@@ -236,7 +236,7 @@ export function CylinderMesh({ obj, selected, selectionOrder, selectedCount }) {
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <cylinderGeometry args={[radiusTop, radiusBottom, 1, 32]} />
         <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.STRUCTURE}
+          color={isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.STRUCTURE)}
           opacity={selected ? 0.7 : 1}
           transparent={true}
         />

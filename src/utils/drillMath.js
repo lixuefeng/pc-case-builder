@@ -138,6 +138,7 @@ export const calculateDrillCandidates = (
             az: new THREE.Vector3(0, 0, 1).applyQuaternion(realObjQuat)
         };
 
+
         const halfDepth = projectedHalfExtentAlongAxis(
             planeNormalB,
             obj.dims || {},
@@ -148,17 +149,14 @@ export const calculateDrillCandidates = (
 
         const signedDist = planeB.distanceToPoint(realObjCenter);
 
-        // Debug Log
-        // console.log(`Check ${obj.id}: Dist ${signedDist.toFixed(2)} vs Limit ${(halfDepth + margins).toFixed(2)}`);
-
-        if (Math.abs(signedDist) > halfDepth + margins) {
-            return;
-        }
 
         const projectedOnB = new THREE.Vector3();
         planeB.projectPoint(realObjCenter, projectedOnB);
 
-        const faceAInfo = getFace2DInfo(face, faceSize || [targetObj.dims.w, targetObj.dims.h, targetObj.dims.d]);
+
+
+        const targetDims = [targetObj.dims.w, targetObj.dims.h, targetObj.dims.d];
+        const faceAInfo = getFace2DInfo(face, targetDims);
         // Note: faceSize usually comes from useDrillTool's own resolution, but we can approximate from dims for test.
         // Actually getFace2DInfo uses dims logic internally locally if faceSize not passed?
         // No, getFace2DInfo uses faceName to select DIMS from the size3D array.
@@ -244,3 +242,7 @@ export const calculateDrillCandidates = (
 
     return results;
 };
+
+// Testable version of the overlap check used in useDrillTool
+
+

@@ -423,6 +423,7 @@ function EditorContent() {
             rulerPoints={rulerPoints}
             cutterFace={cutTool.cutterFace}
             isCutting={transformMode === 'cut'}
+            drillDebugIds={drillTool.drillDebugIds}
           />
         </div>
 

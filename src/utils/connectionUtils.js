@@ -291,13 +291,18 @@ export const calculateCrossLap = (partA, partB, clearance = 0) => {
 
     let stackAxis = scores[0].axis;
 
-    // Tie-breaking: If tie, prefer Y (Vertical) -> Z (Depth) -> X (Width)
+
+
+    // Tie-breaking: If tie, prefer Z (Depth) -> Y (Vertical) -> X (Width)
+    // Common thin dimension is usually Z (thickness) for 2D layouts.
     if (scores[0].score === scores[1].score) {
         const tied = scores.filter(s => s.score === scores[0].score);
-        if (tied.find(s => s.axis === 'y')) stackAxis = 'y';
-        else if (tied.find(s => s.axis === 'z')) stackAxis = 'z';
+        if (tied.find(s => s.axis === 'z')) stackAxis = 'z';
+        else if (tied.find(s => s.axis === 'y')) stackAxis = 'y';
         else stackAxis = 'x';
     }
+
+
 
     // 2. Calculate Cut Plane (Center of Intersection)
     const center = new THREE.Vector3().addVectors(intersectMin, intersectMax).multiplyScalar(0.5);

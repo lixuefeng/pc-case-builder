@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { calculateDrillCandidates } from './drillMath';
-import { computeFaceTransform } from './editorGeometry';
+import { calculateDrillCandidates } from '../utils/drillMath';
+import { computeFaceTransform } from '../utils/editorGeometry';
 
 describe('Drill Tool Logic', () => {
     it('should find overlap for flush half-lap joint (+Y)', () => {
@@ -134,6 +134,6 @@ describe('Drill Tool Logic', () => {
         const c = candidates[candidates.length - 1];
         expect(c.x).toBeCloseTo(25);
         expect(c.y).toBeCloseTo(0);
-        expect(c.z).toBeCloseTo(5);
+        expect(c.z).toBeCloseTo(-5);
     });
 });

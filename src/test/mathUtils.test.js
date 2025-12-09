@@ -5,7 +5,7 @@ import {
     projectedHalfExtentAlongAxis,
     inferAxisFromMovement,
     pickTargetBasis
-} from './mathUtils';
+} from '../utils/mathUtils';
 
 describe('mathUtils', () => {
     describe('getRelativeTransform', () => {

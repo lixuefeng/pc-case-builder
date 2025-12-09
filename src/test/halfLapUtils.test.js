@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { validateHalfLapCompatibility, calculateHalfLapTransforms } from './halfLapUtils';
+import { validateHalfLapCompatibility, calculateHalfLapTransforms } from '../utils/halfLapUtils';
 import * as THREE from 'three';
 
 // Mock objects

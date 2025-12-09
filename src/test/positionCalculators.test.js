@@ -4,7 +4,7 @@ import {
     calculateHolePosition,
     calculateAllHolePositions,
     calculateConnectorPosition
-} from './positionCalculators';
+} from '../utils/positionCalculators';
 import { MOTHERBOARD_SPECS } from '../constants';
 
 describe('positionCalculators', () => {

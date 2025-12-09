@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { adjustCSGOperations } from './csgUtils';
+import { adjustCSGOperations } from '../utils/csgUtils';
 
 describe('adjustCSGOperations', () => {
     it('should adjust CSG operation position when object moves', () => {

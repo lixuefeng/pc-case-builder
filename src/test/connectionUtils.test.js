@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { calculateMortiseTenon, calculateCrossLap } from './connectionUtils';
+import { calculateMortiseTenon, calculateCrossLap } from '../utils/connectionUtils';
 
 // Mock getRelativeTransform since it's a hook dependency (but pure function)
 // We need to import it or mock it. Since it's in a hook file, it might be hard to import in node environment if it uses React stuff.

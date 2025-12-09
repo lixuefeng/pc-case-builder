@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { calculateDrillCandidates } from './drillMath';
+import { calculateDrillCandidates } from '../utils/drillMath';
 
 const userScene = [
     {

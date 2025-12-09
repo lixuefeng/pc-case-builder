@@ -18,7 +18,7 @@ import Cone from "./primitives/Cone";
 import { usePartModifiers } from "../hooks/usePartModifiers";
 import { useStore } from "../store";
 
-const DEBUG_LOG = false;
+const DEBUG_LOG = true;
 const dlog = DEBUG_LOG ? (...args) => console.log("[MovablePart]", ...args) : () => { };
 
 const CONNECTOR_TYPE_COLORS = {
@@ -119,7 +119,7 @@ const ConnectorMarker = ({ connector, isUsed, onPick, setConnectorHovered }) => 
   const position = Array.isArray(connector?.pos) && connector.pos.length === 3
     ? connector.pos
     : [0, 0, 0];
-  
+
 
 
   const radius = connector.visualRadius ?? 4;
@@ -312,14 +312,14 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
   const shaftRef = useRef(null);
   const position = new THREE.Vector3(...(hole.position || [0, 0, 0]));
   const direction = new THREE.Vector3(...(hole.direction || [0, 0, 1])).normalize();
-  
+
   const isNut = hole.type === 'nut';
 
   // Specs
   const headDia = hole.headDiameter || 6;
-  const headDepth = hole.headDepth || 2; 
+  const headDepth = hole.headDepth || 2;
   const shaftDia = hole.diameter || 3;
-  const shaftLength = hole.depth || 10; 
+  const shaftLength = hole.depth || 10;
 
   // Align cylinder to direction. Cylinder default is Y-axis.
   // If direction is Normal (OUT), we want the hole to go IN (along -Y in local space).
@@ -382,34 +382,34 @@ const HoleMarker = ({ hole, partId, onDelete, canDelete = false, setHoveredFace,
     // R = W / 1.732
     // CylinderGeometry takes Radius.
     // So radius = shaftDia / 1.732
-    
+
     const hexRadius = shaftDia / Math.sqrt(3);
 
     return (
-        <group position={position} quaternion={quaternion}>
-            <mesh
-                ref={shaftRef}
-                position={[0, -shaftLength / 2, 0]} // Center it
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={handlePointerLeave}
-                onPointerMove={handlePointerMove}
-                onPointerDown={handlePointerDown}
-                raycast={(raycaster, intersects) =>
-                  applyConnectorRaycastBias(shaftRef.current, raycaster, intersects)
-                }
-                renderOrder={1003}
-                frustumCulled={false}
-                userData={{ isHole: true, holeId: hole.id, partId }}
-            >
-                <cylinderGeometry args={[hexRadius, hexRadius, shaftLength, 6]} />
-                <meshBasicMaterial color={nutColor} transparent opacity={opacity} depthTest={false} />
-            </mesh>
-            {/* Optional: Inner hole for the nut? */}
-            <mesh position={[0, -shaftLength / 2, 0]}>
-                 <cylinderGeometry args={[shaftDia * 0.3, shaftDia * 0.3, shaftLength + 0.1, 16]} />
-                 <meshBasicMaterial color="#000" />
-            </mesh>
-        </group>
+      <group position={position} quaternion={quaternion}>
+        <mesh
+          ref={shaftRef}
+          position={[0, -shaftLength / 2, 0]} // Center it
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          onPointerMove={handlePointerMove}
+          onPointerDown={handlePointerDown}
+          raycast={(raycaster, intersects) =>
+            applyConnectorRaycastBias(shaftRef.current, raycaster, intersects)
+          }
+          renderOrder={1003}
+          frustumCulled={false}
+          userData={{ isHole: true, holeId: hole.id, partId }}
+        >
+          <cylinderGeometry args={[hexRadius, hexRadius, shaftLength, 6]} />
+          <meshBasicMaterial color={nutColor} transparent opacity={opacity} depthTest={false} />
+        </mesh>
+        {/* Optional: Inner hole for the nut? */}
+        <mesh position={[0, -shaftLength / 2, 0]}>
+          <cylinderGeometry args={[shaftDia * 0.3, shaftDia * 0.3, shaftLength + 0.1, 16]} />
+          <meshBasicMaterial color="#000" />
+        </mesh>
+      </group>
     );
   }
 
@@ -492,7 +492,7 @@ export default function MovablePart({
   const [hoveredFace, setHoveredFace] = useState(null);
 
   const stretchStateRef = useRef(null);
-  
+
   // Calculate modifiers unconditionally at top level
   const modifiers = usePartModifiers(obj, connections, rawObjects);
 
@@ -963,15 +963,25 @@ export default function MovablePart({
   const GRACE_FRAMES = 6;
 
   function getWorldTransform({ ref, obj }) {
+    // FIX: Always use obj props to calculate transform.
+    // relying on ref.current.getWorldPosition() during render (useMemo) is problematic
+    // because the matrixWorld is from the previous frame and hasn't updated to reflect
+    // the new obj.pos/rot props yet.
+    if (obj) {
+      const p = new THREE.Vector3(obj.pos[0], obj.pos[1], obj.pos[2]);
+      const e = new THREE.Euler(obj.rot[0], obj.rot[1], obj.rot[2], 'XYZ');
+      const q = new THREE.Quaternion().setFromEuler(e);
+      const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+      const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+      const az = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+      return { p, q, axes: { ax, ay, az } };
+    }
+    // Fallback to ref if obj is missing (shouldn't happen in MovablePart)
     const p = new THREE.Vector3();
     const q = new THREE.Quaternion();
     if (ref?.current) {
       ref.current.getWorldPosition(p);
       ref.current.getWorldQuaternion(q);
-    } else {
-      p.set(obj.pos[0], obj.pos[1], obj.pos[2]);
-      const e = new THREE.Euler(obj.rot[0], obj.rot[1], obj.rot[2], 'XYZ');
-      q.setFromEuler(e);
     }
     const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
     const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
@@ -1648,8 +1658,16 @@ export default function MovablePart({
 
       const worldPos = new THREE.Vector3();
       const worldQuat = new THREE.Quaternion();
-      groupRef.current.getWorldPosition(worldPos);
-      groupRef.current.getWorldQuaternion(worldQuat);
+
+      // FIX: Use props to avoid stale ref (Fixes Drill/Highlight Lag)
+      // Note: useCutTool has been fixed to avoid double-rotation, so this is safe now.
+      if (obj.pos && obj.rot) {
+        worldPos.set(...obj.pos);
+        worldQuat.setFromEuler(new THREE.Euler(...obj.rot));
+      } else {
+        groupRef.current.getWorldPosition(worldPos);
+        groupRef.current.getWorldQuaternion(worldQuat);
+      }
 
       const halfW = width / 2;
       const halfH = height / 2;
@@ -1678,14 +1696,15 @@ export default function MovablePart({
         .applyQuaternion(worldQuat)
         .add(worldPos);
 
+
       // Debug Hit Context
       if (obj.type === 'gpu-bracket') {
-          console.log(`[MovablePart Debug] Hit Test ${obj.id}`, {
-              dims: obj.dims,
-              localPoint,
-              worldHitPoint,
-              candidates: [], // will be filled next
-          });
+        // console.log(`[MovablePart Debug] Hit Test ${obj.id}`, {
+        //   dims: obj.dims,
+        //   localPoint,
+        //   worldHitPoint,
+        //   candidates: [], // will be filled next
+        // });
       }
 
       lastHoverSampleRef.current = {
@@ -1713,16 +1732,26 @@ export default function MovablePart({
       ).face;
 
       if (event.shiftKey && obj.type === 'gpu') {
-         console.log("DebugGPU: resolveHoveredFace", {
-            face: resolvedFace,
-            localPoint: localPoint.toArray(),
-            candidates
-         });
+        // console.log("DebugGPU: resolveHoveredFace", {
+        //   face: resolvedFace,
+        //   localPoint: localPoint.toArray(),
+        //   candidates
+        // });
       }
 
 
-
       setHoveredFace(resolvedFace);
+      if (mode === 'drill') {
+        // console.error("[DrillDebug] Hover", {
+        //   face: resolvedFace,
+        //   localPoint: localPoint.toArray(),
+        //   worldHit: worldHitPoint.toArray(),
+        //   rayOrigin: event.ray.origin.toArray(),
+        //   objPos: worldPos.toArray(),
+        //   dims: { w: width, h: height, d: depth },
+        //   candidates: candidates.map(c => ({ f: c.face, v: c.value.toFixed(3) }))
+        // });
+      }
       dlog("hover:face", {
         partId: obj.id,
         face: resolvedFace,
@@ -1764,9 +1793,12 @@ export default function MovablePart({
             return;
           }
           // DEBUG LOG
-          if (mode === "cut") {
-             // console.log("MovablePart: cut hover", { shift: e.shiftKey, nativeShift: e?.nativeEvent?.shiftKey });
-          }
+          // if (mode === "cut") {
+          //   // console.log("MovablePart: cut hover", { shift: e.shiftKey, nativeShift: e?.nativeEvent?.shiftKey });
+          // }
+          // if (mode === "drill") {
+          //   // console.error("[DrillDebug] PointerMove", { id: obj.id, mode });
+          // }
           const faceSelectionActive =
             (alignMode && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
             (mode === "scale" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
@@ -1786,7 +1818,7 @@ export default function MovablePart({
               normal: hoveredFaceDetails?.normal,
               faceCenter: hoveredFaceDetails?.center,
               faceSize: hoveredFaceDetails?.size,
-              quaternion: hoveredFaceDetails?.quaternion?.toArray()
+              quaternion: hoveredFaceDetails?.quaternion // Already an array from computeFaceTransform
             });
           }
         }}
@@ -1839,16 +1871,16 @@ export default function MovablePart({
             return;
           }
           if (mode === "cut" && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
-             console.log("MovablePart: cut pick", { hoveredFace, shift: e.shiftKey });
-             onFacePick?.({
-                partId: obj.id,
-                face: hoveredFace,
-                point: lastHoverSampleRef.current?.world?.toArray(),
-                normal: hoveredFaceDetails?.normal,
-                object: groupRef.current, // We need the object for matrixWorld in PCEditor
-                event: e // Pass the event for shiftKey check in PCEditor
-             });
-             return;
+            console.log("MovablePart: cut pick", { hoveredFace, shift: e.shiftKey });
+            onFacePick?.({
+              partId: obj.id,
+              face: hoveredFace,
+              point: lastHoverSampleRef.current?.world?.toArray(),
+              normal: hoveredFaceDetails?.normal,
+              object: groupRef.current, // We need the object for matrixWorld in PCEditor
+              event: e // Pass the event for shiftKey check in PCEditor
+            });
+            return;
           }
           if (
             !alignMode &&
@@ -1867,11 +1899,11 @@ export default function MovablePart({
             }
             dlog("pointer:face-pick", { partId: obj.id, face: hoveredFace });
             if (obj.type === 'gpu') {
-                console.log("DebugGPU: onFacePick", { 
-                    partId: obj.id, 
-                    face: hoveredFace, 
-                    shift: e.shiftKey 
-                });
+              console.log("DebugGPU: onFacePick", {
+                partId: obj.id,
+                face: hoveredFace,
+                shift: e.shiftKey
+              });
             }
             onFacePick?.({ partId: obj.id, face: hoveredFace, shiftKey: true });
             return;
@@ -2036,10 +2068,34 @@ export default function MovablePart({
         ============================================================
       */}
       {(alignMode || mode === "scale" || mode === "cut") && hoveredFaceDetails && (() => {
+        // FIX: Use explicit rotation composition to preserve roll/orientation
+        // setFromUnitVectors destroys the orientation around the normal
         const defaultNormal = new THREE.Vector3(0, 0, 1);
-        const targetNormal = new THREE.Vector3(...(hoveredFaceDetails.normal || [0, 0, 1]));
-        const finalQuat = new THREE.Quaternion().setFromUnitVectors(defaultNormal, targetNormal);
-        
+        let finalQuat;
+
+        const getLocalQuat = (face) => {
+          const lq = new THREE.Quaternion();
+          switch (face) {
+            case "+X": lq.setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)); break;
+            case "-X": lq.setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)); break;
+            case "+Y": lq.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); break;
+            case "-Y": lq.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); break;
+            case "+Z": lq.identity(); break;
+            case "-Z": lq.setFromEuler(new THREE.Euler(0, Math.PI, 0)); break;
+            default: return null;
+          }
+          return lq;
+        };
+
+        const localQ = getLocalQuat(hoveredFace);
+        if (localQ && hoveredFaceDetails.quaternion) {
+          finalQuat = hoveredFaceDetails.quaternion.clone().multiply(localQ);
+        } else {
+          // Fallback for special faces or missing data
+          const targetNormal = new THREE.Vector3(...(hoveredFaceDetails.normal || [0, 0, 1]));
+          finalQuat = new THREE.Quaternion().setFromUnitVectors(defaultNormal, targetNormal);
+        }
+
         return (
           <mesh
             ref={hoverFaceMeshRef}
@@ -2063,28 +2119,51 @@ export default function MovablePart({
       })()}
 
       {(alignMode || mode === "scale" || mode === "cut") && activeFaceDetails && (() => {
-        // See FACE HIGHLIGHT IMPLEMENTATION NOTES above for why we use PlaneGeometry and renderOrder
+        // FIX: Use explicit rotation composition to preserve roll/orientation
+        // setFromUnitVectors destroys the orientation around the normal
         const defaultNormal = new THREE.Vector3(0, 0, 1);
-        const targetNormal = new THREE.Vector3(...(activeFaceDetails.normal || [0, 0, 1]));
-        const finalQuat = new THREE.Quaternion().setFromUnitVectors(defaultNormal, targetNormal);
-        
+        let finalQuat;
+
+        const getLocalQuat = (face) => {
+          const lq = new THREE.Quaternion();
+          switch (face) {
+            case "+X": lq.setFromEuler(new THREE.Euler(0, Math.PI / 2, 0)); break;
+            case "-X": lq.setFromEuler(new THREE.Euler(0, -Math.PI / 2, 0)); break;
+            case "+Y": lq.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); break;
+            case "-Y": lq.setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)); break;
+            case "+Z": lq.identity(); break;
+            case "-Z": lq.setFromEuler(new THREE.Euler(0, Math.PI, 0)); break;
+            default: return null;
+          }
+          return lq;
+        };
+
+        const localQ = getLocalQuat(activeAlignFace.face);
+        if (localQ && activeFaceDetails.quaternion) {
+          finalQuat = activeFaceDetails.quaternion.clone().multiply(localQ);
+        } else {
+          // Fallback for special faces or missing data
+          const targetNormal = new THREE.Vector3(...(activeFaceDetails.normal || [0, 0, 1]));
+          finalQuat = new THREE.Quaternion().setFromUnitVectors(defaultNormal, targetNormal);
+        }
+
         return (
-        <mesh
-          position={activeFaceDetails.center}
-          quaternion={finalQuat}
-          frustumCulled={false}
-          raycast={() => null}
-          renderOrder={99997}
-        >
-          <planeGeometry args={activeFaceDetails.size} />
-          <meshStandardMaterial
-            color="#facc15"
-            transparent
-            opacity={0.35}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
+          <mesh
+            position={activeFaceDetails.center}
+            quaternion={finalQuat}
+            frustumCulled={false}
+            raycast={() => null}
+            renderOrder={99997}
+          >
+            <planeGeometry args={activeFaceDetails.size} />
+            <meshStandardMaterial
+              color="#facc15"
+              transparent
+              opacity={0.35}
+              depthWrite={false}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
         );
       })()}
 

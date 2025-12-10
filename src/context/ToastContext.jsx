@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-const ToastContext = createContext(null);
+export const ToastContext = createContext(null);
 
 export const ToastProvider = ({ children }) => {
   const [toast, setToast] = useState(null);
@@ -8,7 +8,7 @@ export const ToastProvider = ({ children }) => {
   const showToast = useCallback((message) => {
     // message: { type: 'success' | 'warning' | 'error' | 'info', text: string, ttl?: number }
     setToast(message);
-    
+
     const ttl = message?.ttl || 3000;
     if (ttl) {
       setTimeout(() => {

@@ -194,245 +194,226 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
                         (overlapMin[1] + overlapMax[1]) / 2
                     ];
 
-                    console.log("DrillDebug: Quat", info.quaternion);
-                    console.log("DrillDebug: RightAxis", rightAxis.toArray(), "UpAxis", upAxis.toArray());
-                    console.log("DrillDebug: CenterOverlap2D", centerOverlap2D);
-                    console.log("DrillDebug: PlanePointA", planePointA.toArray());
+                    setDrillCandidates(newCandidates);
 
-                    const worldOverlap = planePointA.clone()
-                        .add(rightAxis.clone().multiplyScalar(centerOverlap2D[0]))
-                        .add(upAxis.clone().multiplyScalar(centerOverlap2D[1]));
+                    // DEBUG: Track ids of overlapping objects
+                    const debugIds = flatObjects.filter(obj => {
+                        if (obj.id === partId) return false;
+                        const objCenter = obj.worldPos;
+                        const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(obj.worldQuat);
+                        const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(obj.worldQuat);
+                        const az = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.worldQuat);
+                        const axes = { ax, ay, az };
+                        const halfDepth = projectedHalfExtentAlongAxis(planeNormalB, obj.dims || {}, axes);
+                        if (halfDepth <= 0) return false;
+                        const signedDist = planeB.distanceToPoint(objCenter);
+                        const margin = EDITOR_CONFIG.DRILL_MARGIN;
+                        return Math.abs(signedDist) <= halfDepth + margin;
+                    }).map(o => o.id);
+                    setDrillDebugIds(debugIds);
 
-                    console.log("DrillDebug: Calculated WorldOverlap", worldOverlap.toArray());
+                    let bestSnap = null;
+                    let minDist = snapThreshold;
 
-                    newCandidates.push(worldOverlap);
-                }
-            });
+                    newCandidates.forEach((cand) => {
+                        const d = worldPoint.distanceTo(cand);
+                        if (d < minDist) {
+                            minDist = d;
+                            bestSnap = cand;
+                        }
+                    });
 
-            setDrillCandidates(newCandidates);
+                    if (bestSnap) {
+                        setDrillGhost({
+                            position: bestSnap.toArray(),
+                            direction: planeNormalA.toArray(),
+                            snapped: true,
+                        });
+                    } else {
+                        setDrillGhost({
+                            position: point,
+                            direction: normal,
+                            snapped: false,
+                        });
+                    }
 
-            if (newCandidates.length > 0) {
-                console.log("DrillDebug: Candidates found (useDrillTool):", newCandidates.map(c => c.toArray()));
-            }
-
-            // DEBUG: Track ids of overlapping objects
-            const debugIds = flatObjects.filter(obj => {
-                if (obj.id === partId) return false;
-                const objCenter = obj.worldPos;
-                const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(obj.worldQuat);
-                const ay = new THREE.Vector3(0, 1, 0).applyQuaternion(obj.worldQuat);
-                const az = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.worldQuat);
-                const axes = { ax, ay, az };
-                const halfDepth = projectedHalfExtentAlongAxis(planeNormalB, obj.dims || {}, axes);
-                if (halfDepth <= 0) return false;
-                const signedDist = planeB.distanceToPoint(objCenter);
-                const margin = EDITOR_CONFIG.DRILL_MARGIN;
-                return Math.abs(signedDist) <= halfDepth + margin;
-            }).map(o => o.id);
-            setDrillDebugIds(debugIds);
-
-            let bestSnap = null;
-            let minDist = snapThreshold;
-
-            newCandidates.forEach((cand) => {
-                const d = worldPoint.distanceTo(cand);
-                if (d < minDist) {
-                    minDist = d;
-                    bestSnap = cand;
-                }
-            });
-
-            if (bestSnap) {
-                setDrillGhost({
-                    position: bestSnap.toArray(),
-                    direction: planeNormalA.toArray(),
-                    snapped: true,
-                });
-            } else {
-                setDrillGhost({
-                    position: point,
-                    direction: normal,
-                    snapped: false,
-                });
-            }
-
-        },
-        [expandedObjects, snapThreshold, transformMode]
+                },
+                [expandedObjects, snapThreshold, transformMode]
     );
 
-    const handleHoleDelete = useCallback((partId, holeId) => {
-        setObjects((prev) =>
-            prev.map((obj) => {
-                if (obj.id !== partId) return obj;
-                const updatedHoles = (obj.holes || []).filter((h) => h.id !== holeId);
-                return { ...obj, holes: updatedHoles };
-            })
-        );
-        showToast({
-            type: "success",
-            text: "Hole deleted",
-            ttl: 1500,
-        });
-    }, [setObjects, showToast]);
+            const handleHoleDelete = useCallback((partId, holeId) => {
+                setObjects((prev) =>
+                    prev.map((obj) => {
+                        if (obj.id !== partId) return obj;
+                        const updatedHoles = (obj.holes || []).filter((h) => h.id !== holeId);
+                        return { ...obj, holes: updatedHoles };
+                    })
+                );
+                showToast({
+                    type: "success",
+                    text: "Hole deleted",
+                    ttl: 1500,
+                });
+            }, [setObjects, showToast]);
 
-    const handleGenerateStandoffs = useCallback(() => {
-        if (!selectedObject) return;
+            const handleGenerateStandoffs = useCallback(() => {
+                if (!selectedObject) return;
 
-        const holes = selectedObject.connectors?.filter(c => c.type === 'screw-m3' || c.type === 'mb-mount') || [];
-        if (holes.length === 0) {
-            showToast({ type: "error", text: "No suitable holes found.", ttl: 2000 });
-            return;
-        }
+                const holes = selectedObject.connectors?.filter(c => c.type === 'screw-m3' || c.type === 'mb-mount') || [];
+                if (holes.length === 0) {
+                    showToast({ type: "error", text: "No suitable holes found.", ttl: 2000 });
+                    return;
+                }
 
-        const flatObjects = flattenObjectsWithTransforms(expandedObjects);
-        const sourceObjFlat = flatObjects.find(o => o.id === selectedObject.id);
-        if (!sourceObjFlat) return;
+                const flatObjects = flattenObjectsWithTransforms(expandedObjects);
+                const sourceObjFlat = flatObjects.find(o => o.id === selectedObject.id);
+                if (!sourceObjFlat) return;
 
-        const newStandoffs = [];
-        const raycaster = new THREE.Raycaster();
+                const newStandoffs = [];
+                const raycaster = new THREE.Raycaster();
 
-        holes.forEach(hole => {
-            const holeLocalPos = new THREE.Vector3(...hole.pos);
-            const holeLocalNormal = new THREE.Vector3(...(hole.normal || [0, -1, 0]));
+                holes.forEach(hole => {
+                    const holeLocalPos = new THREE.Vector3(...hole.pos);
+                    const holeLocalNormal = new THREE.Vector3(...(hole.normal || [0, -1, 0]));
 
-            const holeWorldPos = holeLocalPos.clone().applyQuaternion(sourceObjFlat.worldQuat).add(sourceObjFlat.worldPos);
-            const holeWorldNormal = holeLocalNormal.clone().applyQuaternion(sourceObjFlat.worldQuat).normalize();
+                    const holeWorldPos = holeLocalPos.clone().applyQuaternion(sourceObjFlat.worldQuat).add(sourceObjFlat.worldPos);
+                    const holeWorldNormal = holeLocalNormal.clone().applyQuaternion(sourceObjFlat.worldQuat).normalize();
 
-            raycaster.set(holeWorldPos, holeWorldNormal);
+                    raycaster.set(holeWorldPos, holeWorldNormal);
 
-            let bestHit = null;
-            let minDistance = Infinity;
+                    let bestHit = null;
+                    let minDistance = Infinity;
 
-            flatObjects.forEach(target => {
-                if (target.id === selectedObject.id) return;
+                    flatObjects.forEach(target => {
+                        if (target.id === selectedObject.id) return;
 
-                const invTargetQuat = target.worldQuat.clone().invert();
-                const rayOriginLocal = holeWorldPos.clone().sub(target.worldPos).applyQuaternion(invTargetQuat);
-                const rayDirLocal = holeWorldNormal.clone().applyQuaternion(invTargetQuat).normalize();
-                const localRay = new THREE.Ray(rayOriginLocal, rayDirLocal);
+                        const invTargetQuat = target.worldQuat.clone().invert();
+                        const rayOriginLocal = holeWorldPos.clone().sub(target.worldPos).applyQuaternion(invTargetQuat);
+                        const rayDirLocal = holeWorldNormal.clone().applyQuaternion(invTargetQuat).normalize();
+                        const localRay = new THREE.Ray(rayOriginLocal, rayDirLocal);
 
-                const halfW = (target.dims?.w || 0) / 2;
-                const halfH = (target.dims?.h || 0) / 2;
-                const halfD = (target.dims?.d || 0) / 2;
-                const box = new THREE.Box3(
-                    new THREE.Vector3(-halfW, -halfH, -halfD),
-                    new THREE.Vector3(halfW, halfH, halfD)
+                        const halfW = (target.dims?.w || 0) / 2;
+                        const halfH = (target.dims?.h || 0) / 2;
+                        const halfD = (target.dims?.d || 0) / 2;
+                        const box = new THREE.Box3(
+                            new THREE.Vector3(-halfW, -halfH, -halfD),
+                            new THREE.Vector3(halfW, halfH, halfD)
+                        );
+
+                        const intersection = localRay.intersectBox(box, new THREE.Vector3());
+                        if (intersection) {
+                            const dist = rayOriginLocal.distanceTo(intersection);
+                            if (dist < minDistance && dist > 0.1) {
+                                minDistance = dist;
+                                bestHit = { target, point: intersection, dist };
+                            }
+                        }
+                    });
+
+                    if (bestHit) {
+                        const worldHit = bestHit.point.clone().applyQuaternion(bestHit.target.worldQuat).add(bestHit.target.worldPos);
+                        const up = new THREE.Vector3(0, 1, 0);
+                        const targetUp = holeWorldNormal.clone().negate();
+                        const q = new THREE.Quaternion().setFromUnitVectors(up, targetUp);
+                        const euler = new THREE.Euler().setFromQuaternion(q);
+
+                        newStandoffs.push({
+                            id: generateObjectId("standoff"),
+                            type: "standoff",
+                            name: "Standoff",
+                            pos: worldHit.toArray(),
+                            rot: [euler.x, euler.y, euler.z],
+                            height: minDistance,
+                            outerDiameter: 6,
+                            holeDiameter: 3,
+                            baseHeight: 3,
+                            baseDiameter: 10,
+                            dims: { w: 6, h: minDistance, d: 6 }
+                        });
+                    }
+                });
+
+                if (newStandoffs.length > 0) {
+                    setObjects(prev => [...prev, ...newStandoffs]);
+                    showToast({ type: "success", text: `Generated ${newStandoffs.length} standoffs.`, ttl: 2000 });
+
+                } else {
+                    showToast({ type: "warning", text: "No target parts found below holes.", ttl: 2000 });
+                }
+
+            }, [selectedObject, expandedObjects, setObjects, showToast]);
+
+            const handleDrillClick = useCallback((faceInfo) => {
+                // Use ghost position if available (snapped), otherwise click point
+                // Need access to drillGhost state
+                // drillGhost is state in this hook.
+                // But we need 'drillGhost' value inside this callback.
+                // 'drillGhost' is in scope.
+
+                const targetPoint = drillGhost?.snapped ? drillGhost.position : (faceInfo.point || [0, 0, 0]);
+
+                if (!targetPoint) return;
+
+                const obj = expandedObjects.find((o) => o.id === faceInfo.partId);
+                if (!obj) return;
+
+                const worldP = new THREE.Vector3(...targetPoint);
+                const pos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
+
+                let invQ;
+                if (faceInfo.quaternion) {
+                    const worldQ = new THREE.Quaternion(...faceInfo.quaternion);
+                    invQ = worldQ.clone().invert();
+                } else {
+                    const rot = new THREE.Euler(...(obj.rot || [0, 0, 0]));
+                    const q = new THREE.Quaternion().setFromEuler(rot);
+                    invQ = q.clone().invert();
+                }
+
+                const localP = worldP.clone().sub(pos).applyQuaternion(invQ);
+                const worldNormal = new THREE.Vector3(...(faceInfo.normal || [0, 0, 1]));
+                const localNormal = worldNormal.clone().applyQuaternion(invQ).normalize();
+
+                const newHole = {
+                    id: `hole_${Date.now()}`,
+                    type: drillParams.drillType === 'nut' ? 'nut' : 'counterbore',
+                    diameter: drillParams.drillType === 'nut' ? (drillParams.nutDiameter || 6) : drillParams.holeDiameter,
+                    position: localP.toArray(),
+                    direction: localNormal.toArray(),
+                    depth: drillParams.drillType === 'nut' ? (drillParams.nutDepth || 2.5) : drillParams.holeDepth,
+                    headDiameter: drillParams.headDiameter,
+                    headDepth: drillParams.headDepth,
+                };
+
+                setObjects((prev) =>
+                    prev.map((o) => {
+                        if (o.id === obj.id) {
+                            return {
+                                ...o,
+                                holes: [...(o.holes || []), newHole],
+                            };
+                        }
+                        return o;
+                    })
                 );
 
-                const intersection = localRay.intersectBox(box, new THREE.Vector3());
-                if (intersection) {
-                    const dist = rayOriginLocal.distanceTo(intersection);
-                    if (dist < minDistance && dist > 0.1) {
-                        minDistance = dist;
-                        bestHit = { target, point: intersection, dist };
-                    }
-                }
-            });
-
-            if (bestHit) {
-                const worldHit = bestHit.point.clone().applyQuaternion(bestHit.target.worldQuat).add(bestHit.target.worldPos);
-                const up = new THREE.Vector3(0, 1, 0);
-                const targetUp = holeWorldNormal.clone().negate();
-                const q = new THREE.Quaternion().setFromUnitVectors(up, targetUp);
-                const euler = new THREE.Euler().setFromQuaternion(q);
-
-                newStandoffs.push({
-                    id: generateObjectId("standoff"),
-                    type: "standoff",
-                    name: "Standoff",
-                    pos: worldHit.toArray(),
-                    rot: [euler.x, euler.y, euler.z],
-                    height: minDistance,
-                    outerDiameter: 6,
-                    holeDiameter: 3,
-                    baseHeight: 3,
-                    baseDiameter: 10,
-                    dims: { w: 6, h: minDistance, d: 6 }
+                showToast({
+                    type: "success",
+                    text: "Hole drilled!",
+                    ttl: 2000,
                 });
-            }
-        });
+            }, [drillGhost, expandedObjects, drillParams, setObjects, showToast]);
 
-        if (newStandoffs.length > 0) {
-            setObjects(prev => [...prev, ...newStandoffs]);
-            showToast({ type: "success", text: `Generated ${newStandoffs.length} standoffs.`, ttl: 2000 });
-
-        } else {
-            showToast({ type: "warning", text: "No target parts found below holes.", ttl: 2000 });
+            return {
+                drillGhost,
+                setDrillGhost,
+                drillCandidates,
+                setDrillCandidates,
+                handleDrillHover,
+                handleDrillClick,
+                handleHoleDelete,
+                handleGenerateStandoffs,
+                drillDebugIds
+            };
         }
-
-    }, [selectedObject, expandedObjects, setObjects, showToast]);
-
-    const handleDrillClick = useCallback((faceInfo) => {
-        // Use ghost position if available (snapped), otherwise click point
-        // Need access to drillGhost state
-        // drillGhost is state in this hook.
-        // But we need 'drillGhost' value inside this callback.
-        // 'drillGhost' is in scope.
-
-        const targetPoint = drillGhost?.snapped ? drillGhost.position : (faceInfo.point || [0, 0, 0]);
-
-        if (!targetPoint) return;
-
-        const obj = expandedObjects.find((o) => o.id === faceInfo.partId);
-        if (!obj) return;
-
-        const worldP = new THREE.Vector3(...targetPoint);
-        const pos = new THREE.Vector3(...(obj.pos || [0, 0, 0]));
-
-        let invQ;
-        if (faceInfo.quaternion) {
-            const worldQ = new THREE.Quaternion(...faceInfo.quaternion);
-            invQ = worldQ.clone().invert();
-        } else {
-            const rot = new THREE.Euler(...(obj.rot || [0, 0, 0]));
-            const q = new THREE.Quaternion().setFromEuler(rot);
-            invQ = q.clone().invert();
-        }
-
-        const localP = worldP.clone().sub(pos).applyQuaternion(invQ);
-        const worldNormal = new THREE.Vector3(...(faceInfo.normal || [0, 0, 1]));
-        const localNormal = worldNormal.clone().applyQuaternion(invQ).normalize();
-
-        const newHole = {
-            id: `hole_${Date.now()}`,
-            type: drillParams.drillType === 'nut' ? 'nut' : 'counterbore',
-            diameter: drillParams.drillType === 'nut' ? (drillParams.nutDiameter || 6) : drillParams.holeDiameter,
-            position: localP.toArray(),
-            direction: localNormal.toArray(),
-            depth: drillParams.drillType === 'nut' ? (drillParams.nutDepth || 2.5) : drillParams.holeDepth,
-            headDiameter: drillParams.headDiameter,
-            headDepth: drillParams.headDepth,
-        };
-
-        setObjects((prev) =>
-            prev.map((o) => {
-                if (o.id === obj.id) {
-                    return {
-                        ...o,
-                        holes: [...(o.holes || []), newHole],
-                    };
-                }
-                return o;
-            })
-        );
-
-        showToast({
-            type: "success",
-            text: "Hole drilled!",
-            ttl: 2000,
-        });
-    }, [drillGhost, expandedObjects, drillParams, setObjects, showToast]);
-
-    return {
-        drillGhost,
-        setDrillGhost,
-        drillCandidates,
-        setDrillCandidates,
-        handleDrillHover,
-        handleDrillClick,
-        handleHoleDelete,
-        handleGenerateStandoffs,
-        drillDebugIds
-    };
-}
 

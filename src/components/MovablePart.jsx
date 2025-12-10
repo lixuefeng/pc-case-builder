@@ -620,7 +620,7 @@ export default function MovablePart({
     if (onSelect) {
       e.stopPropagation();
       // console.log("MovablePart: calling onSelect");
-      onSelect(obj.id, e.shiftKey || e?.nativeEvent?.shiftKey);
+      onSelect(obj.id, e.shiftKey || e?.nativeEvent?.shiftKey || e.ctrlKey || e?.nativeEvent?.ctrlKey || e.metaKey || e?.nativeEvent?.metaKey);
     }
   }, [mode, onSelect, obj.id, hoveredFace, alignMode]);
 

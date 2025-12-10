@@ -55,7 +55,8 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
             const aFaceTransform = computeFaceTransform(baseObj, face);
 
             // DEBUG INJECTION
-            // console.log("DrillDebug: Face", face, "BaseObjPos", baseObj?.worldPos?.y, "FaceTransformCenter", aFaceTransform?.center?.y);
+            console.log("DrillDebug: Face", face, "BaseObjPos", baseObj?.worldPos?.y, "FaceTransformCenter", aFaceTransform?.center?.y);
+            console.log("DrillDebug: Dims", baseObj?.dims);
 
             const planeNormalB = baseFaceTransform?.normal || worldNormalA;
             const planePointB =
@@ -68,7 +69,7 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
                 aFaceTransform?.center ||
                 (faceCenter ? new THREE.Vector3(...faceCenter) : worldPoint);
 
-            // console.log("DrillDebug: PlaneA Point Y:", planePointA.y);
+            console.log("DrillDebug: PlaneA Point Y:", planePointA.y);
 
             const planeB = new THREE.Plane().setFromNormalAndCoplanarPoint(
                 planeNormalB.clone().normalize(),
@@ -115,7 +116,9 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
 
                 const targetInfo = baseObj ? [baseObj.dims.w, baseObj.dims.h, baseObj.dims.d] : faceSize;
                 const faceAInfo = getFace2DInfo(face, targetInfo);
-                if (!faceAInfo || !info.quaternion) {
+                const qA = aFaceTransform ? aFaceTransform.quaternion : (info.quaternion ? new THREE.Quaternion(...info.quaternion) : new THREE.Quaternion());
+
+                if (!faceAInfo) {
                     const candidateMaxDim = Math.max(obj.dims.w || 0, obj.dims.h || 0, obj.dims.d || 0);
                     const threshold = (maxDim / 2) + (candidateMaxDim / 2);
                     if (projectedOnB.distanceTo(faceCenterVecB) < threshold) {
@@ -126,7 +129,6 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
                     return;
                 }
 
-                const qA = new THREE.Quaternion(...info.quaternion);
                 const basis = [
                     new THREE.Vector3(1, 0, 0).applyQuaternion(qA),
                     new THREE.Vector3(0, 1, 0).applyQuaternion(qA),
@@ -191,15 +193,27 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
                         (overlapMin[0] + overlapMax[0]) / 2,
                         (overlapMin[1] + overlapMax[1]) / 2
                     ];
+
+                    console.log("DrillDebug: Quat", info.quaternion);
+                    console.log("DrillDebug: RightAxis", rightAxis.toArray(), "UpAxis", upAxis.toArray());
+                    console.log("DrillDebug: CenterOverlap2D", centerOverlap2D);
+                    console.log("DrillDebug: PlanePointA", planePointA.toArray());
+
                     const worldOverlap = planePointA.clone()
                         .add(rightAxis.clone().multiplyScalar(centerOverlap2D[0]))
                         .add(upAxis.clone().multiplyScalar(centerOverlap2D[1]));
+
+                    console.log("DrillDebug: Calculated WorldOverlap", worldOverlap.toArray());
 
                     newCandidates.push(worldOverlap);
                 }
             });
 
             setDrillCandidates(newCandidates);
+
+            if (newCandidates.length > 0) {
+                console.log("DrillDebug: Candidates found (useDrillTool):", newCandidates.map(c => c.toArray()));
+            }
 
             // DEBUG: Track ids of overlapping objects
             const debugIds = flatObjects.filter(obj => {

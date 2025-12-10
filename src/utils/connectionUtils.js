@@ -192,7 +192,8 @@ export const calculateMortiseTenon = (tenon, mortise, insertionDepth, clearance 
             type: tenon.type,
             dims: tenonObjForCalc.dims,
             relativeTransform: relTransform,
-            scale: tenon.scale || [1, 1, 1]
+            scale: tenon.scale || [1, 1, 1],
+            operation: 'subtract'
         };
         modifiedMortise = {
             ...mortise,

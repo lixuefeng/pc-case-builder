@@ -136,7 +136,7 @@ const getRelativeTransform = (targetObj, sourceObj) => {
   return { pos: relPos.toArray(), rot: [relEuler.x, relEuler.y, relEuler.z] };
 };
 
-export function PartBox({ obj, selected, modifiers = [], selectionOrder, selectedCount, isDebugHighlighted }) {
+export function PartBox({ obj, selected, modifiers = [], selectionOrder, selectedCount, isDebugHighlighted, onClick, onPointerDown, onPointerMove, onPointerLeave }) {
   const { dims, color, type } = obj;
   const defaultColor = (type === "structure" || type === "cube") ? COLORS.DEFAULT.STRUCTURE : COLORS.DEFAULT.GENERIC_PART;
 
@@ -161,7 +161,12 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
 
   return (
     <group userData={{ objectId: obj.id }}>
-      <mesh>
+      <mesh
+        onClick={onClick}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+      >
         <Geometry computeVertexNormals>
           <Base>
             <boxGeometry args={[dims.w, dims.h, dims.d]} />
@@ -407,7 +412,7 @@ export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
   // Goal: "Cut away edge 2mm deep" at the Front Face (-Z).
   // Body (Center): Full Depth `d`. Represents the protruding connectors.
   // Flange (Rim): Depth `d - recess`. Shifted back so it starts 2mm deeper than Body.
-  
+
   // 1. Body: Full Size w * h * d. Centered at 0.
   const bodyW = w;
   const bodyH = h;
@@ -424,10 +429,10 @@ export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
 
   // Debug Log
   console.log(`[IOShieldMesh] Debug ${obj.id}`, {
-      dims: {w, h, d},
-      recess,
-      body: { w: bodyW, h: bodyH, d: bodyD, z: bodyZ },
-      flange: { w: flangeW, h: flangeH, d: flangeD, z: flangeZ }
+    dims: { w, h, d },
+    recess,
+    body: { w: bodyW, h: bodyH, d: bodyD, z: bodyZ },
+    flange: { w: flangeW, h: flangeH, d: flangeD, z: flangeZ }
   });
 
   const selColor = selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null;
@@ -440,22 +445,22 @@ export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
       <mesh position={[0, 0, bodyZ]}>
         <boxGeometry args={[bodyW, bodyH, bodyD]} />
         <meshStandardMaterial
-           color={selColor || mainColor}
-           opacity={selected ? 0.7 : 1}
-           transparent={selected}
+          color={selColor || mainColor}
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
         />
       </mesh>
 
       {/* Flange (Recessed Rim) - Overlaps Body but starts deeper */}
       <mesh position={[0, 0, flangeZ]}>
-         <boxGeometry args={[flangeW, flangeH, flangeD]} />
-         <meshStandardMaterial
-            color={selColor || flangeColor}
-            opacity={selected ? 0.7 : 1}
-            transparent={selected}
-            metalness={0.6}
-            roughness={0.4}
-         />
+        <boxGeometry args={[flangeW, flangeH, flangeD]} />
+        <meshStandardMaterial
+          color={selColor || flangeColor}
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
+          metalness={0.6}
+          roughness={0.4}
+        />
       </mesh>
     </group>
   );

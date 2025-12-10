@@ -54,15 +54,21 @@ export function useDrillTool({ objects, setObjects, selectedObject, expandedObje
             const baseFaceTransform = computeFaceTransform(baseObj, baseFaceName);
             const aFaceTransform = computeFaceTransform(baseObj, face);
 
+            // DEBUG INJECTION
+            // console.log("DrillDebug: Face", face, "BaseObjPos", baseObj?.worldPos?.y, "FaceTransformCenter", aFaceTransform?.center?.y);
+
             const planeNormalB = baseFaceTransform?.normal || worldNormalA;
             const planePointB =
                 baseFaceTransform?.center ||
                 (faceCenter ? new THREE.Vector3(...faceCenter) : worldPoint);
 
             const planeNormalA = aFaceTransform?.normal || worldNormalA;
+
             const planePointA =
                 aFaceTransform?.center ||
                 (faceCenter ? new THREE.Vector3(...faceCenter) : worldPoint);
+
+            // console.log("DrillDebug: PlaneA Point Y:", planePointA.y);
 
             const planeB = new THREE.Plane().setFromNormalAndCoplanarPoint(
                 planeNormalB.clone().normalize(),

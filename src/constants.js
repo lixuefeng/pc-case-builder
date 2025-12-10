@@ -131,7 +131,7 @@ export const GPU_PCIE_FINGER_DEFAULTS = Object.freeze({
 // Editor Configuration
 export const EDITOR_CONFIG = {
     DUPLICATE_OFFSET: 25,
-    SNAP_THRESHOLD: 10,
+    SNAP_THRESHOLD: 3,
     DRILL_MAX_DIM: 1000,
     DRILL_MARGIN: 0.5,
 };

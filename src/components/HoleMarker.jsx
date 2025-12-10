@@ -103,10 +103,10 @@ export default function HoleMarker({ hole, partId, onDelete, canDelete = false, 
             position={position}
             quaternion={quaternion}
         >
-            {/* Head: Goes from 0 to -headDepth */}
+            {/* Head: Goes from epsilon to -headDepth + epsilon (Top Flush / Counterbore) */}
             <mesh
                 ref={headRef}
-                position={[0, -headDepth / 2, 0]}
+                position={[0, -headDepth / 2 + 0.02, 0]}
                 onPointerEnter={handlePointerEnter}
                 onPointerLeave={handlePointerLeave}
                 onPointerMove={handlePointerMove}
@@ -121,10 +121,10 @@ export default function HoleMarker({ hole, partId, onDelete, canDelete = false, 
                 <cylinderGeometry args={[headDia / 2, headDia / 2, headDepth, 32]} />
                 <meshBasicMaterial color={headColor} transparent opacity={opacity} depthTest={false} />
             </mesh>
-            {/* Shaft: Goes from -headDepth to -(headDepth + shaftLength) */}
+            {/* Shaft: Goes from -headDepth + epsilon to deeper */}
             <mesh
                 ref={shaftRef}
-                position={[0, -headDepth - shaftLength / 2, 0]}
+                position={[0, -headDepth - shaftLength / 2 + 0.02, 0]}
                 onPointerEnter={handlePointerEnter}
                 onPointerLeave={handlePointerLeave}
                 onPointerMove={handlePointerMove}

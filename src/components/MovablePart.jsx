@@ -502,16 +502,30 @@ export default function MovablePart({
 
       const resolvedFace = calculateHoveredFace(localRay, width, height, depth);
       setHoveredFace(resolvedFace);
+
+      if (resolvedFace && event.point) {
+        lastHoverSampleRef.current = {
+          world: event.point.clone(),
+          local: localOrigin
+        };
+      }
     },
     [alignMode, mode, obj]
   );
 
   // Moved handlers to component scope
   const handlePartPointerMove = useCallback((e) => {
-    // console.log("MovablePart: onPointerMove", obj.id);
     e.stopPropagation();
-    const isHoleEvent = e.target?.userData?.isHole || e.object?.userData?.isHole;
+
+    // Check if the actual top hit is a hole (via raycast filter)
+    const topHit = e.intersections?.[0];
+    const topHitIsHole = topHit?.object?.userData?.isHole || topHit?.object?.parent?.userData?.isHole;
+    const isHoleEvent = e.target?.userData?.isHole || e.object?.userData?.isHole || topHitIsHole;
+
     if (isHoleEvent && mode === "drill") {
+      // If we are over a hole, clear any pending drill ghost
+      if (onDrillHover) onDrillHover(null);
+      setHoveredFace(null);
       return;
     }
     const faceSelectionActive =
@@ -548,19 +562,43 @@ export default function MovablePart({
   }, [isStretching, hoveredFace, onDrillHover]);
 
   const handlePartPointerDown = useCallback((e) => {
-    console.log("MovablePart: onPointerDown", obj.id);
+    // console.log("MovablePart: onPointerDown", obj.id);
+
+    // Safety: If the true top hit is a hole (via raycast filter), respect it and ignore this event
+    // This handles cases where event bubbling reaches the part despite the hole handling it,
+    // or if standard sorting put the hole on top but didn't stop propagation.
+    const topHit = e.intersections?.[0];
+    const topHitIsHole = topHit?.object?.userData?.isHole || topHit?.object?.parent?.userData?.isHole;
+
+    if (mode === "drill" && topHitIsHole) {
+      return;
+    }
+
     // If in scale mode/align mode, we do specific things
     if (mode === "scale" && hoveredFace) {
       e.stopPropagation();
       beginStretch(hoveredFace, hoveredFaceDetails, e);
       return;
     }
-    if ((alignMode || mode === "ruler" || mode === "cut") && hoveredFace && onFacePick) {
+    // Check if clicking a hole (either verifying target or userData)
+    // The HoleMarker has stopPropagation, but if raycast hits face first?
+    // We check native even target or just the event
+    const isHoleClick = e.target?.userData?.isHole || e.object?.userData?.isHole;
+    if (isHoleClick && mode === "drill") {
+      return;
+    }
+
+    if ((alignMode || mode === "ruler" || mode === "cut" || mode === "drill") && hoveredFace && hoveredFaceDetails && onFacePick) {
       e.stopPropagation();
+      const centerVec = new THREE.Vector3(...hoveredFaceDetails.center);
+      const normalVec = new THREE.Vector3(...hoveredFaceDetails.normal);
       onFacePick({
         partId: obj.id,
         face: hoveredFace,
-        shiftKey: e.shiftKey || e?.nativeEvent?.shiftKey
+        shiftKey: e.shiftKey || e?.nativeEvent?.shiftKey,
+        center: centerVec,
+        normal: normalVec,
+        point: e.point ? e.point.toArray() : undefined
       });
       return;
     }
@@ -682,7 +720,7 @@ export default function MovablePart({
 
       {/* Alignment Highlights */}
       {targetHighlightDetails && (
-        <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion}>
+        <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion} raycast={() => null}>
           <boxGeometry args={targetHighlightDetails.size} />
           <meshBasicMaterial color="#ef4444" transparent opacity={0.5} depthTest={false} />
         </mesh>
@@ -692,25 +730,15 @@ export default function MovablePart({
         <mesh
           position={new THREE.Vector3(...selfHighlightDetails.center)}
           quaternion={selfHighlightDetails.quaternion}
+          raycast={() => null}
         >
           <boxGeometry args={selfHighlightDetails.size} />
           <meshBasicMaterial color="#22c55e" transparent opacity={0.5} depthTest={false} />
         </mesh>
       )}
 
-      {/* Selected Face Highlight */}
-      {activeFaceDetails && (
-        <mesh
-          position={new THREE.Vector3(...activeFaceDetails.center)}
-          quaternion={activeFaceDetails.quaternion}
-        >
-          <boxGeometry args={[...(activeFaceDetails.size || [1, 1]), 0.05]} />
-          <meshBasicMaterial color="#22c55e" transparent opacity={0.6} depthTest={false} />
-        </mesh>
-      )}
-
       {/* Hover Face Highlight */}
-      {hoveredFace && hoveredFaceDetails && (alignMode || mode === "scale" || mode === "ruler" || mode === "cut") && (
+      {hoveredFace && hoveredFaceDetails && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut") && (
         <mesh
           ref={hoverFaceMeshRef}
           position={new THREE.Vector3(...hoveredFaceDetails.center)}

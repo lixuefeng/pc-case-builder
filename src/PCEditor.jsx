@@ -403,6 +403,7 @@ function EditorContent() {
           <Scene
             objects={expandedObjects}
             setObjects={setObjects}
+            drillParams={drillParams}
             selectedIds={selectedIds}
             onSelect={handleSelect}
             connections={connections}
@@ -411,7 +412,7 @@ function EditorContent() {
             onFacePick={handleFacePick}
             onDrillHover={drillTool.handleDrillHover}
             onConnectorPick={connectorTool.handleConnectorPick}
-            activeAlignFace={transformTool.pendingAlignFace}
+            activeAlignFace={transformMode === 'ruler' ? rulerTool.startFace : transformTool.pendingAlignFace}
             transformMode={transformMode}
             onChangeTransformMode={handleTransformModeChange}
             showTransformControls={showGizmos}

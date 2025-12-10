@@ -32,6 +32,7 @@ export default function Scene({
   cutPlaneTransform,
   onCutPlaneChange,
   drillDebugIds = [],
+  drillParams,
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -154,6 +155,37 @@ export default function Scene({
         far: 5000,
       }}
       onPointerMissed={() => onSelect(null)}
+      raycaster={{
+        filter: (intersections) => {
+          // Raycast Filter: Prioritize holes in drill mode
+          if (transformMode === "drill") {
+            const holes = [];
+            const others = [];
+
+            // Helper to check lineage
+            const isHoleLineage = (obj) => {
+              let curr = obj;
+              // Check up to 4 levels up to avoid expensive traversal
+              for (let i = 0; i < 4; i++) {
+                if (!curr) return false;
+                if (curr.userData?.isHole) return true;
+                curr = curr.parent;
+              }
+              return false;
+            };
+
+            intersections.forEach((hit) => {
+              if (isHoleLineage(hit.object)) {
+                holes.push(hit);
+              } else {
+                others.push(hit);
+              }
+            });
+            return [...holes, ...others];
+          }
+          return intersections;
+        }
+      }}
     >
       <ambientLight intensity={0.6} />
       <directionalLight position={[1, 2, 1]} intensity={1} />

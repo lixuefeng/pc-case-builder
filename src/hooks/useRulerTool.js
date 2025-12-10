@@ -15,6 +15,7 @@ export function useRulerTool({ transformMode }) {
     useEffect(() => {
         if (transformMode !== "ruler") {
             setRulerPoints([]);
+            setStartFace(null);
             rulerStartRef.current = null;
         }
     }, [transformMode, setRulerPoints]);
@@ -47,6 +48,7 @@ export function useRulerTool({ transformMode }) {
 
             rulerStartRef.current = { center, normal };
             setRulerPoints([center.toArray()]);
+            setStartFace({ partId: pointInfo.partId, face: pointInfo.face });
 
             showToast({
                 type: "info",
@@ -108,17 +110,22 @@ export function useRulerTool({ transformMode }) {
             });
 
             rulerStartRef.current = null;
+            setStartFace(null);
         }
     }, [rulerPoints, setRulerPoints, setMeasurements, showToast]);
 
     const clearMeasurements = useCallback(() => {
         setMeasurements([]);
         setRulerPoints([]);
+        setStartFace(null);
         showToast({ type: "info", text: "Measurements cleared.", ttl: 2000 });
     }, [setMeasurements, setRulerPoints, showToast]);
 
+    const [startFace, setStartFace] = useState(null);
+
     return {
         handleRulerPick,
-        clearMeasurements
+        clearMeasurements,
+        startFace
     };
 }

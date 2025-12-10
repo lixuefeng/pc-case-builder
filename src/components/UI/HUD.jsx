@@ -172,28 +172,28 @@ const HUD = ({ transformMode, onApplyCut }) => {
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>X</span>
-                  <NumberInput 
-                    value={data.x} 
+                  <NumberInput
+                    value={data.x}
                     suffix="mm"
-                    onCommit={(val) => updateSingleAxis('pos', 0, val)} 
+                    onCommit={(val) => updateSingleAxis('pos', 0, val)}
                     disabled={inputDisabled}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>Y</span>
-                  <NumberInput 
-                    value={data.y} 
+                  <NumberInput
+                    value={data.y}
                     suffix="mm"
-                    onCommit={(val) => updateSingleAxis('pos', 1, val)} 
+                    onCommit={(val) => updateSingleAxis('pos', 1, val)}
                     disabled={inputDisabled}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>Z</span>
-                  <NumberInput 
-                    value={data.z} 
+                  <NumberInput
+                    value={data.z}
                     suffix="mm"
-                    onCommit={(val) => updateSingleAxis('pos', 2, val)} 
+                    onCommit={(val) => updateSingleAxis('pos', 2, val)}
                     disabled={inputDisabled}
                   />
                 </div>
@@ -213,28 +213,28 @@ const HUD = ({ transformMode, onApplyCut }) => {
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>RX</span>
-                  <NumberInput 
-                    value={data.rx ? data.rx * (180/Math.PI) : 0} 
+                  <NumberInput
+                    value={data.rx ? data.rx * (180 / Math.PI) : 0}
                     suffix="°"
-                    onCommit={(val) => updateSingleAxis('rot', 0, THREE.MathUtils.degToRad(val))} 
+                    onCommit={(val) => updateSingleAxis('rot', 0, THREE.MathUtils.degToRad(val))}
                     disabled={inputDisabled}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>RY</span>
-                  <NumberInput 
-                    value={data.ry ? data.ry * (180/Math.PI) : 0} 
+                  <NumberInput
+                    value={data.ry ? data.ry * (180 / Math.PI) : 0}
                     suffix="°"
-                    onCommit={(val) => updateSingleAxis('rot', 1, THREE.MathUtils.degToRad(val))} 
+                    onCommit={(val) => updateSingleAxis('rot', 1, THREE.MathUtils.degToRad(val))}
                     disabled={inputDisabled}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>RZ</span>
-                  <NumberInput 
-                    value={data.rz ? data.rz * (180/Math.PI) : 0} 
+                  <NumberInput
+                    value={data.rz ? data.rz * (180 / Math.PI) : 0}
                     suffix="°"
-                    onCommit={(val) => updateSingleAxis('rot', 2, THREE.MathUtils.degToRad(val))} 
+                    onCommit={(val) => updateSingleAxis('rot', 2, THREE.MathUtils.degToRad(val))}
                     disabled={inputDisabled}
                   />
                 </div>
@@ -254,28 +254,28 @@ const HUD = ({ transformMode, onApplyCut }) => {
               <div style={{ display: 'flex', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>X</span>
-                  <NumberInput 
-                    value={data.sx ?? data.factor ?? 1} 
+                  <NumberInput
+                    value={data.sx ?? data.factor ?? 1}
                     suffix="x"
-                    onCommit={(val) => updateSingleAxis('scale', 0, val)} 
+                    onCommit={(val) => updateSingleAxis('scale', 0, val)}
                     disabled={inputDisabled}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>Y</span>
-                  <NumberInput 
-                    value={data.sy ?? data.factor ?? 1} 
+                  <NumberInput
+                    value={data.sy ?? data.factor ?? 1}
                     suffix="x"
-                    onCommit={(val) => updateSingleAxis('scale', 1, val)} 
+                    onCommit={(val) => updateSingleAxis('scale', 1, val)}
                     disabled={inputDisabled}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>Z</span>
-                  <NumberInput 
-                    value={data.sz ?? data.factor ?? 1} 
+                  <NumberInput
+                    value={data.sz ?? data.factor ?? 1}
                     suffix="x"
-                    onCommit={(val) => updateSingleAxis('scale', 2, val)} 
+                    onCommit={(val) => updateSingleAxis('scale', 2, val)}
                     disabled={inputDisabled}
                   />
                 </div>
@@ -291,55 +291,57 @@ const HUD = ({ transformMode, onApplyCut }) => {
       case 'ruler': {
         const step1Filled = rulerPoints.length >= 1;
         const step2Filled = rulerPoints.length >= 2;
-        
+
         let displayDistance = '0.00';
         if (step2Filled && rulerPoints[0] && rulerPoints[1]) {
-            displayDistance = rulerPoints[0].distanceTo(rulerPoints[1]).toFixed(2);
+          const v1 = new THREE.Vector3(...rulerPoints[0]);
+          const v2 = new THREE.Vector3(...rulerPoints[1]);
+          displayDistance = v1.distanceTo(v2).toFixed(2);
         }
-        
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-             <div style={{ display: 'flex', alignItems: 'center', opacity: step1Filled ? 0.5 : 1 }}>
-                <span style={{...labelStyle, marginRight: 0}}>{t('label.selectFace1')}</span>
-                <Box filled={step1Filled} />
-             </div>
-             <div style={{ display: 'flex', alignItems: 'center', opacity: step2Filled ? 0.5 : (step1Filled ? 1 : 0.5) }}>
-                <span style={{...labelStyle, marginRight: 0}}>{t('label.selectFace2')}</span>
-                <Box filled={step2Filled} />
-             </div>
-             {(step2Filled || measurements.length > 0) && (
-               <div style={{ display: 'flex', alignItems: 'center', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 6, justifyContent: 'space-between', minHeight: 24 }}>
-                  {step2Filled ? (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={labelStyle}>{t('label.distance')}</span>
-                      <span style={{ color: '#3b82f6', fontWeight: 600, fontFamily: 'monospace', fontSize: 14 }}>
-                        {displayDistance} mm
-                      </span>
-                    </div>
-                  ) : <div />}
-                  
-                  {measurements.length > 0 && (
-                    <button 
-                      onClick={() => {
-                        setMeasurements([]);
-                        setRulerPoints([]);
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid #475569',
-                        color: '#94a3b8',
-                        borderRadius: 4,
-                        padding: '2px 6px',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                        marginLeft: 12
-                      }}
-                    >
-                      Clear
-                    </button>
-                  )}
-               </div>
-             )}
+            <div style={{ display: 'flex', alignItems: 'center', opacity: step1Filled ? 0.5 : 1 }}>
+              <span style={{ ...labelStyle, marginRight: 0 }}>{t('label.selectFace1')}</span>
+              <Box filled={step1Filled} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', opacity: step2Filled ? 0.5 : (step1Filled ? 1 : 0.5) }}>
+              <span style={{ ...labelStyle, marginRight: 0 }}>{t('label.selectFace2')}</span>
+              <Box filled={step2Filled} />
+            </div>
+            {(step2Filled || measurements.length > 0) && (
+              <div style={{ display: 'flex', alignItems: 'center', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 6, justifyContent: 'space-between', minHeight: 24 }}>
+                {step2Filled ? (
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={labelStyle}>{t('label.distance')}</span>
+                    <span style={{ color: '#3b82f6', fontWeight: 600, fontFamily: 'monospace', fontSize: 14 }}>
+                      {displayDistance} mm
+                    </span>
+                  </div>
+                ) : <div />}
+
+                {measurements.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setMeasurements([]);
+                      setRulerPoints([]);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #475569',
+                      color: '#94a3b8',
+                      borderRadius: 4,
+                      padding: '2px 6px',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      marginLeft: 12
+                    }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         );
       }
@@ -351,95 +353,95 @@ const HUD = ({ transformMode, onApplyCut }) => {
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 8px' }}>
-            
+
             {/* Type Toggle */}
             <div style={{ display: 'flex', background: '#334155', borderRadius: 4, padding: 2, marginBottom: 4 }}>
-                <button
-                    onClick={() => setDrillType('screw')}
-                    style={{
-                        background: drillType === 'screw' ? '#475569' : 'transparent',
-                        color: drillType === 'screw' ? '#fff' : '#94a3b8',
-                        border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer'
-                    }}
-                >
-                    Screw
-                </button>
-                <button
-                    onClick={() => setDrillType('nut')}
-                    style={{
-                        background: drillType === 'nut' ? '#475569' : 'transparent',
-                        color: drillType === 'nut' ? '#fff' : '#94a3b8',
-                        border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer'
-                    }}
-                >
-                    Nut
-                </button>
+              <button
+                onClick={() => setDrillType('screw')}
+                style={{
+                  background: drillType === 'screw' ? '#475569' : 'transparent',
+                  color: drillType === 'screw' ? '#fff' : '#94a3b8',
+                  border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer'
+                }}
+              >
+                Screw
+              </button>
+              <button
+                onClick={() => setDrillType('nut')}
+                style={{
+                  background: drillType === 'nut' ? '#475569' : 'transparent',
+                  color: drillType === 'nut' ? '#fff' : '#94a3b8',
+                  border: 'none', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer'
+                }}
+              >
+                Nut
+              </button>
             </div>
 
             {drillType === 'screw' ? (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                  {/* Left Column: Diameters & Diagram */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                     {/* Head Dia */}
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                        <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Head Dia</span>
-                        <NumberInput value={drillParams.headDiameter} onCommit={(v) => updateParam('headDiameter', v)} width={50} />
-                     </div>
-                     
-                     {/* Diagram */}
-                     <svg width="60" height="80" viewBox="0 0 60 80" style={{ overflow: 'visible', margin: '4px 0' }}>
-                        {/* Head */}
-                        <path d="M5,5 L55,5 L55,25 L5,25 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
-                        {/* Shaft */}
-                        <path d="M20,25 L40,25 L40,75 L20,75 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
-                        {/* Center Line */}
-                        <path d="M30,0 L30,80" stroke="#475569" strokeWidth="1" strokeDasharray="4 2" />
-                     </svg>
-                     
-                     {/* Hole Dia */}
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                        <NumberInput value={drillParams.holeDiameter} onCommit={(v) => updateParam('holeDiameter', v)} width={50} />
-                        <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Hole Dia</span>
-                     </div>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                {/* Left Column: Diameters & Diagram */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  {/* Head Dia */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                    <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Head Dia</span>
+                    <NumberInput value={drillParams.headDiameter} onCommit={(v) => updateParam('headDiameter', v)} width={50} />
                   </div>
-    
-                  {/* Right Column: Heights */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 28, justifyContent: 'center', paddingTop: 10 }}>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <NumberInput value={drillParams.headDepth} onCommit={(v) => updateParam('headDepth', v)} width={50} />
-                        <span style={{ fontSize: 10, color: '#94a3b8' }}>Head H</span>
-                     </div>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <NumberInput value={drillParams.holeDepth} onCommit={(v) => updateParam('holeDepth', v)} width={50} />
-                        <span style={{ fontSize: 10, color: '#94a3b8' }}>Depth</span>
-                     </div>
-                  </div>
-                </div>
-            ) : (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                  {/* Nut UI */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                        <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Diameter</span>
-                        <NumberInput value={drillParams.nutDiameter || 6} onCommit={(v) => updateParam('nutDiameter', v)} width={50} />
-                     </div>
-                     
-                     {/* Hex Nut Diagram */}
-                     <svg width="60" height="60" viewBox="0 0 60 60" style={{ overflow: 'visible', margin: '4px 0' }}>
-                        {/* Hexagon */}
-                        <path d="M30,5 L52,17 L52,43 L30,55 L8,43 L8,17 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
-                        {/* Inner Circle */}
-                        <circle cx="30" cy="30" r="12" fill="none" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
-                     </svg>
 
-                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-                        <NumberInput value={drillParams.nutDepth || 2.5} onCommit={(v) => updateParam('nutDepth', v)} width={50} />
-                        <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Thickness</span>
-                     </div>
+                  {/* Diagram */}
+                  <svg width="60" height="80" viewBox="0 0 60 80" style={{ overflow: 'visible', margin: '4px 0' }}>
+                    {/* Head */}
+                    <path d="M5,5 L55,5 L55,25 L5,25 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
+                    {/* Shaft */}
+                    <path d="M20,25 L40,25 L40,75 L20,75 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
+                    {/* Center Line */}
+                    <path d="M30,0 L30,80" stroke="#475569" strokeWidth="1" strokeDasharray="4 2" />
+                  </svg>
+
+                  {/* Hole Dia */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                    <NumberInput value={drillParams.holeDiameter} onCommit={(v) => updateParam('holeDiameter', v)} width={50} />
+                    <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Hole Dia</span>
                   </div>
                 </div>
+
+                {/* Right Column: Heights */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 28, justifyContent: 'center', paddingTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <NumberInput value={drillParams.headDepth} onCommit={(v) => updateParam('headDepth', v)} width={50} />
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>Head H</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <NumberInput value={drillParams.holeDepth} onCommit={(v) => updateParam('holeDepth', v)} width={50} />
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>Depth</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                {/* Nut UI */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                    <span style={{ fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>Diameter</span>
+                    <NumberInput value={drillParams.nutDiameter || 6} onCommit={(v) => updateParam('nutDiameter', v)} width={50} />
+                  </div>
+
+                  {/* Hex Nut Diagram */}
+                  <svg width="60" height="60" viewBox="0 0 60 60" style={{ overflow: 'visible', margin: '4px 0' }}>
+                    {/* Hexagon */}
+                    <path d="M30,5 L52,17 L52,43 L30,55 L8,43 L8,17 Z" fill="rgba(255,255,255,0.05)" stroke="#cbd5e1" strokeWidth="1.5" />
+                    {/* Inner Circle */}
+                    <circle cx="30" cy="30" r="12" fill="none" stroke="#475569" strokeWidth="1" strokeDasharray="2 2" />
+                  </svg>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                    <NumberInput value={drillParams.nutDepth || 2.5} onCommit={(v) => updateParam('nutDepth', v)} width={50} />
+                    <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Thickness</span>
+                  </div>
+                </div>
+              </div>
             )}
-            
+
             <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 4, width: '100%', textAlign: 'center' }}>
               {drillType === 'screw' ? t('label.drillInstructions') : "Click face to place Nut"}
             </div>
@@ -451,47 +453,47 @@ const HUD = ({ transformMode, onApplyCut }) => {
         const selectedObjs = objects.filter(o => selectedIds.includes(o.id));
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 200 }}>
-             <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', borderBottom: '1px solid #334155', paddingBottom: 4 }}>
-                Split Targets ({selectedObjs.length})
-             </div>
-             
-             {selectedObjs.length > 0 ? (
-               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 100, overflowY: 'auto' }}>
-                  {selectedObjs.map(o => (
-                    <div key={o.id} style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                       <Box filled={true} />
-                       <span>{o.name || o.type}</span>
-                    </div>
-                  ))}
-               </div>
-             ) : (
-               <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
-                  No objects selected
-               </div>
-             )}
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', borderBottom: '1px solid #334155', paddingBottom: 4 }}>
+              Split Targets ({selectedObjs.length})
+            </div>
 
-             <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 4 }}>
-                1. Select objects to split<br/>
-                2. Shift + Click a face to set plane<br/>
-                3. Click Apply Split
-             </div>
-             
-             <button
-               onClick={onApplyCut}
-               style={{
-                 marginTop: 4,
-                 background: '#ef4444',
-                 color: 'white',
-                 border: 'none',
-                 borderRadius: 4,
-                 padding: '4px 8px',
-                 fontSize: 11,
-                 cursor: 'pointer',
-                 fontWeight: 600
-               }}
-             >
-               Apply Split
-             </button>
+            {selectedObjs.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 100, overflowY: 'auto' }}>
+                {selectedObjs.map(o => (
+                  <div key={o.id} style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Box filled={true} />
+                    <span>{o.name || o.type}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
+                No objects selected
+              </div>
+            )}
+
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, borderTop: '1px solid #334155', paddingTop: 4 }}>
+              1. Select objects to split<br />
+              2. Shift + Click a face to set plane<br />
+              3. Click Apply Split
+            </div>
+
+            <button
+              onClick={onApplyCut}
+              style={{
+                marginTop: 4,
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: 4,
+                padding: '4px 8px',
+                fontSize: 11,
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Apply Split
+            </button>
           </div>
         );
       }

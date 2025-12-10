@@ -80,8 +80,9 @@ export default function ConnectorMarker({ connector, isUsed, onPick, setConnecto
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
             onPointerDown={handlePointerDown}
-        // raycast logic: we might need to pass the custom raycast function if we can share it.
-        // otherwise use default
+            raycast={(raycaster, intersects) =>
+                applyConnectorRaycastBias(meshRef.current, raycaster, intersects)
+            }
         >
             <boxGeometry args={[size, size, size]} />
             <meshStandardMaterial color={color} />

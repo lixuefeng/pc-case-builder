@@ -720,7 +720,7 @@ export default function MovablePart({
 
       {/* Alignment Highlights */}
       {targetHighlightDetails && (
-        <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion} raycast={() => null}>
+        <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion.toArray()} raycast={() => null}>
           <boxGeometry args={targetHighlightDetails.size} />
           <meshBasicMaterial color="#ef4444" transparent opacity={0.5} depthTest={false} />
         </mesh>
@@ -728,8 +728,8 @@ export default function MovablePart({
 
       {selfHighlightDetails && (
         <mesh
-          position={new THREE.Vector3(...selfHighlightDetails.center)}
-          quaternion={selfHighlightDetails.quaternion}
+          position={selfHighlightDetails.center}
+          quaternion={selfHighlightDetails.quaternion.toArray()}
           raycast={() => null}
         >
           <boxGeometry args={selfHighlightDetails.size} />
@@ -741,8 +741,8 @@ export default function MovablePart({
       {hoveredFace && hoveredFaceDetails && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut") && (
         <mesh
           ref={hoverFaceMeshRef}
-          position={new THREE.Vector3(...hoveredFaceDetails.center)}
-          quaternion={hoveredFaceDetails.quaternion}
+          position={hoveredFaceDetails.center}
+          quaternion={hoveredFaceDetails.quaternion.toArray()}
           raycast={() => null} // Ignore raycasting to prevent flicker/persistence issues
         >
           <boxGeometry args={[...(hoveredFaceDetails.size || [1, 1]), 0.05]} />

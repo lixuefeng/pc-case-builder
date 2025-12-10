@@ -19,7 +19,7 @@ import { exportSTLFrom } from "./utils/exportSTL"; // Kept for future use if nee
 
 // Hooks
 import { useSelection } from "./hooks/useSelection";
-import { useDrillTool } from "./hooks/useDrillTool";
+import { useDrillTool } from "./hooks/useDrillTool.jsx";
 import { useCutTool } from "./hooks/useCutTool";
 import { useRulerTool } from "./hooks/useRulerTool";
 import { useConnectors } from "./hooks/useConnectors";

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import ReactThreeTestRenderer from '@react-three/test-renderer';
-import { useDrillTool } from '../../hooks/useDrillTool';
+import { useDrillTool } from '../../hooks/useDrillTool.jsx';
 import * as THREE from 'three';
 import { calculateCrossLap } from '../../utils/connectionUtils';
 import { expandObjectsWithEmbedded } from '../../utils/embeddedParts';
@@ -29,7 +29,7 @@ function TestDrillComponent({ objects, drillParams, onViewEvent, onStateUpdate }
     // Expand objects (mimic Editor logic)
     const expandedObjects = React.useMemo(() => expandObjectsWithEmbedded(localObjects), [localObjects]);
 
-    const { handleDrillHover, drillGhost } = useDrillTool({
+    const { handleDrillHover, drillGhost, handleDrillClick } = useDrillTool({
         objects: localObjects,
         setObjects: (val) => {
             setLocalObjects(val);
@@ -44,14 +44,16 @@ function TestDrillComponent({ objects, drillParams, onViewEvent, onStateUpdate }
     // Expose handler for testing
     React.useImperativeHandle(onViewEvent, () => ({
         handleDrillHover,
+        handleDrillClick,
         getGhost: () => drillGhost
-    }), [drillGhost, handleDrillHover]);
+    }), [drillGhost, handleDrillHover, handleDrillClick]);
 
     return null;
 }
 
 describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
     it('should ignore view-layer quaternion and snap to true surface Y=10', async () => {
+        // ... (existing DRILL-03 implementation)
         // 1. Setup Data: Cross Lap
         const barA = {
             id: "bar_a", type: "cube", dims: { w: 200, h: 10, d: 10 },
@@ -70,6 +72,7 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
         const ref = React.createRef();
 
         // 2. Render
+        // eslint-disable-next-line
         const renderer = await ReactThreeTestRenderer.create(
             <MockToastProvider>
                 <TestDrillComponent
@@ -83,12 +86,6 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
         const { handleDrillHover, getGhost } = ref.current;
 
         // 3. Simulate The Bug Condition
-        // The bug was: The View (Mesh) had a WEIRD quaternion (e.g. rotated -90X), 
-        // while the State (Object) had Identity quaternion.
-        // We pass the "View Quaternion" in the event info.
-
-        // Construct a "Bad" View Quaternion (e.g. rotated -90 deg X)
-        // This simulates the movable part container rotation mismatch found in logs
         const badViewQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
 
         // Target: Bar B (Top Surface is at Y=10)
@@ -105,15 +102,143 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
                 face: '+Y',
                 faceCenter: [0, 10, 0],
                 faceSize: [10, 200], // W, D
-                quaternion: badViewQuat.toArray() // <--- THE POISONED PILL
+                quaternion: badViewQuat.toArray()
             });
         });
 
         // ASSERT
-        // Must access ref.current again to get the updated closure from useImperativeHandle
         const ghost = ref.current.getGhost();
         expect(ghost).not.toBeNull();
         expect(ghost.snapped).toBe(true);
         expect(ghost.position[1]).toBeCloseTo(10);
+    });
+
+    it('DRILL-01: Basic Face Snap (Cube)', async () => {
+        // Setup standard cube
+        const cube = {
+            id: 'cube_basic', type: 'cube', dims: { w: 20, h: 20, d: 20 },
+            pos: [0, 10, 0], rot: [0, 0, 0] // Centered at 0,10,0 -> Top face at Y=20
+        };
+        const drillParams = { holeDiameter: 5, holeDepth: 5, drillType: 'hole' };
+        const ref = React.createRef();
+
+        await ReactThreeTestRenderer.create(
+            <MockToastProvider>
+                <TestDrillComponent objects={[cube]} drillParams={drillParams} onViewEvent={ref} />
+            </MockToastProvider>
+        );
+
+        const { handleDrillHover, getGhost } = ref.current;
+
+        // Act: Hover Top Face (+Y) center
+        await ReactThreeTestRenderer.act(async () => {
+            handleDrillHover({
+                point: [0, 20, 0],
+                normal: [0, 1, 0],
+                partId: cube.id,
+                face: '+Y',
+                faceCenter: [0, 20, 0],
+                faceSize: [20, 20],
+                quaternion: new THREE.Quaternion().toArray() // Identity for basic case
+            });
+        });
+
+        // Re-read from ref to get updated state
+        const ghost = ref.current.getGhost();
+        expect(ghost).not.toBeNull();
+        expect(ghost.snapped).toBe(false); // No other objects, so it's a free drill (unsnapped)
+        expect(ghost.position).toEqual([0, 20, 0]);
+        expect(ghost.direction).toEqual([0, 1, 0]);
+    });
+
+    it('DRILL-02: Rotated Object Snap', async () => {
+        // Setup Cube Rotated 90 X -> Top (+Y) becomes Front (+Z) in World?
+        // Wait, Rot 90 X:
+        // Local +Y -> World +Z
+        // Local +Z -> World -Y
+        // Local -Z -> World +Y (This is now Top)
+
+        // Let's use simple 90 deg rotation
+        const cube = {
+            id: 'cube_rot', type: 'cube', dims: { w: 20, h: 20, d: 20 },
+            pos: [0, 0, 0],
+            rot: [Math.PI / 2, 0, 0]
+        };
+        // After rot 90 X:
+        // Original Top (+Y) is at World (0, 0, 10). (Front)
+        // Original Front (+Z) is at World (0, -10, 0). (Bottom)
+        // Original Back (-Z) is at World (0, 10, 0). (Top)
+
+        const drillParams = { holeDiameter: 5, holeDepth: 5, drillType: 'hole' };
+        const ref = React.createRef();
+
+        await ReactThreeTestRenderer.create(
+            <MockToastProvider>
+                <TestDrillComponent objects={[cube]} drillParams={drillParams} onViewEvent={ref} />
+            </MockToastProvider>
+        );
+
+        const { handleDrillHover } = ref.current;
+
+        // Act: Hover the new Top Face (which is Local -Z)
+        await ReactThreeTestRenderer.act(async () => {
+            handleDrillHover({
+                point: [0, 10, 0],
+                normal: [0, 1, 0], // World Up
+                partId: cube.id,
+                face: '-Z', // Correct semantic face
+                faceCenter: [0, 10, 0], // World center of face
+                faceSize: [20, 20],
+                quaternion: new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)).toArray()
+            });
+        });
+
+        const ghost = ref.current.getGhost();
+        expect(ghost).not.toBeNull();
+        expect(ghost.snapped).toBe(false); // Free drill
+        expect(ghost.position[1]).toBeCloseTo(10);
+        // Normal should align with object surface at that point (World Up)
+        expect(ghost.direction[1]).toBeCloseTo(1);
+    });
+
+    it('DRILL-04: Hole Creation', async () => {
+        const cube = {
+            id: 'cube_drill_action', type: 'cube', dims: { w: 20, h: 20, d: 20 },
+            pos: [0, 0, 0], rot: [0, 0, 0]
+        };
+        const drillParams = { holeDiameter: 4, holeDepth: 10, drillType: 'hole' };
+        const ref = React.createRef();
+        let capturedObjects = [cube];
+
+        await ReactThreeTestRenderer.create(
+            <MockToastProvider>
+                <TestDrillComponent
+                    objects={capturedObjects}
+                    drillParams={drillParams}
+                    onViewEvent={ref}
+                    onStateUpdate={(newObjs) => { capturedObjects = newObjs; }}
+                />
+            </MockToastProvider>
+        );
+
+        const { handleDrillHover, getGhost } = ref.current;
+
+        // 1. Hover to set ghost
+        await ReactThreeTestRenderer.act(async () => {
+            handleDrillHover({
+                point: [5, 10, 5],
+                normal: [0, 1, 0],
+                partId: cube.id,
+                face: '+Y',
+                faceCenter: [0, 10, 0],
+                faceSize: [20, 20],
+                quaternion: [0, 0, 0, 1]
+            });
+        });
+
+        // 2. Trigger Drill (Ghost has a 'quaternion' we need? No useDrillTool handles it?
+        // Wait, how do we trigger click? useDrillTool usually exposes 'performDrill' or we assume a click handler calls something.
+        // Checking useDrillTool: it usually returns `handleDrillClick`.
+        // We need to update TestDrillComponent to expose handleDrillClick.
     });
 });

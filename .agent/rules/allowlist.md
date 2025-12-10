@@ -1,4 +1,8 @@
 ---
+trigger: always_on
+---
+
+---
 description: Run build and validation tests
 ---
 This workflow runs the build and test suite automatically.

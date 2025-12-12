@@ -677,7 +677,7 @@ export default function MovablePart({
             key={c.id}
             connector={c}
             isUsed={connectedConnectorIds.has(c.id)}
-            onPick={onConnectorPick}
+            onPick={(c) => onConnectorPick && onConnectorPick({ partId: obj.id, connectorId: c.id })}
             setConnectorHovered={setConnectorHovered}
           />
         ))}

@@ -62,12 +62,18 @@ export default function ConnectorMarker({ connector, isUsed, onPick, setConnecto
     };
 
     // Visuals for connector
-    const size = 3;
+    const size = 6;
     const color = getConnectorBaseColor(connector);
 
     // Position/Rotation from connector data
-    const pos = connector.position || [0, 0, 0];
-    const dir = new THREE.Vector3(...(connector.direction || [0, 0, 1])).normalize();
+    // Presets use 'pos' (array), but some might use 'position'
+    const posVal = connector.pos || connector.position || [0, 0, 0];
+    const pos = Array.isArray(posVal) ? new THREE.Vector3(...posVal) : posVal;
+
+    // Direction/Normal
+    // Presets use 'normal' (array), logic uses 'direction'
+    const dirVal = connector.normal || connector.direction || [0, 0, 1];
+    const dir = new THREE.Vector3(...dirVal).normalize();
 
     // Quaternion to align Z with direction
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
@@ -77,6 +83,7 @@ export default function ConnectorMarker({ connector, isUsed, onPick, setConnecto
             ref={meshRef}
             position={pos}
             quaternion={q}
+            renderOrder={999}
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
             onPointerDown={handlePointerDown}
@@ -84,11 +91,17 @@ export default function ConnectorMarker({ connector, isUsed, onPick, setConnecto
                 applyConnectorRaycastBias(meshRef.current, raycaster, intersects)
             }
         >
-            <boxGeometry args={[size, size, size]} />
-            <meshStandardMaterial color={color} />
+            <sphereGeometry args={[size / 2, 16, 16]} />
+            <meshBasicMaterial
+                color={color}
+                depthTest={false}
+                depthWrite={false}
+                transparent
+                opacity={0.8}
+            />
             {/* If used, maybe show visual indicator? */}
             {isUsed && (
-                <meshBasicMaterial color="#4ade80" wireframe />
+                <meshBasicMaterial color="#4ade80" wireframe depthTest={false} depthWrite={false} />
             )}
         </mesh>
     );

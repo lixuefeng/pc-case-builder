@@ -1,6 +1,6 @@
 import { Mesh } from "three";
 
-export function applyConnectorRaycastBias(mesh, raycaster, intersects, bias = 0.1) {
+export function applyConnectorRaycastBias(mesh, raycaster, intersects, bias = 100.0) {
     // Simple bias logic if needed, otherwise just push standard intersection
     // ...
 
@@ -9,7 +9,8 @@ export function applyConnectorRaycastBias(mesh, raycaster, intersects, bias = 0.
     Mesh.prototype.raycast.call(mesh, raycaster, intersects);
 
     if (intersects.length > prevLen) {
-        const last = intersects[intersects.length - 1];
-        last.distance = Math.max(0, last.distance - bias);
+        for (let i = prevLen; i < intersects.length; i++) {
+            intersects[i].distance = Math.max(0, intersects[i].distance - bias);
+        }
     }
 }

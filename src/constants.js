@@ -55,40 +55,44 @@ export const MOTHERBOARD_SPECS = {
     // Virtual Origin for Alignment (0.4" from Left, 0.25" from Top)
     ANCHOR: { x: -6.35, y: 10.16 },
 
-    // Hole coordinates relative to ANCHOR
-    // Standard ATX Layout (IO 'Up'):
-    // C: Top-Left  (6.35, 10.16)
-    // F: Top-Right (163.83, 33.02)
+    // Hole coordinates relative to ANCHOR (User Calculated)
+    // F: Top-Right (0, 22.86)
+    // A, B, C: Top-Lefts (Y=0)
+    HOLES: {
+        F: [0, 22.86],
+        C: [-157.48, 0],          // ITX Left
+        B: [-203.20, 0],          // mATX Left
+        A: [-281.94, 0],          // ATX Left (Full width)
+
+        J: [0, 154.94],           // Mid Right
+        H: [-157.48, 154.94],     // Mid ITX Left
+        G: [-281.94, 154.94],     // Mid ATX Left
+
+        M: [0, 227.33],           // Bot Right
+        L: [-157.48, 227.33],     // Bot ITX Left
+        K: [-281.94, 227.33],     // Bot ATX Left
+    },
 
     // ITX: C, F, H, J
-    ITX_HOLES: [
-        [-157.48, 0],    // C
-        [0, 22.86],   // F: Aligned Top with C (User request)
-        [-157.48, 154.94],  // H
-        [0, 154.94], // J
-    ],
-    // mATX: C, F, H, J, L, M
-    MATX_HOLES: [
-        [-157.48, 0],     // C
-        [0, 22.86],       // F: Dropped 0.9" from Anchor
-        [-157.48, 154.94],// H
-        [0, 154.94],      // J
-        [-157.48, 233.68],// L: Bottom-Left-Far
-        [0, 233.68],      // M
-    ],
-    // ATX: C, F, H, J, L, M, A, G, K 
-    // Hole A is at Top-Right Corner (Anchor). C/F are to the left.
-    ATX_HOLES: [
-        [-271.78, 0],     // C: Top-Left (Far Left)
-        [-114.3, 22.86],  // F: Top-Middle (Dropped)
-        [-271.78, 154.94],// H
-        [-114.3, 154.94], // J
-        [-271.78, 233.68],// L
-        [-114.3, 233.68], // M
-        [0, 0],           // A: Top-Right (Anchor)
-        [0, 154.94],      // G
-        [0, 233.68],      // K
-    ],
+    get ITX_HOLES() { return [this.HOLES.C, this.HOLES.F, this.HOLES.H, this.HOLES.J]; },
+
+    // mATX: B, C, F, H, J, L, M
+    get MATX_HOLES() {
+        return [
+            this.HOLES.B, this.HOLES.C, this.HOLES.F,
+            this.HOLES.H, this.HOLES.J,
+            this.HOLES.L, this.HOLES.M
+        ];
+    },
+
+    // ATX: A, B, C, F, G, H, J, K, L, M
+    get ATX_HOLES() {
+        return [
+            this.HOLES.A, this.HOLES.B, this.HOLES.C, this.HOLES.F,
+            this.HOLES.G, this.HOLES.H, this.HOLES.J,
+            this.HOLES.K, this.HOLES.L, this.HOLES.M
+        ];
+    },
     ATX_HOLE_FH_TOP_OFFSET: 163.83,
 };
 

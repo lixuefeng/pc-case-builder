@@ -228,7 +228,7 @@ export const PRESETS = {
       dims: { w: MOTHERBOARD_SPECS.DIMENSIONS.MATX.w, h: 2, d: MOTHERBOARD_SPECS.DIMENSIONS.MATX.d },
       meta: {
         presetKey: "matx",
-        holeMap: [],
+        holeMap: MOTHERBOARD_SPECS.MATX_HOLES,
       },
       connectors: [],
     },
@@ -238,7 +238,7 @@ export const PRESETS = {
       dims: { w: MOTHERBOARD_SPECS.DIMENSIONS.ATX.w, h: 2, d: MOTHERBOARD_SPECS.DIMENSIONS.ATX.d },
       meta: {
         presetKey: "atx",
-        holeMap: [],
+        holeMap: MOTHERBOARD_SPECS.ATX_HOLES,
       },
       connectors: [],
     },

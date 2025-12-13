@@ -18,17 +18,23 @@ const buildStandardAtxLayout = (dims) => {
   const cpuSocketLeft = keepoutLeft + (keepoutSize - cpuSocketSize.w) / 2;
   const cpuSocketTop = keepoutTop + (keepoutSize - cpuSocketSize.d) / 2;
 
+  // Calculate offsets relative to the RIGHT edge (Reference: ITX Width 170mm)
+  // This ensures CPU stays aligned with RAM and PCIe slots on wider boards.
+  const ITX_WIDTH = 170;
+  const keepoutRightBase = ITX_WIDTH - (keepoutLeft + keepoutSize); // 170 - (61.3 + 77.5) = 31.2
+  const cpuSocketRightBase = ITX_WIDTH - (cpuSocketLeft + cpuSocketSize.w);
+
   return {
     cpuKeepout: {
       size: { w: keepoutSize, h: 1.5, d: keepoutSize },
-      fromLeft: keepoutLeft,
+      fromRight: keepoutRightBase,
       fromTop: keepoutTop,
       color: "#111827",
       opacity: 0.35,
     },
     cpuSocket: {
       size: cpuSocketSize,
-      fromLeft: cpuSocketLeft,
+      fromRight: cpuSocketRightBase,
       fromTop: cpuSocketTop,
       color: "#475569",
     },

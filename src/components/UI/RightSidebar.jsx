@@ -3,7 +3,7 @@ import ConnectorEditor from "./ConnectorEditor";
 import * as THREE from "three";
 
 import { useLanguage } from "../../i18n/LanguageContext";
-import { getRelativeTransform } from "../../utils/mathUtils";
+import { getRelativeTransform, normalizeDegree } from "../../utils/mathUtils";
 import { calculateMortiseTenon, calculateCrossLap } from "../../utils/connectionUtils";
 import { calculateHalfLapTransforms, validateHalfLapCompatibility } from "../../utils/halfLapUtils";
 import { useToast } from "../../context/ToastContext";
@@ -676,7 +676,7 @@ const RightSidebar = ({
 
   const handleDimChange = (dim, value) => {
     const newDims = { ...selectedObject.dims, [dim]: Number(value) };
-    
+
     // If GPU, recalculate connectors (fingers)
     let newConnectors = selectedObject.connectors;
     let newPos = selectedObject.pos;
@@ -684,11 +684,11 @@ const RightSidebar = ({
     if (selectedObject.type === "gpu") {
       console.log("[RightSidebar] Updating GPU dims:", newDims);
       try {
-        const fingerPlacement = buildGpuFingerPlacement({ 
-          dims: newDims, 
-          pcie: selectedObject.meta?.pcie || {} 
+        const fingerPlacement = buildGpuFingerPlacement({
+          dims: newDims,
+          pcie: selectedObject.meta?.pcie || {}
         });
-        
+
         // Find existing fingers connector or create new list if needed
         // Assuming single connector for now as per presets
         newConnectors = [
@@ -802,9 +802,9 @@ const RightSidebar = ({
           <SectionLabel>{t("prop.rotation") || "Rotation (Deg)"}</SectionLabel>
           <Vector3Input
             values={[
-              Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0)),
-              Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[1] ?? 0)),
-              Math.round(THREE.MathUtils.radToDeg(selectedObject.rot?.[2] ?? 0))
+              Math.round(normalizeDegree(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0))),
+              Math.round(normalizeDegree(THREE.MathUtils.radToDeg(selectedObject.rot?.[1] ?? 0))),
+              Math.round(normalizeDegree(THREE.MathUtils.radToDeg(selectedObject.rot?.[2] ?? 0)))
             ]}
             onChange={(axis, val) => handleRotChange(axis, val)}
             keys={["x", "y", "z"]}
@@ -824,7 +824,7 @@ const RightSidebar = ({
         <div style={cardStyle}>
           <div style={{ ...sectionStyle, marginBottom: 12 }}>
             <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>GPU Bracket</div>
-            
+
             <SectionLabel>Slot Count</SectionLabel>
             <NumberInput
               value={selectedObject.meta?.bracket?.slotCount ?? 2}
@@ -838,7 +838,7 @@ const RightSidebar = ({
 
             <SectionLabel>Bracket Dimensions (H, Thickness)</SectionLabel>
             <Vector3Input
-              values={selectedObject.meta?.bracket || {height: 120, thickness: 2}}
+              values={selectedObject.meta?.bracket || { height: 120, thickness: 2 }}
               onChange={(key, val) => {
                 const currentBracket = selectedObject.meta?.bracket || { slotCount: 2, height: 120, thickness: 2, dropBelowBody: 30, xOffset: -0.8 };
                 const newMeta = { ...selectedObject.meta, bracket: { ...currentBracket, [key]: Number(val) } };
@@ -851,7 +851,7 @@ const RightSidebar = ({
 
             <SectionLabel>Position (Drop, Offset)</SectionLabel>
             <Vector3Input
-              values={selectedObject.meta?.bracket || {dropBelowBody: 30, xOffset: -0.8}}
+              values={selectedObject.meta?.bracket || { dropBelowBody: 30, xOffset: -0.8 }}
               onChange={(key, val) => {
                 const currentBracket = selectedObject.meta?.bracket || { slotCount: 2, height: 120, thickness: 2, dropBelowBody: 30, xOffset: -0.8 };
                 const newMeta = { ...selectedObject.meta, bracket: { ...currentBracket, [key]: Number(val) } };

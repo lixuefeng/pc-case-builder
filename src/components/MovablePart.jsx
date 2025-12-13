@@ -20,6 +20,7 @@ import { usePartStretch } from "../hooks/usePartStretch";
 import { getLocalAxisDir, inferAxisFromMovement, projectedHalfExtentAlongAxis, getWorldTransform } from "../utils/editorGeometry";
 import { canSelectObject } from "../utils/interactionLogic";
 import { calculateHoveredFace } from "../utils/raycasting";
+import { getRelativeTransform, normalizeDegree, setEulerFromQuaternionPreservingContinuity } from "../utils/mathUtils";
 import { getFaceDetails } from "../utils/faceUtils";
 // Note: projectedHalfExtentAlongAxis is used inside getFaceDetails (logic was there in original)
 // wait, projectedHalfExtentAlongAxis was used in getFacesAlongDir.
@@ -247,11 +248,17 @@ export default function MovablePart({
       hasCandidate: !!candidate,
       best: !!bestAlignCandidate,
       isShiftPressed,
+      currentRot: groupRef.current?.rotation.toArray().map(v => THREE.MathUtils.radToDeg(v))
     });
 
     if (candidate) {
       snapToCandidate(candidate);
     } else {
+      // Ensure canonical Euler angles to prevent Gimbal lock confusion, but preserve continuity
+      // groupRef.current.rotation.setFromQuaternion(groupRef.current.quaternion); // Standard way might flip
+      const prevEuler = new THREE.Euler(...(obj.rot || [0, 0, 0]));
+      setEulerFromQuaternionPreservingContinuity(groupRef.current.rotation, groupRef.current.quaternion, prevEuler);
+
       const p = groupRef.current.position.clone().toArray();
       const r = [
         groupRef.current.rotation.x,
@@ -288,6 +295,19 @@ export default function MovablePart({
 
   const updateDuringDrag = () => {
     if (!groupRef.current) return;
+
+    // dlog("updateDuringDrag", { rot: groupRef.current.rotation.toArray().map(v => THREE.MathUtils.radToDeg(v)) });
+
+    // Apply rotation snapping if in rotate mode
+    if (mode === "rotate") {
+      const currentRot = [
+        groupRef.current.rotation.x,
+        groupRef.current.rotation.y,
+        groupRef.current.rotation.z
+      ];
+      applyRotationSnap(currentRot);
+    }
+
     const p = groupRef.current.position.clone().toArray();
     const r = [
       groupRef.current.rotation.x,
@@ -295,6 +315,21 @@ export default function MovablePart({
       groupRef.current.rotation.z,
     ];
     const s = dragStartRef.current;
+
+    // Use continuity-preserving Euler update for display logic too?
+    // The HUD shows degrees. If we flip 180, HUD flips.
+    // Yes, we should try to keep group rotation consistent with previous frame relative to continuity.
+    // BUT `groupRef.current.rotation` is being updated by TransformControls internally before this.
+    // So we should 'fix' it here before reading.
+
+    const prevEuler = new THREE.Euler(...(obj.rot || [0, 0, 0])); // This is from *start* of drag or previous committed state?
+    // obj.rot is committed state. During drag, we want continuity from *previous drag frame*?
+    // TransformControls updates the object rotation incrementally or absolute? 
+    // It updates the object.
+
+    // If we want smooth numbers during drag, we should stabilize the rotation object itself.
+    setEulerFromQuaternionPreservingContinuity(groupRef.current.rotation, groupRef.current.quaternion, prevEuler);
+
     const d = {
       dx: +(p[0] - s.pos[0]).toFixed(3),
       dy: +(p[1] - s.pos[1]).toFixed(3),
@@ -708,6 +743,7 @@ export default function MovablePart({
           showY={mode !== "scale"}
           showZ={mode !== "scale"}
           space="local"
+          size={3.0}
           onMouseDown={startDrag}
           onMouseUp={handleDragEnd}
           onChange={(e) => {

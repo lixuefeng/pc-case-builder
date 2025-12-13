@@ -99,14 +99,18 @@ export function usePartAlignment({
                     if (dist < DIST_THRESHOLD && dist < minDistance) {
                         minDistance = dist;
                         bestCandidate = {
+                            targetObj: target,
                             targetId: target.id,
                             targetFace: tf.name,    // e.g. "+X"
                             selfFace: sf.name,      // e.g. "-X"
                             targetCoord: tf.coord,
                             selfCoord: sf.coord,
                             dist: dist,
+                            targetAxisLabel: axisLabel,
+                            targetDir: dirN,
+                            // Keep synonyms if needed elsewhere or just switch
                             axisLabel,
-                            dir: dirN,
+                            dir: dirN
                         };
                     }
                 }

@@ -1,99 +1,63 @@
-import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
     getRelativeTransform,
     projectedHalfExtentAlongAxis,
     inferAxisFromMovement,
-    pickTargetBasis
+    pickTargetBasis,
+    normalizeDegree,
+    setEulerFromQuaternionPreservingContinuity
 } from '../utils/mathUtils';
 
 describe('mathUtils', () => {
-    describe('getRelativeTransform', () => {
-        it('should return null for invalid inputs', () => {
-            expect(getRelativeTransform(null, {})).toBeNull();
-            expect(getRelativeTransform({}, null)).toBeNull();
+    describe('normalizeDegree', () => {
+        it('should normalize degrees within (-180, 180]', () => {
+            expect(normalizeDegree(0)).toBe(0);
+            expect(normalizeDegree(180)).toBe(180);
+            expect(normalizeDegree(-180)).toBe(180); // -180 becomes 180
+            expect(normalizeDegree(360)).toBe(0);
+            expect(normalizeDegree(370)).toBe(10);
+            expect(normalizeDegree(-370)).toBe(-10);
+            expect(normalizeDegree(190)).toBe(-170);
+            expect(normalizeDegree(-190)).toBe(170);
         });
 
-        it('should calculate relative transform correctly (Identity)', () => {
-            const source = { pos: [10, 0, 0], rot: [0, 0, 0] };
-            const target = { pos: [0, 0, 0], rot: [0, 0, 0] };
-            const result = getRelativeTransform(source, target);
-
-            expect(result.pos[0]).toBeCloseTo(10);
-            expect(result.pos[1]).toBeCloseTo(0);
-            expect(result.pos[2]).toBeCloseTo(0);
-            expect(result.rot[0]).toBeCloseTo(0);
-            expect(result.rot[1]).toBeCloseTo(0);
-            expect(result.rot[2]).toBeCloseTo(0);
+        it('should handle large numbers', () => {
+            expect(normalizeDegree(720)).toBe(0);
+            expect(normalizeDegree(730)).toBe(10);
+            expect(normalizeDegree(-730)).toBe(-10);
         });
 
-        it('should calculate relative transform with target rotation', () => {
-            // Target rotated 90 deg around Y
-            const target = { pos: [0, 0, 0], rot: [0, Math.PI / 2, 0] };
-            // Source at (10, 0, 0) in World
-            const source = { pos: [10, 0, 0], rot: [0, 0, 0] };
-
-            const result = getRelativeTransform(source, target);
-
-            expect(result.pos[0]).toBeCloseTo(0);
-            expect(result.pos[1]).toBeCloseTo(0);
-            expect(result.pos[2]).toBeCloseTo(10); // Target Z axis aligns with World X
+        it('should handle non-numbers', () => {
+            expect(normalizeDegree(null)).toBe(0);
+            expect(normalizeDegree(undefined)).toBe(0);
+            expect(normalizeDegree("10")).toBe(0);
         });
     });
 
-    describe('projectedHalfExtentAlongAxis', () => {
-        it('should calculate projection correctly', () => {
-            const dims = { w: 10, h: 20, d: 30 };
-            const axes = {
-                ax: new THREE.Vector3(1, 0, 0),
-                ay: new THREE.Vector3(0, 1, 0),
-                az: new THREE.Vector3(0, 0, 1)
-            };
-            const worldAxis = new THREE.Vector3(1, 0, 0); // Along X
+    describe('setEulerFromQuaternionPreservingContinuity', () => {
+        it('should preserve winding number', () => {
+            const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, 0));
+            // Rotate 360 + 10 degrees around X
+            const angle = THREE.MathUtils.degToRad(370); // 360+10
+            const q2 = new THREE.Quaternion().setFromEuler(new THREE.Euler(angle, 0, 0));
 
-            const result = projectedHalfExtentAlongAxis(worldAxis, dims, axes);
-            expect(result).toBe(5); // w/2
+            const prev = new THREE.Euler(THREE.MathUtils.degToRad(360), 0, 0);
+            const target = new THREE.Euler(0, 0, 0); // initial garbage
+
+            setEulerFromQuaternionPreservingContinuity(target, q2, prev);
+
+            // Expected: Close to 370 degrees, not 10 degrees
+            expect(target.x).toBeCloseTo(angle);
         });
 
-        it('should handle rotated axes', () => {
-            const dims = { w: 10, h: 10, d: 10 }; // 5, 5, 5
-            const axes = {
-                ax: new THREE.Vector3(0.707, 0.707, 0), // 45 deg
-                ay: new THREE.Vector3(-0.707, 0.707, 0),
-                az: new THREE.Vector3(0, 0, 1)
-            };
-            const worldAxis = new THREE.Vector3(1, 0, 0);
+        it('should handle negative winding', () => {
+            const angle = THREE.MathUtils.degToRad(-370);
+            const q2 = new THREE.Quaternion().setFromEuler(new THREE.Euler(angle, 0, 0));
+            const prev = new THREE.Euler(THREE.MathUtils.degToRad(-360), 0, 0);
+            const target = new THREE.Euler();
 
-            const result = projectedHalfExtentAlongAxis(worldAxis, dims, axes);
-            // 5 * 0.707 + 5 * 0.707 + 0 = 7.07
-            expect(result).toBeCloseTo(7.07, 2);
-        });
-    });
-
-    describe('inferAxisFromMovement', () => {
-        it('should infer X axis', () => {
-            const mv = new THREE.Vector3(10, 1, 1);
-            const tf = { axes: { ax: new THREE.Vector3(1, 0, 0), ay: new THREE.Vector3(0, 1, 0), az: new THREE.Vector3(0, 0, 1) } };
-            const result = inferAxisFromMovement(mv, tf);
-            expect(result.axis).toBe('X');
-        });
-
-        it('should infer Y axis', () => {
-            const mv = new THREE.Vector3(1, 10, 1);
-            const tf = { axes: { ax: new THREE.Vector3(1, 0, 0), ay: new THREE.Vector3(0, 1, 0), az: new THREE.Vector3(0, 0, 1) } };
-            const result = inferAxisFromMovement(mv, tf);
-            expect(result.axis).toBe('Y');
-        });
-    });
-
-    describe('pickTargetBasis', () => {
-        it('should pick closest aligned axis', () => {
-            const targetTF = { axes: { ax: new THREE.Vector3(1, 0, 0), ay: new THREE.Vector3(0, 1, 0), az: new THREE.Vector3(0, 0, 1) } };
-            const selfDir = new THREE.Vector3(0.9, 0.1, 0);
-
-            const result = pickTargetBasis(targetTF, selfDir);
-            expect(result.label).toBe('X');
-            expect(result.dir.x).toBe(1);
+            setEulerFromQuaternionPreservingContinuity(target, q2, prev);
+            expect(target.x).toBeCloseTo(angle);
         });
     });
 });

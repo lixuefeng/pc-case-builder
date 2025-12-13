@@ -97,3 +97,69 @@ export function pickTargetBasis(targetTF, selfDir) {
     }
     return { dir: best.v.clone().normalize(), label: best.label };
 }
+
+/**
+ * Normalizes an angle in degrees to the range (-180, 180].
+ * @param {number} deg - The angle in degrees.
+ * @returns {number} - The normalized angle.
+ */
+export function normalizeDegree(deg) {
+    if (typeof deg !== 'number' || isNaN(deg)) return 0;
+    // (deg % 360) reduces it to (-360, 360)
+    let d = deg % 360;
+    // shift to (-180, 540) then mod again isn't quite right for negatives.
+    // Easier:
+    // 1. reduce to (-360, 360)
+    // 2. force to (0, 360] or similar
+
+    // Standard formula: ((deg + 180) % 360) - 180
+    // But Javascript % operator is remainder, not modulo, so it can return negative.
+
+    d = (d + 360) % 360; // now in [0, 360)
+    if (d > 180) d -= 360; // now in (-180, 180]
+
+    return d;
+}
+
+/**
+ * Sets targetEuler from quaternion trying to strictly minimize the change from prevEuler.
+ * This helps avoid 360-degree jumps or Gimbal-lock flips (e.g. 0,90,0 -> 180,90,180).
+ * @param {THREE.Euler} targetEuler - The euler object to update.
+ * @param {THREE.Quaternion} quaternion - The source quaternion.
+ * @param {THREE.Euler} prevEuler - The previous frame's euler angles.
+ * @param {string} order - Euler order (default 'XYZ').
+ */
+export function setEulerFromQuaternionPreservingContinuity(targetEuler, quaternion, prevEuler, order = 'XYZ') {
+    // 1. Get standard solution
+    const tempEuler = new THREE.Euler().setFromQuaternion(quaternion, order);
+
+    // 2. Generate alternative solutions
+    // A quaternion q can be represented by Euler (x,y,z) and also others often involving +/- 180 flips or +/- 360 shifts.
+    // Simplifying assumption:
+    // We mainly care about +/- 360 shifts for each axis to be close to prev.
+    // AND the "alternative" Euler branch representation which usually means (x+180, 180-y, z+180) type things.
+
+    // For now, let's just handle the +/- 360 shift to keep it simple but effective for "winding".
+    // AND check the "flipped" version if it exists.
+
+    // However, Three.js setFromQuaternion is deterministic.
+    // If we want to support "winding" (going past 360), we need to shift tempEuler components by multiples of 360 
+    // to match prevEuler components.
+
+    const adjust = (val, prevVal) => {
+        const diff = val - prevVal;
+        // if diff is > 180, subtract 360
+        // if diff is < -180, add 360
+        // We want to minimize |val + k*360 - prevVal|
+        // rounds roughly to finding nearest k
+        const k = Math.round((prevVal - val) / (2 * Math.PI));
+        return val + k * 2 * Math.PI;
+    };
+
+    targetEuler.set(
+        adjust(tempEuler.x, prevEuler.x),
+        adjust(tempEuler.y, prevEuler.y),
+        adjust(tempEuler.z, prevEuler.z),
+        order
+    );
+}

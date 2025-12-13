@@ -274,14 +274,27 @@ export default function MovablePart({
     }
     setBestAlignCandidate(null);
     if (lastAlignCandidateRef.current) lastAlignCandidateRef.current = null;
+    isDraggingRef.current = false;
   };
 
 
+  // Mouse tracking for debug
+  const lastMouseRef = useRef({ x: 0, y: 0 });
+  const dragStartMouseRef = useRef({ x: 0, y: 0 });
+  
+  useEffect(() => {
+     const onMove = (e) => {
+         lastMouseRef.current = { x: e.clientX, y: e.clientY };
+     };
+     window.addEventListener('pointermove', onMove);
+     return () => window.removeEventListener('pointermove', onMove);
+  }, []);
 
   const startDrag = () => {
     if (!groupRef.current) return;
     const p = groupRef.current.position.clone().toArray();
     const r = [groupRef.current.rotation.x, groupRef.current.rotation.y, groupRef.current.rotation.z];
+    dragStartMouseRef.current = { ...lastMouseRef.current };
     dragStartRef.current = { pos: p, rot: r };
     prevPosRef.current = p;
     setDelta({ dx: 0, dy: 0, dz: 0, rx: 0, ry: 0, rz: 0 });
@@ -322,12 +335,8 @@ export default function MovablePart({
     // BUT `groupRef.current.rotation` is being updated by TransformControls internally before this.
     // So we should 'fix' it here before reading.
 
-    const prevEuler = new THREE.Euler(...(obj.rot || [0, 0, 0])); // This is from *start* of drag or previous committed state?
-    // obj.rot is committed state. During drag, we want continuity from *previous drag frame*?
-    // TransformControls updates the object rotation incrementally or absolute? 
-    // It updates the object.
-
     // If we want smooth numbers during drag, we should stabilize the rotation object itself.
+    const prevEuler = new THREE.Euler(...(obj.rot || [0, 0, 0]));
     setEulerFromQuaternionPreservingContinuity(groupRef.current.rotation, groupRef.current.quaternion, prevEuler);
 
     const d = {
@@ -345,16 +354,18 @@ export default function MovablePart({
       const p = groupRef.current.position;
       const r = groupRef.current.rotation;
       const sc = groupRef.current.scale;
+      
+      const hudData = {
+          x: p.x, y: p.y, z: p.z,
+          rx: normalizeDegree(THREE.MathUtils.radToDeg(r.x)),
+          ry: normalizeDegree(THREE.MathUtils.radToDeg(r.y)),
+          rz: normalizeDegree(THREE.MathUtils.radToDeg(r.z)),
+          factor: sc.x
+      };
 
       setHudState({
         type: mode === 'translate' ? 'move' : mode,
-        data: {
-          x: p.x, y: p.y, z: p.z,
-          rx: THREE.MathUtils.radToDeg(r.x),
-          ry: THREE.MathUtils.radToDeg(r.y),
-          rz: THREE.MathUtils.radToDeg(r.z),
-          factor: sc.x
-        }
+        data: hudData
       });
     }
 
@@ -743,7 +754,7 @@ export default function MovablePart({
           showY={mode !== "scale"}
           showZ={mode !== "scale"}
           space="local"
-          size={3.0}
+          size={1.0}
           onMouseDown={startDrag}
           onMouseUp={handleDragEnd}
           onChange={(e) => {

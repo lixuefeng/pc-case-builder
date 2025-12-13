@@ -215,7 +215,7 @@ const HUD = ({ transformMode, onApplyCut }) => {
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>RX</span>
                   <NumberInput
-                    value={data.rx ? normalizeDegree(data.rx * (180 / Math.PI)) : 0}
+                    value={data.rx ? normalizeDegree(data.rx) : 0}
                     suffix="°"
                     onCommit={(val) => updateSingleAxis('rot', 0, THREE.MathUtils.degToRad(val))}
                     disabled={inputDisabled}
@@ -224,7 +224,7 @@ const HUD = ({ transformMode, onApplyCut }) => {
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>RY</span>
                   <NumberInput
-                    value={data.ry ? normalizeDegree(data.ry * (180 / Math.PI)) : 0}
+                    value={data.ry ? normalizeDegree(data.ry) : 0}
                     suffix="°"
                     onCommit={(val) => updateSingleAxis('rot', 1, THREE.MathUtils.degToRad(val))}
                     disabled={inputDisabled}
@@ -233,7 +233,7 @@ const HUD = ({ transformMode, onApplyCut }) => {
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={labelStyle}>RZ</span>
                   <NumberInput
-                    value={data.rz ? normalizeDegree(data.rz * (180 / Math.PI)) : 0}
+                    value={data.rz ? normalizeDegree(data.rz) : 0}
                     suffix="°"
                     onCommit={(val) => updateSingleAxis('rot', 2, THREE.MathUtils.degToRad(val))}
                     disabled={inputDisabled}

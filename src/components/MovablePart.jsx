@@ -62,6 +62,7 @@ export default function MovablePart({
   onModifyPick,
   selectedEdges = [],
   showTransformControls = false,
+  showGizmos = true,
   gizmoHovered,
   setGizmoHovered,
   connectorHovered = false,
@@ -759,7 +760,7 @@ export default function MovablePart({
         })()}
 
         {/* Render Connectors */}
-        {obj.connectors?.map((c) => (
+        {showGizmos && obj.connectors?.map((c) => (
           <ConnectorMarker
             key={c.id}
             connector={c}
@@ -770,7 +771,7 @@ export default function MovablePart({
         ))}
 
         {/* Render Holes */}
-        {obj.holes?.map((hole) => (
+        {showGizmos && obj.holes?.map((hole) => (
           <HoleMarker
             key={hole.id}
             hole={hole}

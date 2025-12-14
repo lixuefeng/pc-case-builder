@@ -19,6 +19,7 @@ export default function Scene({
   alignMode = false,
   onFacePick,
   onConnectorPick,
+  onModifyPick,
   activeAlignFace = null,
   transformMode = "translate",
   onChangeTransformMode,
@@ -33,6 +34,7 @@ export default function Scene({
   onCutPlaneChange,
   drillDebugIds = [],
   drillParams,
+  modifySelection, // Added
 }) {
   const orbitRef = useRef();
   const [isAltPressed, setIsAltPressed] = useState(false);
@@ -222,6 +224,8 @@ export default function Scene({
             alignMode={alignMode}
             onFacePick={onFacePick}
             onConnectorPick={onConnectorPick}
+            onModifyPick={onModifyPick}
+            selectedEdges={modifySelection?.partId === obj.id ? modifySelection.edges : null}
             activeAlignFace={activeAlignFace}
             mode={transformMode}
             onModeChange={onChangeTransformMode}

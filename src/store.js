@@ -240,7 +240,9 @@ export const useStore = create((set, get) => {
 
     // HUD State (Transient)
     hudState: null,
-    setHudState: (newState) => set({ hudState: newState }),
+    setHudState: (updater) => set((state) => ({
+      hudState: typeof updater === 'function' ? updater(state.hudState) : updater
+    })),
 
     // Ruler State
     rulerPoints: [],

@@ -22,6 +22,7 @@ import { useSelection } from "./hooks/useSelection";
 import { useDrillTool } from "./hooks/useDrillTool.jsx";
 import { useCutTool } from "./hooks/useCutTool";
 import { useRulerTool } from "./hooks/useRulerTool";
+import { reduceModifyState } from "./utils/selectionStateLogic";
 import { useConnectors } from "./hooks/useConnectors";
 import { useTransformInteraction } from "./hooks/useTransformInteraction";
 
@@ -44,6 +45,7 @@ function EditorContent() {
     measurements,
     setMeasurements,
     drillParams,
+    hudState, // Added
   } = useStore();
   const { undo, redo, future, past } = useTemporalStore((state) => state);
   const { showToast } = useToast();
@@ -66,7 +68,7 @@ function EditorContent() {
     return p ? p.name : "";
   }, [projects, currentProjectId]);
 
-  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "rotate" || transformMode === "ruler" || transformMode === "drill";
+  const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "rotate" || transformMode === "ruler" || transformMode === "drill" || transformMode === "modify";
 
   // --- Hooks ---
   const selectionTool = useSelection({ objects, setObjects, selectedIds, setSelectedIds });
@@ -115,6 +117,8 @@ function EditorContent() {
       setHudState({ type: 'ruler', data: { distance: 0 } });
     } else if (mode === 'drill') {
       setHudState({ type: 'drill', data: {} });
+    } else if (mode === 'modify') {
+      setHudState({ type: 'modify', data: {} });
     } else {
       if (mode === 'translate') {
         setHudState({
@@ -252,6 +256,22 @@ function EditorContent() {
               sx: s[0], sy: s[1], sz: s[2], factor: s[0]
             }
           });
+        } else if (transformMode === 'modify') {
+            setHudState(prev => {
+                const currentEdges = (prev?.type === 'modify' && prev?.data?.partId === obj.id) 
+                    ? (prev.data.edges || []) 
+                    : [];
+                
+                return {
+                    type: 'modify',
+                    data: {
+                        partId: obj.id,
+                        edges: currentEdges,
+                        operation: 'chamfer',
+                        size: 5
+                    }
+                };
+            });
         }
       }
     }
@@ -349,6 +369,37 @@ function EditorContent() {
     }
   }, [objects, setObjects]);
 
+
+
+
+
+// ...
+
+  const handleModifyPick = useCallback((pickData) => {
+    console.log('[PCEditor] handleModifyPick Called:', pickData); // DEBUG LOG
+    setHudState(current => {
+        const next = reduceModifyState(current, pickData);
+        console.log('[PCEditor] Next HUD State:', next); // DEBUG LOG
+        return next;
+    });
+  }, [setHudState]);
+
+  useEffect(() => {
+      if (hudState?.type === 'modify') {
+          console.log('[PCEditor] hudState updated:', hudState);
+      }
+  }, [hudState]);
+
+  const modifySelection = useMemo(() => {
+     if (hudState?.type === 'modify' && hudState.data?.partId) {
+         return {
+             partId: hudState.data.partId,
+             edges: hudState.data.edges || (hudState.data.edge ? [hudState.data.edge] : [])
+         };
+     }
+     return null;
+  }, [hudState]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", width: "100vw", height: "100vh", overflow: "hidden", background: "#0b1020" }}>
       {/* Top Bar */}
@@ -412,6 +463,8 @@ function EditorContent() {
             onFacePick={handleFacePick}
             onDrillHover={drillTool.handleDrillHover}
             onConnectorPick={connectorTool.handleConnectorPick}
+            onModifyPick={handleModifyPick}
+            modifySelection={modifySelection}
             activeAlignFace={transformMode === 'ruler' ? rulerTool.startFace : transformTool.pendingAlignFace}
             transformMode={transformMode}
             onChangeTransformMode={handleTransformModeChange}

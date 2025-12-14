@@ -6,6 +6,7 @@ import { anchorPoint, addVec } from "../utils/anchors";
 
 import { Geometry, Base, Subtraction } from "@react-three/csg";
 import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from "../constants";
+import { getChamferParams, getFilletParams } from "../utils/editorGeometry";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
 export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted }) {
@@ -151,6 +152,7 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
   // Filter valid parts first to avoid passing null children to Geometry
   const validSubtractingParts = useMemo(() => {
     return subtractingParts.filter(other => {
+      if (other.type === 'chamfer' || other.type === 'fillet') return true;
       if (!other.relativeTransform) return false;
       const scale = other.scale || [1, 1, 1];
       // Filter out near-zero scales
@@ -180,6 +182,56 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
             } else if (other.type === 'cone') {
               args = [0, other.dims.w / 2, other.dims.h, 32];
               geo = <cylinderGeometry args={args} />;
+            } else if (other.type === 'chamfer') {
+              const params = getChamferParams(other.edge, dims, other.size);
+              if (params) {
+                  args = params.size;
+                  geo = <boxGeometry args={args} />;
+                  // Override transform for this special case
+                  // We need to return early or mutate logic below
+                  // But 'other' is const in map iteration (implicit)
+                  // Let's return the Subtraction directly here
+                   return (
+                      <Subtraction
+                        key={other.id}
+                        position={params.pos.toArray()}
+                        rotation={params.rot.toArray()}
+                        scale={[1, 1, 1]}
+                      >
+                        {geo}
+                      </Subtraction>
+                   );
+              } else {
+                  return null;
+              }
+            } else if (other.type === 'fillet') {
+               const params = getFilletParams(other.edge, dims, other.size);
+               if (params) {
+                   // Inverse Fillet = Box - Cylinder
+                   // We need nested CSG
+                   return (
+                       <Subtraction
+                            key={other.id}
+                            position={params.box.pos.toArray()}
+                            rotation={params.box.rot.toArray()}
+                            scale={[1, 1, 1]}
+                       >
+                           <Geometry>
+                               <Base>
+                                   <boxGeometry args={params.box.size} />
+                               </Base>
+                               <Subtraction
+                                   position={params.cyl.pos.toArray()}
+                                   rotation={params.cyl.rot.toArray()}
+                               >
+                                   <cylinderGeometry args={[params.cyl.radius, params.cyl.radius, params.cyl.height, 32]} />
+                               </Subtraction>
+                           </Geometry>
+                       </Subtraction>
+                   );
+               } else {
+                   return null;
+               }
             } else {
               args = [other.dims.w, other.dims.h, other.dims.d];
               geo = <boxGeometry args={args} />;

@@ -112,6 +112,7 @@ export const getFaceDetails = ({ obj, ref, faceName }) => {
         localCenter: localCenter.toArray(),
         size,
         quaternion: finalQuaternion, // Return the composed quaternion
+        localQuaternion: baseQ,
         normal: worldNormal.toArray(),
     };
 };

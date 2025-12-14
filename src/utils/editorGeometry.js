@@ -264,3 +264,362 @@ export const getFace2DInfo = (faceName, dims) => {
     }
     return { dims: [0, 0], axesIndices: [0, 1] };
 };
+
+export const getClosestEdge = (localPoint, dims) => {
+    if (!dims) return { edge: null, distance: Infinity };
+    const { w, h, d } = dims;
+    const w2 = w / 2;
+    const h2 = h / 2;
+    const d2 = d / 2;
+
+    const edges = [
+        // X-Aligned
+        { id: 'top-front', axis: 'x', center: [0, h2, d2], length: w },
+        { id: 'top-back', axis: 'x', center: [0, h2, -d2], length: w },
+        { id: 'bottom-front', axis: 'x', center: [0, -h2, d2], length: w },
+        { id: 'bottom-back', axis: 'x', center: [0, -h2, -d2], length: w },
+        // Y-Aligned
+        { id: 'front-right', axis: 'y', center: [w2, 0, d2], length: h },
+        { id: 'front-left', axis: 'y', center: [-w2, 0, d2], length: h },
+        { id: 'back-right', axis: 'y', center: [w2, 0, -d2], length: h },
+        { id: 'back-left', axis: 'y', center: [-w2, 0, -d2], length: h },
+        // Z-Aligned
+        { id: 'top-right', axis: 'z', center: [w2, h2, 0], length: d },
+        { id: 'top-left', axis: 'z', center: [-w2, h2, 0], length: d },
+        { id: 'bottom-right', axis: 'z', center: [w2, -h2, 0], length: d },
+        { id: 'bottom-left', axis: 'z', center: [-w2, -h2, 0], length: d },
+    ];
+
+    let minDesc = null;
+    let minDist = Infinity;
+    const MARGIN = 10; // Allow snapping even if slightly outside (raycast usually on surface though)
+
+    edges.forEach(edge => {
+        const c = new THREE.Vector3(...edge.center);
+        let dist = 0;
+
+        if (edge.axis === 'x') {
+            const dy = localPoint.y - c.y;
+            const dz = localPoint.z - c.z;
+            dist = Math.sqrt(dy * dy + dz * dz);
+            if (Math.abs(localPoint.x) > w2 + MARGIN) dist = Infinity;
+        } else if (edge.axis === 'y') {
+            const dx = localPoint.x - c.x;
+            const dz = localPoint.z - c.z;
+            dist = Math.sqrt(dx * dx + dz * dz);
+            if (Math.abs(localPoint.y) > h2 + MARGIN) dist = Infinity;
+        } else {
+            const dx = localPoint.x - c.x;
+            const dy = localPoint.y - c.y;
+            dist = Math.sqrt(dx * dx + dy * dy);
+            if (Math.abs(localPoint.z) > d2 + MARGIN) dist = Infinity;
+        }
+
+        if (dist < minDist) {
+            minDist = dist;
+            minDesc = edge;
+        }
+    });
+
+    return { edge: minDesc, distance: minDist };
+};
+
+export const getChamferParams = (edgeId, dims, size) => {
+    // Returns { pos, rot, size } for a box cutter
+    if (!edgeId || !dims) return null;
+    const { w, h, d } = dims;
+    const s = size;
+    const halfW = w / 2;
+    const halfH = h / 2;
+    const halfD = d / 2;
+
+    // Cutter dimensions: The face touching the object matches length.
+    // The other two dims need to be large enough to cut the corner.
+    // For a chamfer size s, the diagonal is s*sqrt(2).
+    // Box thickness T should just be > s.
+    const T = Math.max(s * 2, 10);
+
+    // Start with default transform
+    let pos = new THREE.Vector3();
+    let rot = new THREE.Euler();
+    let boxSize = [1, 1, 1];
+
+    // Midpoint of chamfer line is offset by s/2 from the surface, 
+    // but we want the cutter BOX to be centered at:
+    // Midpoint + Normal * (T/2)
+    // Where Normal points OUT of the object from the chamfer plane.
+
+    // Simplification:
+    // Corner is at (X, Y). Chamfer plane passes through (X, Y-s) and (X-s, Y).
+    // We want to cut the triangle (X,Y), (X, Y-s), (X-s, Y).
+    // We place a box rotated 45deg.
+    // The "bottom" of the box (local y=-T/2) should be on the plane.
+    // The plane center M is at (X - s/2, Y - s/2).
+    // The box center should be M + Normal * (T/2).
+    // Normal is (1, 1) direction for Top-Right (conceptually).
+
+    // Let's go edge by edge (or group by axis).
+
+    const offset = s / 2;
+    const N = new THREE.Vector3(1, 1, 1).normalize(); // Placeholder
+    const dist = T / 2;
+
+    // Helpers
+    // Top (+Y), Bottom (-Y), Front (+Z), Back (-Z), Right (+X), Left (-X)
+
+    switch (edgeId) {
+        // X-Aligned (Length W)
+        case 'top-front': // +Y, +Z. Corner: (0, h2, d2). Cut: Y and Z.
+            boxSize = [w + 2, T, T]; // Extra length for clean cut
+            rot = new THREE.Euler(Math.PI / 4, 0, 0); // 45 deg around X
+            pos.set(0, halfH - offset + (T / 2) * Math.sin(Math.PI / 4), halfD - offset + (T / 2) * Math.sin(Math.PI / 4));
+            // Wait, logic check.
+            // Vector from (h2-offset, d2-offset) pointing towards (h2, d2) is (1, 1) in YZ.
+            // We want cutter to be OUTWARDS.
+            // Normal is (1, 1). Box center = (h2-offset, d2-offset) + (1, 1).normalize() * T/2.
+            {
+                const cy = halfH - offset;
+                const cz = halfD - offset;
+                const ny = 1; const nz = 1; // Direction (+Y, +Z) is corner direction relative to center
+                const len = Math.sqrt(ny * ny + nz * nz);
+                pos.set(0, cy + (ny / len) * dist, cz + (nz / len) * dist);
+            }
+            break;
+
+        case 'top-back': // +Y, -Z
+            boxSize = [w + 2, T, T];
+            rot = new THREE.Euler(-Math.PI / 4, 0, 0);
+            {
+                const cy = halfH - offset;
+                const cz = -halfD + offset;
+                // Corner direction is (+1, -1) in YZ
+                const ny = 1; const nz = -1;
+                const len = Math.sqrt(2);
+                pos.set(0, cy + (ny / len) * dist, cz + (nz / len) * dist);
+            }
+            break;
+
+        case 'bottom-front': // -Y, +Z
+            boxSize = [w + 2, T, T];
+            rot = new THREE.Euler(-Math.PI / 4, 0, 0);
+            {
+                const cy = -halfH + offset;
+                const cz = halfD - offset;
+                // Corner direction (-1, +1)
+                const ny = -1; const nz = 1;
+                const len = Math.sqrt(2);
+                pos.set(0, cy + (ny / len) * dist, cz + (nz / len) * dist);
+            }
+            break;
+
+        case 'bottom-back': // -Y, -Z
+            boxSize = [w + 2, T, T];
+            rot = new THREE.Euler(Math.PI / 4, 0, 0);
+            {
+                const cy = -halfH + offset;
+                const cz = -halfD + offset;
+                // Corner direction (-1, -1)
+                const ny = -1; const nz = -1;
+                const len = Math.sqrt(2);
+                pos.set(0, cy + (ny / len) * dist, cz + (nz / len) * dist);
+            }
+            break;
+
+        // Y-Aligned (Length H)
+        case 'front-right': // +Z, +X. Corner (+w2, +d2)
+            boxSize = [T, h + 2, T];
+            rot = new THREE.Euler(0, -Math.PI / 4, 0);
+            {
+                const cx = halfW - offset;
+                const cz = halfD - offset;
+                // Corner (+1, +1) in XZ
+                const nx = 1; const nz = 1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, 0, cz + (nz / len) * dist);
+            }
+            break;
+
+        case 'front-left': // +Z, -X. Corner (-w2, +d2)
+            boxSize = [T, h + 2, T];
+            rot = new THREE.Euler(0, Math.PI / 4, 0);
+            {
+                const cx = -halfW + offset;
+                const cz = halfD - offset;
+                // Corner (-1, +1)
+                const nx = -1; const nz = 1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, 0, cz + (nz / len) * dist);
+            }
+            break;
+
+        case 'back-right': // -Z, +X. Corner (+w2, -d2)
+            boxSize = [T, h + 2, T];
+            rot = new THREE.Euler(0, Math.PI / 4, 0);
+            {
+                const cx = halfW - offset;
+                const cz = -halfD + offset;
+                // (+1, -1)
+                const nx = 1; const nz = -1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, 0, cz + (nz / len) * dist);
+            }
+            break;
+
+        case 'back-left': // -Z, -X. Corner (-w2, -d2)
+            boxSize = [T, h + 2, T];
+            rot = new THREE.Euler(0, -Math.PI / 4, 0);
+            {
+                const cx = -halfW + offset;
+                const cz = -halfD + offset;
+                // (-1, -1)
+                const nx = -1; const nz = -1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, 0, cz + (nz / len) * dist);
+            }
+            break;
+
+        // Z-Aligned (Length D)
+        case 'top-right': // +Y, +X. Corner (+w2, +h2)
+            boxSize = [T, T, d + 2];
+            rot = new THREE.Euler(0, 0, Math.PI / 4);
+            {
+                const cx = halfW - offset;
+                const cy = halfH - offset;
+                // (+1, +1) in XY
+                const nx = 1; const ny = 1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, cy + (ny / len) * dist, 0);
+            }
+            break;
+
+        case 'top-left': // +Y, -X. Corner (-w2, +h2)
+            boxSize = [T, T, d + 2];
+            rot = new THREE.Euler(0, 0, -Math.PI / 4);
+            {
+                const cx = -halfW + offset;
+                const cy = halfH - offset;
+                // (-1, +1)
+                const nx = -1; const ny = 1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, cy + (ny / len) * dist, 0);
+            }
+            break;
+
+        case 'bottom-right': // -Y, +X. Corner (+w2, -h2)
+            boxSize = [T, T, d + 2];
+            rot = new THREE.Euler(0, 0, -Math.PI / 4);
+            {
+                const cx = halfW - offset;
+                const cy = -halfH + offset;
+                // (+1, -1)
+                const nx = 1; const ny = -1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, cy + (ny / len) * dist, 0);
+            }
+            break;
+
+        case 'bottom-left': // -Y, -X. Corner (-w2, -h2)
+            boxSize = [T, T, d + 2];
+            rot = new THREE.Euler(0, 0, Math.PI / 4);
+            {
+                const cx = -halfW + offset;
+                const cy = -halfH + offset;
+                // (-1, -1)
+                const nx = -1; const ny = -1;
+                const len = Math.sqrt(2);
+                pos.set(cx + (nx / len) * dist, cy + (ny / len) * dist, 0);
+            }
+            break;
+    }
+
+
+    return { pos, rot, size: boxSize };
+};
+
+export const getFilletParams = (edgeId, dims, size) => {
+    if (!edgeId || !dims) return null;
+    const { w, h, d } = dims;
+    const s = size;
+    // Box dimensions
+    // We create a box at the corner, size s * s (cross section)
+    // And subtract a cylinder centered at the inner corner.
+
+    // We need to determine orientation.
+    // X-Aligned: YZ plane. 
+    // Y-Aligned: XZ plane.
+    // Z-Aligned: XY plane.
+
+    // Default values
+    let boxSize = [1, 1, 1];
+    let boxPos = new THREE.Vector3();
+    let boxRot = new THREE.Euler();
+
+    let cylRadius = s;
+    let cylHeight = 1;
+    let cylPos = new THREE.Vector3(); // Relative to Box
+    let cylRot = new THREE.Euler();
+
+    const h2 = h / 2;
+    const w2 = w / 2;
+    const d2 = d / 2;
+
+    // Helper signals
+    let sx = 0, sy = 0, sz = 0;
+    let axis = '';
+
+    // Identify edge params
+    if (edgeId.includes('top')) sy = 1;
+    if (edgeId.includes('bottom')) sy = -1;
+    if (edgeId.includes('front')) sz = 1;
+    if (edgeId.includes('back')) sz = -1;
+    if (edgeId.includes('right')) sx = 1;
+    if (edgeId.includes('left')) sx = -1;
+
+    // Refine based on specific names if needed or patterns
+    if (edgeId === 'front-right') { sz = 1; sx = 1; sy = 0; }
+    if (edgeId === 'front-left') { sz = 1; sx = -1; sy = 0; }
+    if (edgeId === 'back-right') { sz = -1; sx = 1; sy = 0; }
+    if (edgeId === 'back-left') { sz = -1; sx = -1; sy = 0; }
+
+    // Determine Axis based on usage of dims
+    // X-Aligned edges use Y and Z (sy, sz are non-zero)
+    if (sy !== 0 && sz !== 0) axis = 'x';
+    else if (sx !== 0 && sz !== 0) axis = 'y';
+    else if (sx !== 0 && sy !== 0) axis = 'z';
+
+    // Const offset relative for cylinder
+    const relOffset = -s / 2;
+
+    if (axis === 'x') {
+        boxSize = [w + 2, s, s];
+        boxPos.set(0, sy * (h2 - s / 2), sz * (d2 - s / 2));
+        boxRot.set(0, 0, 0); // Aligned
+
+        cylHeight = w + 4;
+        cylRot.set(0, 0, Math.PI / 2); // Align Z-cylinder to X-axis? default cylinder is Y-aligned. Rotate 90 deg Z.
+        cylPos.set(0, sy * relOffset, sz * relOffset);
+    }
+    else if (axis === 'y') {
+        boxSize = [s, h + 2, s];
+        boxPos.set(sx * (w2 - s / 2), 0, sz * (d2 - s / 2));
+        boxRot.set(0, 0, 0);
+
+        cylHeight = h + 4;
+        cylRot.set(0, 0, 0); // Already Y-aligned
+        cylPos.set(sx * relOffset, 0, sz * relOffset);
+    }
+    else if (axis === 'z') {
+        boxSize = [s, s, d + 2];
+        boxPos.set(sx * (w2 - s / 2), sy * (h2 - s / 2), 0);
+        boxRot.set(0, 0, 0);
+
+        cylHeight = d + 4;
+        cylRot.set(Math.PI / 2, 0, 0); // Rotate to Z
+        cylPos.set(sx * relOffset, sy * relOffset, 0);
+    }
+
+    return {
+        box: { size: boxSize, pos: boxPos, rot: boxRot },
+        cyl: { radius: cylRadius, height: cylHeight, pos: cylPos, rot: cylRot }
+    };
+};

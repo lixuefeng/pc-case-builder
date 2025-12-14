@@ -100,6 +100,8 @@ const HUD = ({ transformMode, onApplyCut }) => {
     type = 'ruler';
   } else if (transformMode === 'cut') {
     type = 'cut';
+  } else if (transformMode === 'modify') {
+    type = 'modify';
   }
 
   if (!type) return null;
@@ -496,6 +498,105 @@ const HUD = ({ transformMode, onApplyCut }) => {
               Apply Split
             </button>
           </div>
+        );
+      }
+
+
+
+      case 'modify': {
+        console.log('[HUD] Rendering Modify. Data:', data); // DEBUG LOG
+        const edges = data.edges || (data.edge ? [data.edge] : []);
+        const hasSelection = edges.length > 0 && data.partId;
+        console.log('[HUD] hasSelection:', hasSelection, 'Edges:', edges.length, 'PartId:', data.partId); // DEBUG LOG
+        
+        const updateModify = (k, v) => {
+           setHudState({ ...hudState, data: { ...data, [k]: v } });
+        };
+        const applyModify = () => {
+           if (!data.partId || edges.length === 0) return;
+           
+           setObjects(prev => prev.map(o => {
+               if (o.id !== data.partId) return o;
+               
+               const modifierType = data.operation || 'chamfer';
+               const size = data.size || 5;
+               
+               const newOps = edges.map(edge => ({
+                   id: Date.now().toString() + Math.random(),
+                   type: modifierType,
+                   edge: edge.id,
+                   size: size,
+                   dims: { w: 0, h: 0, d: 0 }
+               }));
+
+               const existingOps = o.csgOperations || [];
+               return {
+                   ...o,
+                   csgOperations: [...existingOps, ...newOps]
+               };
+           }));
+           
+           // Clear selection but keep mode
+           setHudState({ ...hudState, data: { ...data, edges: [], edge: null } }); 
+        };
+
+        if (!hasSelection) {
+             return (
+                 <div style={{ padding: '8px 12px', color: '#94a3b8', fontSize: 12 }}>
+                    Click an edge to modify (Shift+Click to multi-select)
+                 </div>
+             );
+        }
+
+        const btnStyle = {
+            padding: "4px 8px",
+            borderRadius: 4,
+            border: "1px solid #475569",
+            background: "transparent",
+            color: "#e2e8f0",
+            fontSize: 11,
+            cursor: "pointer",
+        };
+
+        return (
+           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 10, color: '#94a3b8' }}>Edge</span>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>
+                      {edges.length > 1 ? `${edges.length} Selected` : edges[0]?.id}
+                  </span>
+              </div>
+              
+              <div style={{ width:1, height: 24, background: '#334155' }} />
+              
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 10, color: '#94a3b8' }}>Type</span>
+                  <div style={{ display: 'flex', gap: 2, background: '#334155', borderRadius: 4, padding: 2 }}>
+                     <button 
+                        onClick={() => updateModify('operation', 'chamfer')}
+                        style={{ ...btnStyle, background: data.operation === 'chamfer' ? '#475569' : 'transparent', border: 'none' }}
+                     >Chamfer</button>
+                      <button 
+                        onClick={() => updateModify('operation', 'fillet')}
+                        style={{ ...btnStyle, background: data.operation === 'fillet' ? '#475569' : 'transparent', border: 'none' }}
+                     >Fillet</button>
+                  </div>
+              </div>
+
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 10, color: '#94a3b8' }}>Size (mm)</span>
+                  <NumberInput value={data.size} onCommit={(v) => updateModify('size', v)} width={40} />
+              </div>
+
+              <div style={{ width:1, height: 24, background: '#334155' }} />
+
+              <button 
+                  onClick={applyModify}
+                  style={{ ...btnStyle, background: '#2563eb', border: 'none', fontWeight: 600 }}
+              >
+                  Apply
+              </button>
+           </div>
         );
       }
 

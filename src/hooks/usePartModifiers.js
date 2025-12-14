@@ -11,6 +11,7 @@ export function usePartModifiers(obj, connections = [], rawObjects = []) {
         // 1. Add baked/static modifiers from the object itself
         if (obj.csgOperations && Array.isArray(obj.csgOperations)) {
             const validOps = obj.csgOperations.filter(op => {
+                if (op.type === 'chamfer' || op.type === 'fillet') return true;
                 // Check for valid dimensions
                 if (!op.dims || op.dims.w <= 0 || op.dims.h <= 0 || op.dims.d <= 0) {
                     console.warn("Skipping invalid CSG op (bad dims):", op);

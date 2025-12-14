@@ -147,6 +147,13 @@ const TopBar = ({
           🔩 Drill
         </button>
         <button
+          style={transformMode === "modify" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
+          onClick={() => setTransformMode("modify")}
+          title="Modify (Fillet/Chamfer)"
+        >
+          ✏️ Modify
+        </button>
+        <button
           style={isCutting ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={onToggleCut}
           title="Split Object"

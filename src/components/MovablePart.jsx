@@ -17,11 +17,12 @@ import ConnectorMarker from "./ConnectorMarker";
 import HoleMarker from "./HoleMarker";
 import { usePartAlignment, getFacesAlongDir } from "../hooks/usePartAlignment";
 import { usePartStretch } from "../hooks/usePartStretch";
-import { getLocalAxisDir, inferAxisFromMovement, projectedHalfExtentAlongAxis, getWorldTransform } from "../utils/editorGeometry";
+import { getLocalAxisDir, inferAxisFromMovement, projectedHalfExtentAlongAxis, getWorldTransform, getClosestEdge } from "../utils/editorGeometry";
 import { canSelectObject } from "../utils/interactionLogic";
 import { calculateHoveredFace } from "../utils/raycasting";
 import { getRelativeTransform, normalizeDegree, setEulerFromQuaternionPreservingContinuity } from "../utils/mathUtils";
 import { getFaceDetails } from "../utils/faceUtils";
+import { handlePartPointerDownLogic, handlePartClickLogic } from "../utils/interactionEventHandlers";
 // Note: projectedHalfExtentAlongAxis is used inside getFaceDetails (logic was there in original)
 // wait, projectedHalfExtentAlongAxis was used in getFacesAlongDir.
 // I kept getFacesAlongDir logic in MovablePart in my check? No, I moved it to usePartAlignment and exported it.
@@ -56,8 +57,10 @@ export default function MovablePart({
   onFacePick,
   onConnectorPick,
   activeAlignFace,
-  mode = "translate", // 'translate', 'rotate', 'scale', 'ruler'
+  mode = "translate", // 'translate', 'rotate', 'scale', 'ruler', 'modify'
   onModeChange,
+  onModifyPick,
+  selectedEdges = [],
   showTransformControls = false,
   gizmoHovered,
   setGizmoHovered,
@@ -75,6 +78,7 @@ export default function MovablePart({
   const controlsRef = useRef();
   const hoverFaceMeshRef = useRef(null);
   const [hoveredFace, setHoveredFace] = useState(null);
+  const [hoveredEdge, setHoveredEdge] = useState(null);
 
   // Calculate modifiers unconditionally at top level
   const modifiers = usePartModifiers(obj, connections, rawObjects);
@@ -597,78 +601,115 @@ export default function MovablePart({
         quaternion: hoveredFaceDetails?.quaternion
       });
     }
-  }, [mode, alignMode, isStretching, hoveredFace, onDrillHover, resolveHoveredFace, hoveredFaceDetails, obj.id]);
+
+
+    if (mode === 'modify') {
+      const hit = e.intersections?.[0]; // Closest hit
+      if (hit && hit.point && groupRef.current) {
+         // Simplify: Work entirely in Group Local Space.
+         // This ensures the highlight moves attached to the group.
+         
+         // 1. Update Matrix to be sure (though usually handled by Three)
+         groupRef.current.updateMatrixWorld(); 
+         
+         // 2. Get Point in Group Local Space
+         // Note: worldToLocal modifies the vector in place
+         const localP = groupRef.current.worldToLocal(hit.point.clone());
+         
+         // 3. Use Object Dimensions (The "Ideal" Box)
+         // Using geometry BB can be risky if CSG has cut away corners,
+         // but Fillet/Chamfer applies to the "ideal" edge usually.
+         const dims = obj.dims || { w: 10, h: 10, d: 10 };
+         
+         // 4. Find Edge
+         const { edge, distance } = getClosestEdge(localP, dims);
+         
+         if (edge && distance < 10) {
+             setHoveredEdge(edge); 
+             // edge.center is already in Group Local Space (relative to center 0,0,0)
+         } else {
+             setHoveredEdge(null);
+         }
+      }
+    } else {
+       if (hoveredEdge) setHoveredEdge(null);
+    }
+
+  }, [mode, alignMode, isStretching, hoveredFace, onDrillHover, resolveHoveredFace, hoveredFaceDetails, obj.id, hoveredEdge, obj.dims]);
+
+  useEffect(() => {
+    if (hoveredFaceDetails) {
+        // console.log("Hovered Face Details:", hoveredFaceDetails);
+    }
+  }, [hoveredFaceDetails]);
+
+  // Ensure hoveredEdge is cleared when mode changes to strictly isolate behavior
+  useEffect(() => {
+    if (mode !== 'modify') {
+        setHoveredEdge(null);
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode === 'modify' && selectedEdges?.length > 0) {
+        console.log('[ModifyDebug] Selected Edges:', selectedEdges);
+    }
+  }, [selectedEdges, mode]);
+
 
   const handlePartPointerLeave = useCallback(() => {
     if (isStretching) {
       return;
     }
     if (hoveredFace) setHoveredFace(null);
+    if (hoveredEdge) setHoveredEdge(null);
     if (onDrillHover) onDrillHover(null);
-  }, [isStretching, hoveredFace, onDrillHover]);
+  }, [isStretching, hoveredFace, onDrillHover, hoveredEdge]);
 
   const handlePartPointerDown = useCallback((e) => {
-    // console.log("MovablePart: onPointerDown", obj.id);
+    const result = handlePartPointerDownLogic({
+      e,
+      mode,
+      obj,
+      hoveredEdge,
+      hoveredFace,
+      hoveredFaceDetails,
+      alignMode,
+      onModifyPick,
+      onFacePick,
+      onDrillHover,
+      beginStretchFn: beginStretch
+    });
 
-    // Safety: If the true top hit is a hole (via raycast filter), respect it and ignore this event
-    // This handles cases where event bubbling reaches the part despite the hole handling it,
-    // or if standard sorting put the hole on top but didn't stop propagation.
-    const topHit = e.intersections?.[0];
-    const topHitIsHole = topHit?.object?.userData?.isHole || topHit?.object?.parent?.userData?.isHole;
+    console.log('[MovablePart] PointerDown Result:', result); // DEBUG LOG
 
-    if (mode === "drill" && topHitIsHole) {
-      return;
+    if (result.stopPropagation) e.stopPropagation();
+    
+    if (result.action === 'modifyPick') {
+       onModifyPick(result.payload);
+    } else if (result.action === 'facePick') {
+       onFacePick(result.payload);
     }
-
-    // If in scale mode/align mode, we do specific things
-    if (mode === "scale" && hoveredFace) {
-      e.stopPropagation();
-      beginStretch(hoveredFace, hoveredFaceDetails, e);
-      return;
-    }
-    // Check if clicking a hole (either verifying target or userData)
-    // The HoleMarker has stopPropagation, but if raycast hits face first?
-    // We check native even target or just the event
-    const isHoleClick = e.target?.userData?.isHole || e.object?.userData?.isHole;
-    if (isHoleClick && mode === "drill") {
-      return;
-    }
-
-    if ((alignMode || mode === "ruler" || mode === "cut" || mode === "drill") && hoveredFace && hoveredFaceDetails && onFacePick) {
-      e.stopPropagation();
-      const centerVec = new THREE.Vector3(...hoveredFaceDetails.center);
-      const normalVec = new THREE.Vector3(...hoveredFaceDetails.normal);
-      onFacePick({
-        partId: obj.id,
-        face: hoveredFace,
-        shiftKey: e.shiftKey || e?.nativeEvent?.shiftKey,
-        center: centerVec,
-        normal: normalVec,
-        point: e.point ? e.point.toArray() : undefined
-      });
-      return;
-    }
-    if (mode === "drill" && hoveredFace && onDrillHover) {
-      // Handle drill click if needed?
-    }
-  }, [mode, hoveredFace, hoveredFaceDetails, beginStretch, alignMode, onFacePick, obj.id, onDrillHover]);
+    // Other actions handled internally or ignored
+  }, [mode, hoveredFace, hoveredFaceDetails, beginStretch, alignMode, onFacePick, obj.id, onDrillHover, hoveredEdge, onModifyPick]);
 
   const handlePartClick = useCallback((e) => {
-    // console.log("MovablePart: onClick", obj.id, "onSelect:", !!onSelect);
-    if (!canSelectObject(mode)) return;
+    const result = handlePartClickLogic({
+      e,
+      mode,
+      obj,
+      hoveredFace,
+      hoveredEdge,
+      alignMode,
+      onSelect
+    });
 
-    // If interacting with a face (highlight active), don't select the object underneath
-    if (hoveredFace && (alignMode || mode === 'scale')) {
-      e.stopPropagation();
-      return;
-    }
+    if (result.stopPropagation) e.stopPropagation();
 
-    if (onSelect) {
-      e.stopPropagation();
-      // console.log("MovablePart: calling onSelect");
-      onSelect(obj.id, e.shiftKey || e?.nativeEvent?.shiftKey || e.ctrlKey || e?.nativeEvent?.ctrlKey || e.metaKey || e?.nativeEvent?.metaKey);
+    if (result.action === 'select') {
+       onSelect(result.payload.id, result.payload.multi);
     }
-  }, [mode, onSelect, obj.id, hoveredFace, alignMode]);
+  }, [mode, onSelect, obj.id, hoveredFace, alignMode, hoveredEdge]);
 
   useFrame(() => {
     if (selected && showTransformControls && controlsRef.current && setGizmoHovered) {
@@ -741,29 +782,7 @@ export default function MovablePart({
           />
         ))}
 
-      </group>
 
-      {/* Transform Controls */}
-      {selected && showTransformControls && !uiLock && !isStretching && (
-        <TransformControls
-          ref={controlsRef}
-          object={groupRef}
-          mode={mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut" ? "translate" : mode} // Fallback
-          enabled={mode === "translate" || mode === "rotate"}
-          showX={mode !== "scale"}
-          showY={mode !== "scale"}
-          showZ={mode !== "scale"}
-          space="local"
-          size={1.0}
-          onMouseDown={startDrag}
-          onMouseUp={handleDragEnd}
-          onChange={(e) => {
-            if (isDraggingRef.current) {
-              updateDuringDrag();
-            }
-          }}
-        />
-      )}
 
       {/* Alignment Highlights */}
       {targetHighlightDetails && (
@@ -775,8 +794,8 @@ export default function MovablePart({
 
       {selfHighlightDetails && (
         <mesh
-          position={selfHighlightDetails.center}
-          quaternion={selfHighlightDetails.quaternion.toArray()}
+          position={selfHighlightDetails.localCenter}
+          quaternion={selfHighlightDetails.localQuaternion.toArray()}
           raycast={() => null}
         >
           <boxGeometry args={selfHighlightDetails.size} />
@@ -784,12 +803,24 @@ export default function MovablePart({
         </mesh>
       )}
 
+      {/* Active/Start Face Highlight */}
+      {activeFaceDetails && (alignMode || mode === "ruler") && (
+        <mesh
+          position={activeFaceDetails.localCenter}
+          quaternion={activeFaceDetails.localQuaternion.toArray()}
+          raycast={() => null}
+        >
+          <boxGeometry args={[...(activeFaceDetails.size || [1, 1]), 0.05]} />
+          <meshBasicMaterial color="#eab308" transparent opacity={0.6} depthTest={false} />
+        </mesh>
+      )}
+
       {/* Hover Face Highlight */}
       {hoveredFace && hoveredFaceDetails && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut") && (
         <mesh
           ref={hoverFaceMeshRef}
-          position={hoveredFaceDetails.center}
-          quaternion={hoveredFaceDetails.quaternion.toArray()}
+          position={hoveredFaceDetails.localCenter}
+          quaternion={hoveredFaceDetails.localQuaternion.toArray()}
           raycast={() => null} // Ignore raycasting to prevent flicker/persistence issues
         >
           <boxGeometry args={[...(hoveredFaceDetails.size || [1, 1]), 0.05]} />
@@ -803,6 +834,39 @@ export default function MovablePart({
           <meshBasicMaterial color="#3b82f6" transparent opacity={0.6} depthTest={false} />
         </mesh>
       )}
+
+      {/* Edge Highlight (Modify Mode - Hover) */}
+      {hoveredEdge && mode === 'modify' && (
+        <mesh
+            position={hoveredEdge.center}
+            raycast={() => null}
+            renderOrder={1000}
+        >
+           <boxGeometry args={[
+                hoveredEdge.axis === 'x' ? hoveredEdge.length : 0.6,
+                hoveredEdge.axis === 'y' ? hoveredEdge.length : 0.6,
+                hoveredEdge.axis === 'z' ? hoveredEdge.length : 0.6
+           ]} />
+           <meshBasicMaterial color="#ffff00" depthTest={false} transparent opacity={1.0} />
+        </mesh>
+      )}
+
+      {/* Edge Highlights (Modify Mode - Selected) */}
+      {selectedEdges && selectedEdges.length > 0 && mode === 'modify' && selectedEdges.map((edge, i) => (
+         <mesh
+            key={edge.id + i}
+            position={edge.center}
+            raycast={() => null}
+            renderOrder={1000}
+        >
+           <boxGeometry args={[
+                edge.axis === 'x' ? edge.length : 0.6,
+                edge.axis === 'y' ? edge.length : 0.6,
+                edge.axis === 'z' ? edge.length : 0.6
+           ]} />
+           <meshBasicMaterial color="#3b82f6" depthTest={false} transparent opacity={1.0} />
+        </mesh>
+      ))}
 
       {/* HUD Info */}
       {selected && selectedCount === 1 && (
@@ -827,6 +891,29 @@ export default function MovablePart({
         </Html>
       )}
 
+      </group>
+
+      {/* Transform Controls */}
+      {selected && showTransformControls && !uiLock && !isStretching && (
+        <TransformControls
+          ref={controlsRef}
+          object={groupRef}
+          mode={mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut" || mode === "modify" ? "translate" : mode} // Fallback
+          enabled={mode === "translate" || mode === "rotate"}
+          showX={mode !== "scale"}
+          showY={mode !== "scale"}
+          showZ={mode !== "scale"}
+          space="local"
+          size={1.0}
+          onMouseDown={startDrag}
+          onMouseUp={handleDragEnd}
+          onChange={(e) => {
+            if (isDraggingRef.current) {
+              updateDuringDrag();
+            }
+          }}
+        />
+      )}
     </>
   );
 }

@@ -13,7 +13,7 @@ import { useStore, useTemporalStore } from "./store";
 import { ensureSceneConnectors } from "./utils/connectors";
 import { expandObjectsWithEmbedded } from "./utils/embeddedParts";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-import { exportSTLFrom } from "./utils/exportSTL"; // Kept for future use if needed, though handleExport uses JSON currently?
+import { exportSTLFrom } from "./utils/exportSTL";
 // Original used handleExport with JSON download only, but imported exportSTLFrom?
 // Line 12: import { exportSTLFrom } from "./utils/exportSTL";
 
@@ -319,6 +319,15 @@ function EditorContent() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+  const handleExportSTL = () => {
+    // We use the global reference to the scene group populated in Scene.jsx
+    const root = window.__lastThreeRoot;
+    if (root) {
+        exportSTLFrom(root);
+    } else {
+        alert("Scene not ready for export.");
+    }
+  };
 
   const arrayBufferToBase64 = (buffer) => {
     let binary = '';
@@ -435,6 +444,7 @@ function EditorContent() {
       <TopBar
         onImport={handleImport}
         onExport={handleExport}
+        onExportSTL={handleExportSTL}
         undo={undo}
         redo={redo}
         canUndo={past.length > 0}

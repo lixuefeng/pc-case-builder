@@ -4,6 +4,7 @@ import { useLanguage } from "../../i18n/LanguageContext";
 const TopBar = ({
   onImport,
   onExport,
+  onExportSTL,
   undo,
   redo,
   canUndo,
@@ -85,6 +86,9 @@ const TopBar = ({
       </button>
       <button style={btnStyle} onClick={onExport}>
         {t("action.export")}
+      </button>
+      <button style={btnStyle} onClick={onExportSTL}>
+        {t("action.exportSTL")}
       </button>
 
       <div style={dividerStyle} />

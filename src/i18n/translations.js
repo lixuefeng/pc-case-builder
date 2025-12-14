@@ -18,7 +18,6 @@
     "mode.rotate": "旋转",
     "mode.scale": "缩放",
     "action.grid": "网格",
-    "action.snap": "吸附",
     "action.gizmos": "控件",
 
     "mode.ruler": "测量",
@@ -130,7 +129,6 @@
     "mode.rotate": "Rotate",
     "mode.scale": "Scale",
     "action.grid": "Grid",
-    "action.snap": "Snap",
     "action.gizmos": "Gizmos",
 
     "mode.ruler": "Ruler",

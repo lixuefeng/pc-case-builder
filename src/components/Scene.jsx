@@ -242,7 +242,7 @@ export default function Scene({
             onCutPlaneChange={onCutPlaneChange}
             drillDebugIds={drillDebugIds}
             // Pass the visibility toggle to children (for connectors, screws, etc.)
-            showGizmos={showTransformControls} 
+            showGizmos={showTransformControls}
           />
         ))}
         {showTransformControls && <RulerMarkers measurements={measurements} />}

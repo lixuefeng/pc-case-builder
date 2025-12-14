@@ -53,7 +53,6 @@ function EditorContent() {
   const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
   const [transformMode, setTransformMode] = useState("translate");
   const [showGizmos, setShowGizmos] = useState(true);
-  const [snapEnabled, setSnapEnabled] = useState(false);
   const [activeLeftTab, setActiveLeftTab] = useState("library");
 
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
@@ -446,8 +445,6 @@ function EditorContent() {
         setShowGrid={setShowHorizontalGrid}
         showGizmos={showGizmos}
         setShowGizmos={setShowGizmos}
-        snapEnabled={snapEnabled}
-        setSnapEnabled={setSnapEnabled}
         measurements={measurements}
         onClearMeasurements={rulerTool.clearMeasurements}
         onOpenProjectManager={() => setActiveLeftTab("projects")}
@@ -503,7 +500,6 @@ function EditorContent() {
             transformMode={transformMode}
             onChangeTransformMode={handleTransformModeChange}
             showTransformControls={showGizmos}
-            snapEnabled={snapEnabled}
             measurements={measurements}
             drillGhost={drillTool.drillGhost}
             drillCandidates={drillTool.drillCandidates}

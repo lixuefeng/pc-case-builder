@@ -14,8 +14,6 @@ const TopBar = ({
   setShowGrid,
   showGizmos,
   setShowGizmos,
-  snapEnabled,
-  setSnapEnabled,
   measurements = [],
   onClearMeasurements,
   onGenerateStandoffs,
@@ -214,13 +212,6 @@ const TopBar = ({
         onClick={() => setShowGizmos(!showGizmos)}
       >
         {t("action.gizmos")}
-      </button>
-      <button
-        style={snapEnabled ? activeBtnStyle : btnStyle}
-        onClick={() => setSnapEnabled(!snapEnabled)}
-        title={t("action.snap")}
-      >
-        🧲 {t("action.snap")}
       </button>
 
       <div style={{ flex: 1 }} />

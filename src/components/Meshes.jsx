@@ -4,7 +4,7 @@ import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 import { anchorPoint, addVec } from "../utils/anchors";
 
-import { Geometry, Base, Subtraction } from "@react-three/csg";
+import { Geometry, Base, Subtraction, Addition } from "@react-three/csg";
 import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from "../constants";
 import { getChamferParams, getFilletParams } from "../utils/editorGeometry";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
@@ -237,15 +237,17 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
               geo = <boxGeometry args={args} />;
             }
 
+            const CSGComponent = other.operation === 'union' ? Addition : Subtraction;
+            
             return (
-              <Subtraction
+              <CSGComponent
                 key={other.id}
                 position={other.relativeTransform.pos}
                 rotation={other.relativeTransform.rot}
                 scale={other.scale || [1, 1, 1]}
               >
                 {geo}
-              </Subtraction>
+              </CSGComponent>
             );
           })}
         </Geometry>

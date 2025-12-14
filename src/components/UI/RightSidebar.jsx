@@ -548,6 +548,62 @@ const RightSidebar = ({
               Subtract
             </button>
           </div>
+
+          {/* Union / Merge Section Header */}
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, marginTop: 24, color: "#0f172a" }}>
+            Union (Merge)
+          </h3>
+
+          {/* Union Button */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>Merge</label>
+
+            <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
+              <strong>Effect:</strong><br />
+              Merges <span style={{ color: "#eab308", fontWeight: "bold" }}>Second Selected</span> into <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span>.
+            </div>
+
+            <button
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#22c55e", // Green for additive
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+              onClick={() => {
+                // Static Union Logic
+                if (partA && partB) {
+                  const modifier = {
+                    ...partB,
+                    id: `union_${partB.id}_${Date.now()}`,
+                    sourceId: partB.id,
+                    operation: 'union',
+                    relativeTransform: getRelativeTransform(partB, partA),
+                    scale: partB.scale || [1, 1, 1]
+                  };
+
+                  setObjects(prev => {
+                    const next = prev.map(o => {
+                      if (o.id === partA.id) {
+                        return {
+                          ...o,
+                          csgOperations: [...(o.csgOperations || []), modifier]
+                        };
+                      }
+                      return o;
+                    }).filter(o => o.id !== partB.id); // Delete the source object (partB)
+                    return next;
+                  });
+                }
+              }}
+            >
+              Merge / Union
+            </button>
+          </div>
         </div>
       );
     }
@@ -643,7 +699,6 @@ const RightSidebar = ({
 
         {/* Actions */}
         <div style={cardStyle}>
-          <label style={labelStyle}>Actions</label>
           {renderCommonActions({
             canCopy: true,
             isHidden: areAllSelectedHidden,
@@ -651,6 +706,57 @@ const RightSidebar = ({
             areOthersHidden: areAllOthersHidden,
             onToggleHideOthers: areAllOthersHidden ? handleShowOthers : handleHideOthers
           })}
+        </div>
+
+        {/* Multi-Merge */}
+        <div style={cardStyle}>
+          <label style={labelStyle}>Merge</label>
+           <div style={{ fontSize: 12, color: "#64748b", padding: "8px", background: "#f8fafc", borderRadius: 4, border: "1px solid #e2e8f0", lineHeight: 1.5, marginBottom: 16 }}>
+              <strong>Effect:</strong><br />
+              Merges all selected items into the <span style={{ color: "#ef4444", fontWeight: "bold" }}>First Selected</span> item.
+            </div>
+          <button
+            style={{ ...btnStyle, width: "100%", background: "#22c55e", color: "white", border: "none" }}
+            onClick={() => {
+               // 1. Identify Base (First Selected)
+               // distinct from 'selectedParts' which might be reordered by filter
+               const baseId = selectedIds[0];
+               const basePart = objects.find(o => o.id === baseId);
+               
+               if (!basePart) return;
+
+               // 2. Identify Others
+               const othersIds = selectedIds.slice(1);
+               const others = objects.filter(o => othersIds.includes(o.id));
+
+               if (others.length === 0) return;
+
+               // 3. Create Modifiers
+               const newModifiers = others.map(other => ({
+                   ...other,
+                    id: `union_${other.id}_${Date.now()}`,
+                    sourceId: other.id,
+                    operation: 'union',
+                    relativeTransform: getRelativeTransform(other, basePart),
+                    scale: other.scale || [1, 1, 1]
+               }));
+
+               // 4. Update
+               setObjects(prev => prev.map(o => {
+                   if (o.id === baseId) {
+                       return {
+                           ...o,
+                           csgOperations: [...(o.csgOperations || []), ...newModifiers]
+                       };
+                   }
+                   return o;
+               }).filter(o => !othersIds.includes(o.id))); // Delete source objects
+               
+               showToast({ type: "success", text: `Merged & Removed ${others.length} items into ${basePart.name || "Base"}`, ttl: 2000 });
+            }}
+          >
+            Merge All into First
+          </button>
         </div>
       </div>
     );

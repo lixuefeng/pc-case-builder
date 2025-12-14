@@ -131,10 +131,10 @@ const RightSidebar = ({
       {canCopy && <button style={btnStyle} onClick={onDuplicate}>{t("action.copy")}</button>}
       <button style={destructiveBtnStyle} onClick={onDelete}>{t("action.delete")}</button>
       <button style={btnStyle} onClick={onToggleHide}>
-        {isHidden ? "Show" : "Hide"}
+        {isHidden ? t("action.show") : t("action.hide")}
       </button>
       <button style={btnStyle} onClick={onToggleHideOthers}>
-        {areOthersHidden ? "Show Others" : "Hide Others"}
+        {areOthersHidden ? t("action.showOthers") : t("action.hideOthers")}
       </button>
       {canUngroup && <button style={btnStyle} onClick={onUngroup}>{t("action.ungroup")}</button>}
     </div>
@@ -229,7 +229,7 @@ const RightSidebar = ({
 
           {/* Appearance */}
           <div style={cardStyle}>
-            <label style={labelStyle}>{t("prop.appearance") || "Appearance"}</label>
+            <label style={labelStyle}>{t("prop.appearance")}</label>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
                 <input
@@ -258,7 +258,7 @@ const RightSidebar = ({
                   handleMultiColorChange(randomColor);
                 }}
               >
-                {t("action.randomColor") || "Random"}
+                {t("action.randomColor")}
               </button>
             </div>
           </div>
@@ -333,7 +333,7 @@ const RightSidebar = ({
 
         {/* Appearance */}
         <div style={cardStyle}>
-          <label style={labelStyle}>{t("prop.appearance") || "Appearance"}</label>
+          <label style={labelStyle}>{t("prop.appearance")}</label>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
               <input
@@ -362,7 +362,7 @@ const RightSidebar = ({
                 handleMultiColorChange(randomColor);
               }}
             >
-              {t("action.randomColor") || "Random"}
+              {t("action.randomColor")}
             </button>
           </div>
         </div>
@@ -532,7 +532,7 @@ const RightSidebar = ({
             keys={["x", "y", "z"]}
           />
 
-          <SectionLabel>{t("prop.rotation") || "Rotation (Deg)"}</SectionLabel>
+          <SectionLabel>{t("prop.rotation")}</SectionLabel>
           <Vector3Input
             values={[
               Math.round(normalizeDegree(THREE.MathUtils.radToDeg(selectedObject.rot?.[0] ?? 0))),
@@ -556,9 +556,9 @@ const RightSidebar = ({
       {(selectedObject.type === "gpu" || selectedObject.meta?.bracket) && (
         <div style={cardStyle}>
           <div style={{ ...sectionStyle, marginBottom: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>GPU Bracket</div>
+            <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("label.gpuBracket")}</div>
 
-            <SectionLabel>Slot Count</SectionLabel>
+            <SectionLabel>{t("label.slotCount")}</SectionLabel>
             <NumberInput
               value={selectedObject.meta?.bracket?.slotCount ?? 2}
               onChange={(val) => {
@@ -569,7 +569,7 @@ const RightSidebar = ({
               placeholder="Slots"
             />
 
-            <SectionLabel>Bracket Dimensions (H, Thickness)</SectionLabel>
+            <SectionLabel>{t("label.bracketDimensions")}</SectionLabel>
             <Vector3Input
               values={selectedObject.meta?.bracket || { height: 120, thickness: 2 }}
               onChange={(key, val) => {
@@ -582,7 +582,7 @@ const RightSidebar = ({
               placeholders={["Height", "Thick"]}
             />
 
-            <SectionLabel>Position (Drop, Offset)</SectionLabel>
+            <SectionLabel>{t("label.bracketPosition")}</SectionLabel>
             <Vector3Input
               values={selectedObject.meta?.bracket || { dropBelowBody: 30, xOffset: -0.8 }}
               onChange={(key, val) => {
@@ -601,7 +601,7 @@ const RightSidebar = ({
       {/* Appearance */}
       <div style={cardStyle}>
         <div style={{ ...sectionStyle, marginBottom: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.appearance") || "Appearance"}</div>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.appearance")}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
               <input
@@ -629,7 +629,7 @@ const RightSidebar = ({
                 handleChange("color", randomColor);
               }}
             >
-              {t("action.randomColor") || "Random"}
+              {t("action.randomColor")}
             </button>
           </div>
         </div>

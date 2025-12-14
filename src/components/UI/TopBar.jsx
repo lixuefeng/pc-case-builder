@@ -135,30 +135,30 @@ const TopBar = ({
         <button
           style={transformMode === "ruler" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("ruler")}
-          title="Ruler"
+          title={t("mode.ruler")}
         >
-          📏 Ruler
+          📏 {t("mode.ruler")}
         </button>
         <button
           style={transformMode === "drill" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("drill")}
-          title="Drill Tool"
+          title={t("mode.drill")}
         >
-          🔩 Drill
+          🔩 {t("mode.drill")}
         </button>
         <button
           style={transformMode === "modify" ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={() => setTransformMode("modify")}
-          title="Modify (Fillet/Chamfer)"
+          title={t("mode.modify")}
         >
-          ✏️ Modify
+          ✏️ {t("mode.modify")}
         </button>
         <button
           style={isCutting ? activeBtnStyle : { ...btnStyle, border: "none", background: "transparent" }}
           onClick={onToggleCut}
-          title="Split Object"
+          title={t("mode.split")}
         >
-          ✂️ Split
+          ✂️ {t("mode.split")}
         </button>
 
         <div style={dividerStyle} />
@@ -167,32 +167,32 @@ const TopBar = ({
         <button
           style={transformMode === 'connect' ? activeBtnStyle : btnStyle}
           onClick={() => setTransformMode('connect')}
-          title="Connect Parts"
+          title={t("mode.connect")}
         >
-          🔗 {t("mode.connect") || "Connect"}
+          🔗 {t("mode.connect")}
         </button>
         <button
           style={transformMode === 'subtract' ? activeBtnStyle : btnStyle}
           onClick={() => setTransformMode('subtract')}
-          title="Subtract Parts"
+          title={t("mode.subtract")}
         >
-          ➖ {t("mode.subtract") || "Subtract"}
+          ➖ {t("mode.subtract")}
         </button>
         <button
           style={transformMode === 'union' ? activeBtnStyle : btnStyle}
           onClick={() => setTransformMode('union')}
-          title="Merge Parts"
+          title={t("mode.merge")}
         >
-          ➕ {t("mode.merge") || "Merge"}
+          ➕ {t("mode.merge")}
         </button>
         {selectedObject && (selectedObject.type === 'motherboard' || (selectedObject.connectors && selectedObject.connectors.some(c => c.type === 'screw-m3' || c.type === 'mb-mount'))) && (
            <button
              style={{ ...btnStyle, border: "none", background: "transparent", color: "#fbbf24" }}
              onClick={onGenerateStandoffs}
-             title="Generate Standoffs"
-           >
-             🏗️ Standoffs
-           </button>
+              title={t("action.standoffs")}
+            >
+              🏗️ {t("action.standoffs")}
+            </button>
         )}
 
 

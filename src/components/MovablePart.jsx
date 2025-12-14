@@ -895,7 +895,7 @@ export default function MovablePart({
       </group>
 
       {/* Transform Controls */}
-      {selected && showTransformControls && !uiLock && !isStretching && (
+      {selected && showTransformControls && !uiLock && !isStretching && (mode === 'translate' || mode === 'rotate') && (
         <TransformControls
           ref={controlsRef}
           object={groupRef}

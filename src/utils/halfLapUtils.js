@@ -210,19 +210,49 @@ export const calculateHalfLapTransforms = (objA, objB, lapLength) => {
         id: `cut_${Date.now()}_b`
     };
 
+    // Helper to shift CSG operations to maintain World Position
+    const getShiftedCsg = (obj, oldPos, newPos) => {
+        const shifts = new THREE.Vector3().subVectors(newPos, oldPos); // World Shift
+        const rot = new THREE.Euler(...(obj.rot || [0, 0, 0]));
+        const quat = new THREE.Quaternion().setFromEuler(rot);
+        const invQuat = quat.clone().invert();
+
+        // Convert World Shift to Local Space
+        const localShift = shifts.applyQuaternion(invQuat);
+
+        return (obj.csgOperations || []).map(op => {
+            // Only shift operations that have a relativeTransform.pos
+            if (op.relativeTransform && op.relativeTransform.pos) {
+                const oldLocal = new THREE.Vector3(...op.relativeTransform.pos);
+                const newLocal = oldLocal.clone().sub(localShift);
+                return {
+                    ...op,
+                    relativeTransform: {
+                        ...op.relativeTransform,
+                        pos: newLocal.toArray()
+                    }
+                };
+            }
+            return op;
+        });
+    };
+
+    const newCsgA = getShiftedCsg(objA, posA, newPosA);
+    const newCsgB = getShiftedCsg(objB, posB, newPosB);
+
     return {
         updates: [
             {
                 id: objA.id,
                 pos: newPosA.toArray(),
                 dims: { ...objA.dims, [axisA]: newLenA },
-                csgOperations: [...(objA.csgOperations || []), csgA]
+                csgOperations: [...newCsgA, csgA]
             },
             {
                 id: objB.id,
                 pos: newPosB.toArray(),
                 dims: { ...objB.dims, [axisB]: newLenB },
-                csgOperations: [...(objB.csgOperations || []), csgB]
+                csgOperations: [...newCsgB, csgB]
             }
         ]
     };

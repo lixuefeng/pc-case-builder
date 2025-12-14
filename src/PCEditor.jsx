@@ -113,6 +113,13 @@ function EditorContent() {
   const handleTransformModeChange = (mode) => {
     setTransformMode(mode);
 
+    // Reset Selection/HUD when switching Logic Modes
+    if (mode === 'connect' || mode === 'subtract' || mode === 'union') {
+        setSelectedIds([]);
+        setHudState({ type: mode, data: {} });
+        return;
+    }
+
     if (mode === 'ruler') {
       setHudState({ type: 'ruler', data: { distance: 0 } });
     } else if (mode === 'drill') {
@@ -227,6 +234,29 @@ function EditorContent() {
         setRulerPoints([]); // Directly set store
       }
       return;
+    }
+
+    // Tool Mode Logic
+    if (transformMode === 'connect' || transformMode === 'subtract' || transformMode === 'union') {
+        setSelectedIds(prev => {
+            // Union: Unlimited, just toggle/add
+            if (transformMode === 'union') {
+                if (prev.includes(id)) return prev.filter(pid => pid !== id);
+                return [...prev, id];
+            }
+            
+            // Connect/Subtract: Max 2
+            if (prev.includes(id)) return prev; // Don't toggle off for now, or maybe allow deselect? Let's keep simple.
+            
+            if (prev.length < 2) return [...prev, id];
+            // If already 2, replace the second one
+            return [prev[0], id];
+        });
+        
+        // Update HUD state immediately
+        // Note: we need the NEW selectedIds, but setState is async. 
+        // We can just rely on the HUD component observing selectedIds.
+        return;
     }
 
     selectionTool.select(id, multi);
@@ -433,7 +463,11 @@ function EditorContent() {
         selectedObject={selectedObject}
         selectedIds={selectedIds}
       />
-      <HUD transformMode={transformMode} onApplyCut={cutTool.performSplit} />
+      <HUD 
+        transformMode={transformMode} 
+        onApplyCut={cutTool.performSplit} 
+        onConnect={connectorTool.handleConnect}
+      />
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
         {/* Left Sidebar */}

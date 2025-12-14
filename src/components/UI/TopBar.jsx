@@ -160,6 +160,31 @@ const TopBar = ({
         >
           ✂️ Split
         </button>
+
+        <div style={dividerStyle} />
+
+        {/* Logic Tools */}
+        <button
+          style={transformMode === 'connect' ? activeBtnStyle : btnStyle}
+          onClick={() => setTransformMode('connect')}
+          title="Connect Parts"
+        >
+          🔗 {t("mode.connect") || "Connect"}
+        </button>
+        <button
+          style={transformMode === 'subtract' ? activeBtnStyle : btnStyle}
+          onClick={() => setTransformMode('subtract')}
+          title="Subtract Parts"
+        >
+          ➖ {t("mode.subtract") || "Subtract"}
+        </button>
+        <button
+          style={transformMode === 'union' ? activeBtnStyle : btnStyle}
+          onClick={() => setTransformMode('union')}
+          title="Merge Parts"
+        >
+          ➕ {t("mode.merge") || "Merge"}
+        </button>
         {selectedObject && (selectedObject.type === 'motherboard' || (selectedObject.connectors && selectedObject.connectors.some(c => c.type === 'screw-m3' || c.type === 'mb-mount'))) && (
            <button
              style={{ ...btnStyle, border: "none", background: "transparent", color: "#fbbf24" }}

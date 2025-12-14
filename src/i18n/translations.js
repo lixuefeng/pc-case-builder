@@ -2,7 +2,9 @@
   zh: {
     "app.title": "PC Case Builder",
     "action.import": "导入",
-    "action.export": "导出",
+    "action.export": "保存工程",
+    "action.exportSelection": "导出选中",
+    "action.exportAssembly": "导出全部",
     "action.undo": "撤销",
     "action.redo": "重做",
     "action.copy": "复制",
@@ -113,7 +115,9 @@
   en: {
     "app.title": "PC Case Builder",
     "action.import": "Import",
-    "action.export": "Export",
+    "action.export": "Save JSON",
+    "action.exportSelection": "Export Sel.",
+    "action.exportAssembly": "Export All",
     "action.undo": "Undo",
     "action.redo": "Redo",
     "action.copy": "Copy",

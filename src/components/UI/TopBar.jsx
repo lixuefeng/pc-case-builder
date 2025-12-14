@@ -28,7 +28,7 @@ const TopBar = ({
   const { language, setLanguage, t } = useLanguage();
 
   const btnStyle = {
-    padding: "6px 12px",
+    padding: "5px 10px",
     borderRadius: 6,
     border: "1px solid #374151",
     background: "#1f2937",
@@ -87,8 +87,11 @@ const TopBar = ({
       <button style={btnStyle} onClick={onExport}>
         {t("action.export")}
       </button>
-      <button style={btnStyle} onClick={onExportSTL}>
-        {t("action.exportSTL")}
+      <button style={btnStyle} onClick={() => onExportSTL('selected')}>
+        {t("action.exportSelection")}
+      </button>
+      <button style={btnStyle} onClick={() => onExportSTL('all')}>
+        {t("action.exportAssembly")}
       </button>
 
       <div style={dividerStyle} />

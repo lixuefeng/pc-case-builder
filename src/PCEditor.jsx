@@ -319,13 +319,32 @@ function EditorContent() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  const handleExportSTL = () => {
-    // We use the global reference to the scene group populated in Scene.jsx
+  const handleExportSTL = (mode = 'all') => {
     const root = window.__lastThreeRoot;
-    if (root) {
-        exportSTLFrom(root);
-    } else {
+    if (!root) {
         alert("Scene not ready for export.");
+        return;
+    }
+
+    if (mode === 'selected') {
+        if (!selectedObject) {
+            alert("No object selected to export.");
+            return;
+        }
+        // Export only the selected object
+        exportSTLFrom(root, { onlyOneId: selectedObject.id });
+    } else {
+        // Export All (excluding PC parts)
+        const EXCLUDE_TYPES = [
+            "motherboard", 
+            "gpu", 
+            "gpu-bracket", 
+            "reference", 
+            "imported", 
+            "cpu-cooler",
+            "io-shield"
+        ];
+        exportSTLFrom(root, { excludeTypes: EXCLUDE_TYPES });
     }
   };
 

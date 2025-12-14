@@ -6,7 +6,7 @@ const RulerMarkers = ({ measurements }) => {
     if (!measurements || measurements.length === 0) return null;
 
     return (
-        <group>
+        <group userData={{ noExport: true }}>
             {measurements.map((m, index) => {
                 const start = new THREE.Vector3(...m.p1);
                 const end = new THREE.Vector3(...m.p2);

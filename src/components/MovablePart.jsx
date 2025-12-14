@@ -732,7 +732,7 @@ export default function MovablePart({
         position={obj.pos}
         rotation={obj.rot}
         scale={obj.scale || [1, 1, 1]}
-        userData={{ objectId: obj.id }}
+        userData={{ objectId: obj.id, type: obj.type }}
         onPointerMove={handlePartPointerMove}
         onPointerLeave={handlePartPointerLeave}
         onPointerDown={handlePartPointerDown}
@@ -787,7 +787,7 @@ export default function MovablePart({
 
       {/* Alignment Highlights */}
       {targetHighlightDetails && (
-        <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion.toArray()} raycast={() => null}>
+        <mesh position={targetHighlightDetails.center} quaternion={targetHighlightDetails.quaternion.toArray()} raycast={() => null} userData={{ noExport: true }}>
           <boxGeometry args={targetHighlightDetails.size} />
           <meshBasicMaterial color="#ef4444" transparent opacity={0.5} depthTest={false} />
         </mesh>
@@ -798,6 +798,7 @@ export default function MovablePart({
           position={selfHighlightDetails.localCenter}
           quaternion={selfHighlightDetails.localQuaternion.toArray()}
           raycast={() => null}
+          userData={{ noExport: true }}
         >
           <boxGeometry args={selfHighlightDetails.size} />
           <meshBasicMaterial color="#22c55e" transparent opacity={0.5} depthTest={false} />
@@ -810,6 +811,7 @@ export default function MovablePart({
           position={activeFaceDetails.localCenter}
           quaternion={activeFaceDetails.localQuaternion.toArray()}
           raycast={() => null}
+          userData={{ noExport: true }}
         >
           <boxGeometry args={[...(activeFaceDetails.size || [1, 1]), 0.05]} />
           <meshBasicMaterial color="#eab308" transparent opacity={0.6} depthTest={false} />
@@ -823,6 +825,7 @@ export default function MovablePart({
           position={hoveredFaceDetails.localCenter}
           quaternion={hoveredFaceDetails.localQuaternion.toArray()}
           raycast={() => null} // Ignore raycasting to prevent flicker/persistence issues
+          userData={{ noExport: true }}
         >
           <boxGeometry args={[...(hoveredFaceDetails.size || [1, 1]), 0.05]} />
           {/* Note: size in details might be length 3 or 2 depending on logic.
@@ -842,6 +845,7 @@ export default function MovablePart({
             position={hoveredEdge.center}
             raycast={() => null}
             renderOrder={1000}
+            userData={{ noExport: true }}
         >
            <boxGeometry args={[
                 hoveredEdge.axis === 'x' ? hoveredEdge.length : 0.6,
@@ -859,6 +863,7 @@ export default function MovablePart({
             position={edge.center}
             raycast={() => null}
             renderOrder={1000}
+            userData={{ noExport: true }}
         >
            <boxGeometry args={[
                 edge.axis === 'x' ? edge.length : 0.6,
@@ -895,7 +900,9 @@ export default function MovablePart({
       </group>
 
       {/* Transform Controls */}
+      {/* Transform Controls */}
       {selected && showTransformControls && !uiLock && !isStretching && (mode === 'translate' || mode === 'rotate') && (
+        <group userData={{ noExport: true }}>
         <TransformControls
           ref={controlsRef}
           object={groupRef}
@@ -914,6 +921,7 @@ export default function MovablePart({
             }
           }}
         />
+        </group>
       )}
     </>
   );

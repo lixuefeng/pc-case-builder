@@ -90,7 +90,7 @@ export default function HoleMarker({ hole, partId, onDelete, canDelete = false, 
                     <cylinderGeometry args={[hexRadius, hexRadius, shaftLength, 6]} />
                     <meshBasicMaterial color={nutColor} transparent opacity={opacity} depthTest={false} />
                 </mesh>
-                <mesh position={[0, -shaftLength / 2, 0]}>
+                <mesh position={[0, -shaftLength / 2, 0]} userData={{ noExport: true }}>
                     <cylinderGeometry args={[shaftDia * 0.3, shaftDia * 0.3, shaftLength + 0.1, 16]} />
                     <meshBasicMaterial color="#000" />
                 </mesh>

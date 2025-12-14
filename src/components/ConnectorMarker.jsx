@@ -90,6 +90,7 @@ export default function ConnectorMarker({ connector, isUsed, onPick, setConnecto
             raycast={(raycaster, intersects) =>
                 applyConnectorRaycastBias(meshRef.current, raycaster, intersects)
             }
+            userData={{ noExport: true }}
         >
             <sphereGeometry args={[size / 2, 16, 16]} />
             <meshBasicMaterial

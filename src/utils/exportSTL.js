@@ -4,15 +4,57 @@ import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
 import { SUBTRACTION, Brush, Evaluator } from "three-bvh-csg";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-export function exportSTLFrom(root) {
+export function exportSTLFrom(root, options = {}) {
   if (!root) return;
   const exporter = new STLExporter();
 
+  const { onlyOneId, excludeTypes } = options;
   const positiveGeometries = [];
   const negativeGeometries = [];
 
   root.traverse((obj) => {
     if (!obj.visible) return;
+
+    // Check ancestors for flags and identity
+    let current = obj;
+    let isNoExport = false;
+    let isExcludedType = false;
+    let matchesTargetId = !onlyOneId; // If no target ID, we match everything by default (subject to exclusions)
+    if (onlyOneId) matchesTargetId = false; // Reset if looking for specific
+
+    // If looking for specific ID, we must find it in the chain.
+    // If excluding types, we must NOT find them in the chain.
+
+    while (current) {
+      if (current.userData?.noExport) {
+        isNoExport = true;
+        break;
+      }
+
+      if (excludeTypes && excludeTypes.includes(current.userData?.type)) {
+        isExcludedType = true;
+        // Don't break immediately, we might continue to verify other things if needed? 
+        // Actually if it's excluded, we can stop checking.
+        break;
+      }
+
+      if (onlyOneId && current.userData?.objectId === onlyOneId) {
+        matchesTargetId = true;
+      }
+
+      if (current === root) break;
+      current = current.parent;
+    }
+
+    if (isNoExport) return;
+    if (isExcludedType) return;
+
+    // For positive geometry, we strictly need to match the target ID if provided.
+    // For negative geometry (holes), usually they belong to the object, so they will match too.
+    // NOTE: If we wanted to allow global holes to cut the selected object, we'd need different logic.
+    // But currently holes are children of parts. So holes of other parts won't be picked up.
+    // This is probably desired (don't let an invisible part's hole cut my part).
+    if (onlyOneId && !matchesTargetId) return;
 
     // Check if it's a hole/screw/negative volume
     // HoleMarker uses userData: { isHole: true }
@@ -43,6 +85,14 @@ export function exportSTLFrom(root) {
 
     if (obj.isMesh && obj.geometry) {
       let g = obj.geometry.clone();
+
+      if (isNegative) {
+        // KEY FIX: Slightly extend the cutter (hole) along its local Y axis.
+        // This ensures it fully penetrates the surface and avoids Z-fighting/coincident faces caused by exact length matches.
+        // Standard Three.js cylinders are Y-aligned.
+        g.scale(1, 1.1, 1);
+      }
+
       g.applyMatrix4(obj.matrixWorld);
       g = sanitizeGeometry(g);
 

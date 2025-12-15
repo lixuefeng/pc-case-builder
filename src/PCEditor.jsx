@@ -326,6 +326,14 @@ function EditorContent() {
         return;
     }
 
+    // Check visibility settings. If gizmos are hidden, holes won't be cut.
+    if (!showGizmos) {
+        // Warn user
+        if (!confirm(t("warning.gizmosHidden"))) {
+            return;
+        }
+    }
+
     if (mode === 'selected') {
         if (!selectedObject) {
             alert("No object selected to export.");

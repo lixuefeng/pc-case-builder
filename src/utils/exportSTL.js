@@ -1,7 +1,7 @@
 // utils/exportSTL.js — Export visible meshes as STL with boolean subtraction for holes/screws
 import * as THREE from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
-import { SUBTRACTION, Brush, Evaluator } from "three-bvh-csg";
+import { SUBTRACTION, ADDITION, Brush, Evaluator } from "three-bvh-csg";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 export function exportSTLFrom(root, options = {}) {
@@ -48,6 +48,7 @@ export function exportSTLFrom(root, options = {}) {
 
     if (isNoExport) return;
     if (isExcludedType) return;
+
 
     // For positive geometry, we strictly need to match the target ID if provided.
     // For negative geometry (holes), usually they belong to the object, so they will match too.
@@ -114,21 +115,26 @@ export function exportSTLFrom(root, options = {}) {
   let finalGeometry = mergedPositive;
 
   // 2. If we have negatives, perform CSG subtraction
+  // Strategy: Union all negatives into one "Master Cutter", then subtract from Positive.
+  // This avoids issues with self-intersecting negatives (overlapping head/shaft) and is more robust.
   if (negativeGeometries.length > 0) {
-    const mergedNegative = BufferGeometryUtils.mergeGeometries(negativeGeometries, false);
-
-    // Create Brushes with basic material to avoid attribute inference issues
+    // Use basic material
     const mat = new THREE.MeshBasicMaterial();
-    const brushPos = new Brush(mergedPositive, mat);
-    const brushNeg = new Brush(mergedNegative, mat);
-
-    // Evaluator
     const evaluator = new Evaluator();
 
-    // Perform A - B
-    const resultBrush = evaluator.evaluate(brushPos, brushNeg, SUBTRACTION);
+    // 2a. Build the Cutter (Union of all holes)
+    let cutterBrush = new Brush(negativeGeometries[0], mat);
 
-    // Result geometry
+    for (let i = 1; i < negativeGeometries.length; i++) {
+      const nextNegBrush = new Brush(negativeGeometries[i], mat);
+      cutterBrush = evaluator.evaluate(cutterBrush, nextNegBrush, ADDITION);
+    }
+
+    // 2b. Subtract Cutter from Positive
+    const positiveBrush = new Brush(mergedPositive, mat);
+    const resultBrush = evaluator.evaluate(positiveBrush, cutterBrush, SUBTRACTION);
+
+    // Final result
     finalGeometry = resultBrush.geometry;
   }
 

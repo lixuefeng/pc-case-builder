@@ -223,6 +223,15 @@ const TopBar = ({
 
       <div style={{ flex: 1 }} />
 
+      {/* Feedback & Language */}
+      <button
+        style={{ ...btnStyle, marginRight: 8, background: "#374151" }}
+        onClick={() => window.open("https://github.com/lixuefeng/pc-case-builder/issues", "_blank")}
+        title={t("action.feedback")}
+      >
+        💬 {t("action.feedback")}
+      </button>
+
       {/* Language Selector */}
       <select
         value={language}

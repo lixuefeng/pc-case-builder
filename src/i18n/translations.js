@@ -15,7 +15,9 @@
     "action.toggleGizmos": "变换控件",
     "action.exportSTL": "导出 STL",
     "action.add": "添加",
+    "action.add": "添加",
     "action.addStructure": "添加结构块",
+    "action.feedback": "反馈",
 
     "mode.translate": "移动",
     "mode.rotate": "旋转",
@@ -130,7 +132,9 @@
     "action.toggleGizmos": "Gizmos",
     "action.exportSTL": "Export STL",
     "action.add": "Add",
+    "action.add": "Add",
     "action.addStructure": "Add Block",
+    "action.feedback": "Feedback",
 
     "mode.translate": "Move",
     "mode.rotate": "Rotate",

@@ -1,0 +1,3373 @@
+[
+  {
+    "id": "obj_1765601349259_48788",
+    "key": "itx",
+    "type": "motherboard",
+    "name": "ITX 170×170",
+    "dims": {
+      "w": 170,
+      "h": 2,
+      "d": 170
+    },
+    "pos": [
+      7.269583640474707,
+      1,
+      26.32169137709562
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "presetKey": "itx",
+      "holeMap": [
+        [
+          -157.48,
+          0
+        ],
+        [
+          0,
+          22.86
+        ],
+        [
+          -157.48,
+          154.94
+        ],
+        [
+          0,
+          154.94
+        ]
+      ],
+      "ramSlots": {
+        "fromRight": 14,
+        "fromTop": 139
+      },
+      "orientation": "horizontal"
+    },
+    "connectors": [
+      {
+        "id": "itx-mount-1",
+        "label": "Mount Hole 1",
+        "type": "screw-m3",
+        "slotType": "mb-mount",
+        "size": 3,
+        "pos": [
+          -78.82999999999998,
+          0,
+          -74.84
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "id": "itx-mount-2",
+        "label": "Mount Hole 2",
+        "type": "screw-m3",
+        "slotType": "mb-mount",
+        "size": 3,
+        "pos": [
+          78.65,
+          0,
+          -51.980000000000004
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "id": "itx-mount-3",
+        "label": "Mount Hole 3",
+        "type": "screw-m3",
+        "slotType": "mb-mount",
+        "size": 3,
+        "pos": [
+          -78.82999999999998,
+          0,
+          80.1
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "id": "itx-mount-4",
+        "label": "Mount Hole 4",
+        "type": "screw-m3",
+        "slotType": "mb-mount",
+        "size": 3,
+        "pos": [
+          78.65,
+          0,
+          80.1
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "id": "itx-pcie-x16",
+        "label": "PCIe x16 Slot",
+        "type": "pcie-slot",
+        "slotType": "pcie-slot",
+        "pos": [
+          -78.83000000000001,
+          8,
+          5
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "span": 89
+      },
+      {
+        "id": "itx-ram-slot-a",
+        "label": "RAM Slot A",
+        "type": "dimm-slot",
+        "slotType": "dimm-slot",
+        "pos": [
+          7.5,
+          1,
+          57.5
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "span": 127
+      },
+      {
+        "id": "itx-ram-slot-b",
+        "label": "RAM Slot B",
+        "type": "dimm-slot",
+        "slotType": "dimm-slot",
+        "pos": [
+          7.5,
+          1,
+          66.5
+        ],
+        "normal": [
+          0,
+          1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "span": 127
+      }
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "obj_1765603619744_76480",
+    "key": "dimm",
+    "type": "ram",
+    "name": "RAM (1) 133×31×7",
+    "dims": {
+      "w": 133,
+      "h": 31,
+      "d": 7
+    },
+    "pos": [
+      14.769583640474707,
+      17,
+      92.82169137709562
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "count": 1,
+      "fingerThickness": 1,
+      "fingerOffset": 0
+    },
+    "connectors": [
+      {
+        "id": "dimm-golden-fingers",
+        "label": "Golden Fingers",
+        "type": "dimm-edge",
+        "pos": [
+          0,
+          -15,
+          0
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "span": 133,
+        "slotType": "dimm-edge"
+      }
+    ]
+  },
+  {
+    "id": "obj_1765603624974_42394",
+    "key": "dimm",
+    "type": "ram",
+    "name": "RAM (1) 133×31×7",
+    "dims": {
+      "w": 133,
+      "h": 31,
+      "d": 7
+    },
+    "pos": [
+      14.769583640474707,
+      17,
+      83.82169137709562
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "count": 1,
+      "fingerThickness": 1,
+      "fingerOffset": 0
+    },
+    "connectors": [
+      {
+        "id": "dimm-golden-fingers",
+        "label": "Golden Fingers",
+        "type": "dimm-edge",
+        "pos": [
+          0,
+          -15,
+          0
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "span": 133,
+        "slotType": "dimm-edge"
+      }
+    ]
+  },
+  {
+    "id": "obj_1765603633366_2143",
+    "key": "std",
+    "type": "gpu",
+    "name": "GPU 267×112×42",
+    "dims": {
+      "w": 267,
+      "h": 112,
+      "d": 51
+    },
+    "pos": [
+      -94.0604163595253,
+      77.4,
+      74.82169137709562
+    ],
+    "rot": [
+      0,
+      -1.5707963267948966,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "presetKey": "std",
+      "layoutVersion": 2,
+      "pcie": {
+        "fingerLength": 89,
+        "fingerHeight": 12.5,
+        "fingerThickness": 1.6,
+        "fingerOffsetFromBracket": 45.5,
+        "fingerDrop": -5,
+        "__debugLog": true
+      },
+      "bracket": {
+        "slotCount": 2,
+        "height": 120,
+        "thickness": 2,
+        "dropBelowBody": 30,
+        "xOffset": -0.8
+      }
+    },
+    "connectors": [
+      {
+        "id": "std-pcie-fingers",
+        "label": "PCIe Fingers",
+        "type": "pcie-fingers",
+        "pos": [
+          -43.5,
+          -68.4,
+          -22.5
+        ],
+        "normal": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          1,
+          0,
+          0
+        ],
+        "span": 89
+      }
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "holes": [
+      {
+        "id": "hole_1765679504414",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          133.5,
+          29.339816369490748,
+          -16.36323674778913
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "obj_1765603659597_47904",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 213.83,
+      "h": 184.35,
+      "d": 10
+    },
+    "pos": [
+      -8.6454163595253,
+      77.825,
+      -65.10830862290436
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "sub_obj_1765603757618_88635_1765604428360",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube",
+        "dims": {
+          "w": 158.75,
+          "h": 44.45,
+          "d": 170
+        },
+        "pos": [
+          15.334583640474705,
+          20.415,
+          -106.13462881912432
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "sourceId": "obj_1765603757618_88635",
+        "operation": "subtract",
+        "relativeTransform": {
+          "pos": [
+            26.489999999999995,
+            -57.410000000000004,
+            -41.026320196219956
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "sub_cube_mj56qty3_mpbj2p_1765684227695",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube 副本 副本",
+        "dims": {
+          "w": 103.91227552188711,
+          "h": 115.75,
+          "d": 38.139999999999986
+        },
+        "pos": [
+          -88.26041635952534,
+          53.525,
+          -104.50236940416369
+        ],
+        "rot": [
+          -2.7369110631344083e-48,
+          -1.5707963267948966,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "sourceId": "cube_mj56qty3_mpbj2p",
+        "operation": "subtract",
+        "relativeTransform": {
+          "pos": [
+            -79.61500000000004,
+            -24.300000000000004,
+            -39.39406078125933
+          ],
+          "rot": [
+            -2.7369110631344083e-48,
+            -1.5707963267948966,
+            0
+          ]
+        }
+      },
+      {
+        "id": "17656847894470.10427934300956654",
+        "type": "chamfer",
+        "edge": "top-back",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "17656848523790.2857333004360111",
+        "type": "chamfer",
+        "edge": "bottom-back",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "sub_cube_mj59nfrh_ja59ax_1765689038334",
+        "type": "cube",
+        "dims": {
+          "w": 271.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -54.085,
+            87.175,
+            137.71500000000003
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_cube_mj59mrzy_e0eaaq_1765689069902",
+        "type": "cube",
+        "dims": {
+          "w": 271.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            95.915,
+            87.175,
+            137.71499999999997
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_cube_mj59ltqi_5gbdd1_1765689083817",
+        "type": "cube",
+        "dims": {
+          "w": 271.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -64.085,
+            -87.17500000000001,
+            137.715
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_cube_mj59jpvg_5ab86z_1765689088307",
+        "type": "cube",
+        "dims": {
+          "w": 271.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            95.91499999999998,
+            -87.17500000000001,
+            137.71499999999995
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "holes": [
+      {
+        "id": "hole_1765679479693",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -54.084999999999994,
+          87.175,
+          -5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765679481486",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          95.915,
+          87.175,
+          -5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765679483542",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          95.915,
+          -87.17500000000001,
+          -5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765679485471",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -64.085,
+          -87.17500000000001,
+          -5
+        ],
+        "direction": [
+          0,
+          0,
+          -1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ],
+    "color": "#497dca"
+  },
+  {
+    "id": "obj_1765603757618_88635",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 158.75,
+      "h": 44.45,
+      "d": 170
+    },
+    "pos": [
+      15.334583640474705,
+      20.415,
+      -106.13462881912432
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "obj_1765604593142_22727",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 4,
+      "h": 184.35,
+      "d": 288.42999999999995
+    },
+    "pos": [
+      100.2695836404747,
+      77.825,
+      74.10669137709561
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "holes": [
+      {
+        "id": "hole_1765684513913",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2,
+          0,
+          -139.21499999999997
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765684522857",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2,
+          81.2054547591204,
+          -138.83136616187593
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765684528309",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2.0000000000000284,
+          -87.19672671902919,
+          -139.0915347959206
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765684550195",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2,
+          87.175,
+          139.21499999999997
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765684553237",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2,
+          -87.17500000000001,
+          139.21499999999997
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765685425562",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2,
+          -87.17500000000001,
+          32.215
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765690256757",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          2,
+          87.175,
+          52.215
+        ],
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ],
+    "csgOperations": [
+      {
+        "id": "17656848192620.9292321802554954",
+        "type": "chamfer",
+        "edge": "top-back",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "17656848192620.6598822534090051",
+        "type": "chamfer",
+        "edge": "bottom-back",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "17656848325560.5610484835314103",
+        "type": "chamfer",
+        "edge": "top-right",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "17656848471880.07824401519341817",
+        "type": "chamfer",
+        "edge": "back-right",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      }
+    ],
+    "color": "#1e9964"
+  },
+  {
+    "id": "obj_1765604728876_49183",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 10,
+      "h": 170.35,
+      "d": 10
+    },
+    "pos": [
+      87.2695836404747,
+      77.82499999999999,
+      116.32169137709562
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": []
+  },
+  {
+    "id": "cube_mj3vhwfu_sh7mfd",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本",
+    "dims": {
+      "w": 10,
+      "h": 177.35,
+      "d": 10
+    },
+    "pos": [
+      -62.73041635952529,
+      74.32499999999999,
+      116.32169137709562
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "holes": [
+      {
+        "id": "hole_1765679521789",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          0,
+          -82.17499999999998,
+          5
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ],
+    "csgOperations": []
+  },
+  {
+    "id": "obj_1765604916971_41529",
+    "key": "custom-160",
+    "type": "cpu-cooler",
+    "name": "Custom Cooler 160x120x8",
+    "dims": {
+      "w": 120,
+      "h": 160,
+      "d": 8
+    },
+    "pos": [
+      17.136200331954825,
+      80,
+      27.674213628367824
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "type": "custom"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "obj_1765604956403_86244",
+    "key": "sfx",
+    "type": "psu",
+    "name": "SFX 125×63.5×100",
+    "dims": {
+      "w": 125,
+      "h": 63.5,
+      "d": 100
+    },
+    "pos": [
+      13.65368605130714,
+      101.05920614978969,
+      176.5716913770956
+    ],
+    "rot": [
+      1.5707963267948963,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "standard": "SFX"
+    },
+    "connectors": [
+      {
+        "id": "sfx-mount-1",
+        "label": "PSU Mount 1",
+        "type": "screw-m4",
+        "size": 4,
+        "pos": [
+          -50,
+          23.8125,
+          -50
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "up": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "sfx-mount-2",
+        "label": "PSU Mount 2",
+        "type": "screw-m4",
+        "size": 4,
+        "pos": [
+          50,
+          23.8125,
+          -50
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "up": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "sfx-mount-3",
+        "label": "PSU Mount 3",
+        "type": "screw-m4",
+        "size": 4,
+        "pos": [
+          -50,
+          -23.8125,
+          -50
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "up": [
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "id": "sfx-mount-4",
+        "label": "PSU Mount 4",
+        "type": "screw-m4",
+        "size": 4,
+        "pos": [
+          50,
+          -23.8125,
+          -50
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ],
+        "up": [
+          1,
+          0,
+          0
+        ]
+      }
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "cube_mj3vnf3s_bjnu3a",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本",
+    "dims": {
+      "w": 213.83,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      -8.645416359525306,
+      165,
+      213.3216913770956
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "holes": [
+      {
+        "id": "hole_1765679499868",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          94.91500000000002,
+          0,
+          5
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765679503856",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -55.08499999999999,
+          0,
+          5
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765690103815",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -44.084999999999994,
+          5,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765690216461",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          85.91500000000002,
+          5,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ],
+    "csgOperations": [
+      {
+        "id": "17656851163080.32327205049828467",
+        "type": "chamfer",
+        "edge": "top-front",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "sub_cube_mj59nfrh_ja59ax_1765689152072",
+        "type": "cube",
+        "dims": {
+          "w": 274.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -54.084999999999994,
+            0,
+            -139.21499999999992
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_cube_mj59mrzy_e0eaaq_1765689159911",
+        "type": "cube",
+        "dims": {
+          "w": 274.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            95.91500000000002,
+            0,
+            -139.21499999999997
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_obj_1765689870886_1157_1765690080096",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 170.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -44.084999999999994,
+            -87.175,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_obj_1765690125497_49695_1765690200575",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 167.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            85.91500000000002,
+            -85.675,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "color": "#d5871a"
+  },
+  {
+    "id": "cube_mj3vt8lt_o6wj1l",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本",
+    "dims": {
+      "w": 140,
+      "h": 26.407501326156876,
+      "d": 10
+    },
+    "pos": [
+      12.269583640474707,
+      8.853750663078436,
+      203.3216913770956
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "cube_mj3vvliv_95hgvp",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本",
+    "dims": {
+      "w": 15,
+      "h": 137.94249867384312,
+      "d": 10
+    },
+    "pos": [
+      -50.23041635952529,
+      91.02875066307843,
+      203.3216913770956
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "cube_mj3w2jhb_1s2dat",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本",
+    "dims": {
+      "w": 4,
+      "h": 36.6,
+      "d": 288.42999999999995
+    },
+    "pos": [
+      -117.5604163595253,
+      151.7,
+      74.10669137709561
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "holes": [
+      {
+        "id": "hole_1765684669474",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -2,
+          13.300000000000011,
+          139.21499999999997
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765684670422",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -2,
+          13.300000000000011,
+          57.215
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765684673348",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -2,
+          0,
+          -139.21499999999997
+        ],
+        "direction": [
+          -1,
+          0,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ],
+    "csgOperations": [
+      {
+        "id": "17656850246380.43621372101634004",
+        "type": "chamfer",
+        "edge": "top-back",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "17656850246380.7060755396895343",
+        "type": "chamfer",
+        "edge": "top-left",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "17656851323280.058920536021612846",
+        "type": "chamfer",
+        "edge": "top-front",
+        "size": 2,
+        "dims": {
+          "w": 0,
+          "h": 0,
+          "d": 0
+        }
+      },
+      {
+        "id": "sub_cube_mj5ajcas_11kh10_1765690527954",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube 副本",
+        "dims": {
+          "w": 88.47565201230259,
+          "h": 5,
+          "d": 268.42999999999995
+        },
+        "pos": [
+          -142.3499631572017,
+          150.83723086688488,
+          74.10669137709561
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "color": "#000000",
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "sourceId": "cube_mj5ajcas_11kh10",
+        "operation": "subtract",
+        "relativeTransform": {
+          "pos": [
+            -24.789546797676394,
+            -0.8627691331151084,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "union_obj_1765685266565_33956_1765693583143",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube",
+        "dims": {
+          "w": 3.9999999999999716,
+          "h": 111.99999999999997,
+          "d": 10
+        },
+        "pos": [
+          -117.56041635952529,
+          77.39999999999999,
+          -65.10830862290436
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "sourceId": "obj_1765685266565_33956",
+        "operation": "union",
+        "relativeTransform": {
+          "pos": [
+            1.4210854715202004e-14,
+            -74.3,
+            -139.21499999999997
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "union_cube_mj3w3pb1_vofxjn_1765693910834",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube 副本 副本 副本",
+        "dims": {
+          "w": 4,
+          "h": 111.99999999999996,
+          "d": 10
+        },
+        "pos": [
+          -117.5604163595253,
+          77.39999999999998,
+          213.3216913770956
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "sourceId": "cube_mj3w3pb1_vofxjn",
+        "operation": "union",
+        "relativeTransform": {
+          "pos": [
+            0,
+            -74.30000000000001,
+            139.21499999999997
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "union_cube_mj3vyni1_6454u3_1765693929614",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube 副本",
+        "dims": {
+          "w": 4,
+          "h": 35.75000000000001,
+          "d": 288.42999999999995
+        },
+        "pos": [
+          -117.5604163595253,
+          3.525000000000002,
+          74.10669137709561
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "holes": [
+          {
+            "id": "hole_1765684681422",
+            "type": "counterbore",
+            "diameter": 3,
+            "position": [
+              -2,
+              3.552713678800501e-15,
+              -139.21499999999997
+            ],
+            "direction": [
+              -1,
+              0,
+              0
+            ],
+            "depth": 10,
+            "headDiameter": 6,
+            "headDepth": 2
+          },
+          {
+            "id": "hole_1765685405838",
+            "type": "counterbore",
+            "diameter": 3,
+            "position": [
+              -2,
+              -12.875000000000004,
+              139.21499999999997
+            ],
+            "direction": [
+              -1,
+              0,
+              0
+            ],
+            "depth": 10,
+            "headDiameter": 6,
+            "headDepth": 2
+          }
+        ],
+        "csgOperations": [
+          {
+            "id": "sub_obj_1765690393853_2786_1765690483270",
+            "key": "cube",
+            "type": "cube",
+            "name": "Cube",
+            "dims": {
+              "w": 88.47565201230259,
+              "h": 5,
+              "d": 268.42999999999995
+            },
+            "pos": [
+              -142.3499631572017,
+              1.0749161584715807,
+              74.10669137709561
+            ],
+            "rot": [
+              0,
+              0,
+              0
+            ],
+            "color": "#000000",
+            "visible": true,
+            "includeInExport": true,
+            "meta": {
+              "shape": "cube"
+            },
+            "connectors": [],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "sourceId": "obj_1765690393853_2786",
+            "operation": "subtract",
+            "relativeTransform": {
+              "pos": [
+                -24.789546797676394,
+                -2.4500838415284214,
+                0
+              ],
+              "rot": [
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        ],
+        "sourceId": "cube_mj3vyni1_6454u3",
+        "operation": "union",
+        "relativeTransform": {
+          "pos": [
+            0,
+            -148.17499999999998,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      {
+        "id": "sub_obj_1765690393853_2786_1765694179805",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube",
+        "dims": {
+          "w": 88.47565201230259,
+          "h": 5,
+          "d": 268.42999999999995
+        },
+        "pos": [
+          -142.3499631572017,
+          1.0749161584715807,
+          74.10669137709561
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ],
+        "color": "#000000",
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "sourceId": "obj_1765690393853_2786",
+        "operation": "subtract",
+        "relativeTransform": {
+          "pos": [
+            -24.789546797676394,
+            -150.6250838415284,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "reference_mj3wijny_ir5mpe",
+    "key": "coke-can",
+    "type": "reference",
+    "name": "Coke Can (330ml) 副本",
+    "dims": {
+      "w": 66,
+      "h": 115,
+      "d": 66
+    },
+    "pos": [
+      -152.3594278942855,
+      43.15,
+      -97.72373950837107
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "color": "#ef4444",
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "type": "reference"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "cube_mj56qty3_mpbj2p",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本",
+    "dims": {
+      "w": 103.91227552188711,
+      "h": 115.75,
+      "d": 38.139999999999986
+    },
+    "pos": [
+      -88.26041635952534,
+      53.525,
+      -104.50236940416369
+    ],
+    "rot": [
+      -2.7369110631344083e-48,
+      -1.5707963267948966,
+      0
+    ],
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "standoff_mj57eegq_kgupjm",
+    "type": "standoff",
+    "name": "Standoff",
+    "pos": [
+      -71.56041635952528,
+      -4.350000000000001,
+      -48.518308622904385
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "height": 5.350000000000001,
+    "outerDiameter": 6,
+    "holeDiameter": 3,
+    "baseHeight": 3,
+    "baseDiameter": 10,
+    "dims": {
+      "w": 6,
+      "h": 5.350000000000001,
+      "d": 6
+    }
+  },
+  {
+    "id": "standoff_mj57eegq_f38dl0",
+    "type": "standoff",
+    "name": "Standoff",
+    "pos": [
+      85.91958364047471,
+      -4.350000000000001,
+      -25.658308622904386
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "height": 5.350000000000001,
+    "outerDiameter": 6,
+    "holeDiameter": 3,
+    "baseHeight": 3,
+    "baseDiameter": 10,
+    "dims": {
+      "w": 6,
+      "h": 5.350000000000001,
+      "d": 6
+    }
+  },
+  {
+    "id": "standoff_mj57eegq_x6sc9s",
+    "type": "standoff",
+    "name": "Standoff",
+    "pos": [
+      -71.56041635952528,
+      -4.350000000000001,
+      106.42169137709561
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "height": 5.350000000000001,
+    "outerDiameter": 6,
+    "holeDiameter": 3,
+    "baseHeight": 3,
+    "baseDiameter": 10,
+    "dims": {
+      "w": 6,
+      "h": 5.350000000000001,
+      "d": 6
+    }
+  },
+  {
+    "id": "standoff_mj57eegq_qizush",
+    "type": "standoff",
+    "name": "Standoff",
+    "pos": [
+      85.91958364047471,
+      -4.350000000000001,
+      106.42169137709561
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "height": 5.350000000000001,
+    "outerDiameter": 6,
+    "holeDiameter": 3,
+    "baseHeight": 3,
+    "baseDiameter": 10,
+    "dims": {
+      "w": 6,
+      "h": 5.350000000000001,
+      "d": 6
+    }
+  },
+  {
+    "id": "obj_1765685266565_33956",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 3.9999999999999716,
+      "h": 111.99999999999997,
+      "d": 10
+    },
+    "pos": [
+      -117.56041635952529,
+      77.39999999999999,
+      -65.10830862290436
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "cube_mj59g1qc_rm2h0p",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本",
+    "dims": {
+      "w": 213.83,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      -8.645416359525306,
+      165,
+      126.32169137709562
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "holes": [
+      {
+        "id": "hole_1765689468483",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          95.91500000000002,
+          5,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765689473307",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -54.084999999999994,
+          5,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ],
+    "color": "#11e41f",
+    "csgOperations": [
+      {
+        "id": "cross_cube_mj59nfrh_ja59ax_1765689342442",
+        "type": "cube",
+        "dims": {
+          "w": 274.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -54.084999999999994,
+            -5,
+            -52.21499999999995
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "cross_cube_mj59mrzy_e0eaaq_1765689348294",
+        "type": "cube",
+        "dims": {
+          "w": 274.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            95.91500000000002,
+            -5,
+            -52.215
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ]
+  },
+  {
+    "id": "obj_1765688810061_39645",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 213.83,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      -8.6454163595253,
+      -9.350000000000001,
+      106.32169137709559
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "cross_cube_mj59ltqi_5gbdd1_1765689384191",
+        "type": "cube",
+        "dims": {
+          "w": 274.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -64.085,
+            -5,
+            -32.21499999999995
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "cross_cube_mj59jpvg_5ab86z_1765689387330",
+        "type": "cube",
+        "dims": {
+          "w": 274.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            95.91499999999998,
+            -5,
+            -32.215
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ]
+  },
+  {
+    "id": "cube_mj59jpvg_5ab86z",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本 副本 副本",
+    "dims": {
+      "w": 274.4299999999999,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      87.26958364047468,
+      -9.350000000000001,
+      74.10669137709559
+    ],
+    "rot": [
+      0,
+      -1.5707963267948966,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "sub_obj_1765604728876_49183_1765689286048",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 170.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            42.21500000000003,
+            87.17499999999998,
+            -1.4210854715202004e-14
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "cross_obj_1765688810061_39645_1765689387330",
+        "type": "cube",
+        "dims": {
+          "w": 214.03,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            32.21499999999999,
+            5,
+            95.91499999999999
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "color": "#12e2ae",
+    "holes": [
+      {
+        "id": "hole_1765689400121",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          42.21500000000003,
+          -5,
+          -2.1316282072803006e-14
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765689461370",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          32.214999999999975,
+          -5,
+          -1.4210854715202004e-14
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "cube_mj59ltqi_5gbdd1",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本 副本 副本 副本",
+    "dims": {
+      "w": 277.4299999999999,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      -72.7304163595253,
+      -9.350000000000001,
+      75.60669137709564
+    ],
+    "rot": [
+      0,
+      -1.5707963267948966,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "cross_obj_1765688810061_39645_1765689384191",
+        "type": "cube",
+        "dims": {
+          "w": 214.03,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            30.71499999999996,
+            5,
+            -64.08499999999998
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "holes": [
+      {
+        "id": "hole_1765689450490",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          32.21499999999996,
+          -5,
+          -7.105427357601002e-15
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "cube_mj59mrzy_e0eaaq",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本 副本 副本 副本",
+    "dims": {
+      "w": 274.4299999999999,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      87.2695836404747,
+      165,
+      74.10669137709561
+    ],
+    "rot": [
+      0,
+      -1.5707963267948966,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "sub_obj_1765604728876_49183_1765689276841",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 167.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            42.215,
+            -85.67500000000001,
+            1.4210854715202004e-14
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "cross_cube_mj59g1qc_rm2h0p_1765689348294",
+        "type": "cube",
+        "dims": {
+          "w": 214.03,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            52.21499999999999,
+            5,
+            95.91500000000002
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "color": "#7e51c2",
+    "holes": [
+      {
+        "id": "hole_1765689466619",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          42.215,
+          5,
+          -7.105427357601002e-15
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "cube_mj59nfrh_ja59ax",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本 副本 副本 副本 副本 副本",
+    "dims": {
+      "w": 274.4299999999999,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      -62.7304163595253,
+      165,
+      74.10669137709567
+    ],
+    "rot": [
+      0,
+      -1.5707963267948966,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "sub_cube_mj3vhwfu_sh7mfd_1765689268781",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 177.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            42.21499999999995,
+            -90.67500000000001,
+            7.105427357601002e-15
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "cross_cube_mj59g1qc_rm2h0p_1765689342442",
+        "type": "cube",
+        "dims": {
+          "w": 214.03,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            52.21499999999996,
+            5,
+            -54.08499999999998
+          ],
+          "rot": [
+            0,
+            1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "color": "#ef32da",
+    "holes": [
+      {
+        "id": "hole_1765689474150",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          42.21499999999995,
+          5,
+          0
+        ],
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "obj_1765689802707_34977",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 213.83,
+      "h": 10,
+      "d": 10
+    },
+    "pos": [
+      -8.6454163595253,
+      -9.350000000000001,
+      213.3216913770956
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "color": "#879ec0",
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": [
+      {
+        "id": "sub_cube_mj59ltqi_5gbdd1_1765689843713",
+        "type": "cube",
+        "dims": {
+          "w": 277.6299999999999,
+          "h": 10.2,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -64.085,
+            0,
+            -140.71499999999995
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_cube_mj59ltqi_5gbdd1_1765690059955",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube 副本 副本 副本 副本 副本",
+        "dims": {
+          "w": 277.4299999999999,
+          "h": 10,
+          "d": 10
+        },
+        "pos": [
+          -72.7304163595253,
+          -9.350000000000001,
+          75.60669137709564
+        ],
+        "rot": [
+          0,
+          -1.5707963267948966,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "csgOperations": [
+          {
+            "id": "cross_obj_1765688810061_39645_1765689384191",
+            "type": "cube",
+            "dims": {
+              "w": 214.03,
+              "h": 10.2,
+              "d": 10.2
+            },
+            "relativeTransform": {
+              "pos": [
+                30.71499999999996,
+                5,
+                -64.08499999999998
+              ],
+              "rot": [
+                0,
+                1.5707963267948966,
+                0
+              ]
+            },
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "operation": "subtract"
+          }
+        ],
+        "holes": [
+          {
+            "id": "hole_1765689450490",
+            "type": "counterbore",
+            "diameter": 3,
+            "position": [
+              32.21499999999996,
+              -5,
+              -7.105427357601002e-15
+            ],
+            "direction": [
+              0,
+              -1,
+              0
+            ],
+            "depth": 10,
+            "headDiameter": 6,
+            "headDepth": 2
+          }
+        ],
+        "sourceId": "cube_mj59ltqi_5gbdd1",
+        "operation": "subtract",
+        "relativeTransform": {
+          "pos": [
+            -64.085,
+            0,
+            -137.71499999999995
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        }
+      },
+      {
+        "id": "sub_cube_mj59jpvg_5ab86z_1765690064449",
+        "key": "cube",
+        "type": "cube",
+        "name": "Cube 副本 副本 副本 副本",
+        "dims": {
+          "w": 274.4299999999999,
+          "h": 10,
+          "d": 10
+        },
+        "pos": [
+          87.26958364047468,
+          -9.350000000000001,
+          74.10669137709559
+        ],
+        "rot": [
+          0,
+          -1.5707963267948966,
+          0
+        ],
+        "visible": true,
+        "includeInExport": true,
+        "meta": {
+          "shape": "cube"
+        },
+        "connectors": [],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "csgOperations": [
+          {
+            "id": "sub_obj_1765604728876_49183_1765689286048",
+            "type": "cube",
+            "dims": {
+              "w": 10.2,
+              "h": 170.54999999999998,
+              "d": 10.2
+            },
+            "relativeTransform": {
+              "pos": [
+                42.21500000000003,
+                87.17499999999998,
+                -1.4210854715202004e-14
+              ],
+              "rot": [
+                0,
+                1.5707963267948966,
+                0
+              ]
+            },
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "operation": "subtract"
+          },
+          {
+            "id": "cross_obj_1765688810061_39645_1765689387330",
+            "type": "cube",
+            "dims": {
+              "w": 214.03,
+              "h": 10.2,
+              "d": 10.2
+            },
+            "relativeTransform": {
+              "pos": [
+                32.21499999999999,
+                5,
+                95.91499999999999
+              ],
+              "rot": [
+                0,
+                1.5707963267948966,
+                0
+              ]
+            },
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "operation": "subtract"
+          }
+        ],
+        "color": "#12e2ae",
+        "holes": [
+          {
+            "id": "hole_1765689400121",
+            "type": "counterbore",
+            "diameter": 3,
+            "position": [
+              42.21500000000003,
+              -5,
+              -2.1316282072803006e-14
+            ],
+            "direction": [
+              0,
+              -1,
+              0
+            ],
+            "depth": 10,
+            "headDiameter": 6,
+            "headDepth": 2
+          },
+          {
+            "id": "hole_1765689461370",
+            "type": "counterbore",
+            "diameter": 3,
+            "position": [
+              32.214999999999975,
+              -5,
+              -1.4210854715202004e-14
+            ],
+            "direction": [
+              0,
+              -1,
+              0
+            ],
+            "depth": 10,
+            "headDiameter": 6,
+            "headDepth": 2
+          }
+        ],
+        "sourceId": "cube_mj59jpvg_5ab86z",
+        "operation": "subtract",
+        "relativeTransform": {
+          "pos": [
+            95.91499999999998,
+            0,
+            -139.215
+          ],
+          "rot": [
+            0,
+            -1.5707963267948966,
+            0
+          ]
+        }
+      },
+      {
+        "id": "sub_obj_1765689870886_1157_1765690072033",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 167.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            -44.085,
+            85.67500000000001,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      },
+      {
+        "id": "sub_obj_1765690125497_49695_1765690210109",
+        "type": "cube",
+        "dims": {
+          "w": 10.2,
+          "h": 170.54999999999998,
+          "d": 10.2
+        },
+        "relativeTransform": {
+          "pos": [
+            85.915,
+            87.17500000000001,
+            0
+          ],
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "operation": "subtract"
+      }
+    ],
+    "holes": [
+      {
+        "id": "hole_1765690095616",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -64.085,
+          0,
+          5
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765690100906",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          -44.085,
+          -5,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765690114411",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          95.91499999999998,
+          0,
+          5
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      },
+      {
+        "id": "hole_1765690218605",
+        "type": "counterbore",
+        "diameter": 3,
+        "position": [
+          85.915,
+          -5,
+          0
+        ],
+        "direction": [
+          0,
+          -1,
+          0
+        ],
+        "depth": 10,
+        "headDiameter": 6,
+        "headDepth": 2
+      }
+    ]
+  },
+  {
+    "id": "obj_1765689870886_1157",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 10,
+      "h": 170.35,
+      "d": 10
+    },
+    "pos": [
+      -52.7304163595253,
+      77.825,
+      213.3216913770956
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": []
+  },
+  {
+    "id": "obj_1765690125497_49695",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 10,
+      "h": 170.35,
+      "d": 10
+    },
+    "pos": [
+      77.2695836404747,
+      77.825,
+      213.3216913770956
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": true,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "csgOperations": []
+  },
+  {
+    "id": "obj_1765690393853_2786",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 88.47565201230259,
+      "h": 5,
+      "d": 268.42999999999995
+    },
+    "pos": [
+      -142.3499631572017,
+      1.0749161584715807,
+      74.10669137709561
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "color": "#000000",
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "cube_mj5ajcas_11kh10",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube 副本",
+    "dims": {
+      "w": 88.47565201230259,
+      "h": 5,
+      "d": 268.42999999999995
+    },
+    "pos": [
+      -142.3499631572017,
+      150.83723086688488,
+      74.10669137709561
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "color": "#000000",
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  {
+    "id": "obj_1765693971082_30966",
+    "key": "cube",
+    "type": "cube",
+    "name": "Cube",
+    "dims": {
+      "w": 10,
+      "h": 10,
+      "d": 100
+    },
+    "pos": [
+      255.72718990849836,
+      28.441363117247477,
+      61.95473674842913
+    ],
+    "rot": [
+      0,
+      0,
+      0
+    ],
+    "visible": false,
+    "includeInExport": true,
+    "meta": {
+      "shape": "cube"
+    },
+    "connectors": [],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  }
+]

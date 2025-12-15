@@ -546,6 +546,23 @@ function EditorContent() {
             isCutting={transformMode === 'cut'}
             drillDebugIds={drillTool.drillDebugIds}
           />
+          {/* Camera Hint Overlay */}
+          <div style={{
+            position: 'absolute',
+            bottom: 10,
+            left: '50%',
+            transform: 'translateX(-50%)', // Center it
+            background: 'rgba(0,0,0,0.6)',
+            color: 'rgba(255,255,255,0.7)',
+            padding: '4px 12px',
+            borderRadius: 20,
+            fontSize: '12px',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 10
+          }}>
+             {t("hint.cameraControls")}
+          </div>
         </div>
 
         {/* Right Sidebar */}

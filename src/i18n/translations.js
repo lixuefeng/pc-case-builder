@@ -1,6 +1,6 @@
 ﻿export const translations = {
   zh: {
-    "app.title": "PC Case Builder",
+    "app.title": "ChassisForge (Beta)",
     "action.import": "导入",
     "action.export": "保存工程",
     "action.exportSelection": "导出选中",
@@ -112,9 +112,10 @@
     "label.moveInstructions": "选择物体或按住 Shift 点击面进行对齐",
     "label.rotateInstructions": "选择物体或按住 Shift 点击面进行旋转对齐",
     "label.scaleInstructions": "选择物体或按住 Shift 点击面进行延伸",
+    "hint.cameraControls": "视角：Alt+左键旋转 / Alt+右键平移 / Alt+滚轮缩放",
   },
   en: {
-    "app.title": "PC Case Builder",
+    "app.title": "ChassisForge (Beta)",
     "action.import": "Import",
     "action.export": "Save JSON",
     "action.exportSelection": "Export Sel.",
@@ -226,5 +227,6 @@
     "label.moveInstructions": "Select a object or hold Shift + Click faces to align",
     "label.rotateInstructions": "Select a object or hold Shift + Click faces to align rotation",
     "label.scaleInstructions": "Select a object or hold Shift + Click faces to stretch",
+    "hint.cameraControls": "Camera: Alt+LMB Rotate / Alt+RMB Pan / Alt+Scroll Zoom",
   }
 };

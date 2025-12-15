@@ -5,7 +5,9 @@ const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem("app_language") || "zh";
+    const saved = localStorage.getItem("app_language");
+    if (saved) return saved;
+    return navigator.language.startsWith("zh") ? "zh" : "en";
   });
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { create } from "zustand";
+import defaultProjectData from "./pc-case-design-2025-12-14.json";
 
 const STORAGE_PREFIX = "pc-case-builder-";
 const SCENE_KEY_PREFIX = `${STORAGE_PREFIX}project_`;
@@ -196,23 +197,50 @@ const getInitialState = () => {
       const newId = generateId();
       const newProject = {
         id: newId,
-        name: "My First Project",
+        name: "PC Case Template",
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
       ProjectStorage.saveProjects([newProject]);
-      ProjectStorage.saveProjectScene(newId, emptyScene);
+      ProjectStorage.saveProjectScene(newId, { objects: defaultProjectData, connections: [] });
       projects = [newProject];
       currentProjectId = newId;
     }
-  } else {
-    // Load last active or first project
-    // For now, just load the first one. Ideally we store 'lastActiveProjectId'
-    currentProjectId = projects[0].id;
-    const storedScene = ProjectStorage.getProjectScene(currentProjectId);
-    if (storedScene) {
-      currentScene = storedScene;
-    }
+  }
+
+  // Ensure Default Template exists for everyone (New and Existing users)
+  const templateName = "PC Case Template";
+  const hasTemplate = projects.some(p => p.name === templateName);
+
+  if (!hasTemplate) {
+    const templateId = generateId();
+    const templateProject = {
+      id: templateId,
+      name: templateName,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    // Save scene logic
+    ProjectStorage.saveProjectScene(templateId, { objects: defaultProjectData, connections: [] });
+
+    projects = [...projects, templateProject];
+    ProjectStorage.saveProjects(projects);
+
+    // For existing users, we don't force-switch, just add it.
+    // But if we just created it and we are in the "else" block (existing user), 
+    // we might want to let them know or just leave it in the list.
+  }
+
+  // Load last active or first project
+  // For now, just load the first one. Ideally we store 'lastActiveProjectId'
+  if (!currentProjectId) {
+    currentProjectId = projects[0]?.id;
+  }
+
+  const storedScene = currentProjectId ? ProjectStorage.getProjectScene(currentProjectId) : null;
+  if (storedScene) {
+    currentScene = storedScene;
   }
 
   return {

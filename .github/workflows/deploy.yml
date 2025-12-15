@@ -32,7 +32,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::018511979452:oidc-provider/token.actions.githubusercontent.com
+          role-to-assume: arn:aws:iam::018511979452:role/github-actions-pc-case-builder
           aws-region: us-east-1
 
       - name: Deploy to S3

@@ -32,11 +32,17 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::018511979452:role/github-actions-pc-case-builder
+          role-to-assume: arn:aws:iam::573499276731:role/github-actions-pc-case-builder
           aws-region: us-east-1
 
-      - name: Deploy to S3
+      - name: Deploy assets to S3 (long cache)
         run: |
-          aws s3 sync dist/ s3://chassis-forge-web-prod \
+          aws s3 sync dist/ s3://chassis-forge-web-573499276731 \
             --delete \
+            --exclude "index.html" \
             --cache-control "public, max-age=31536000, immutable"
+
+      - name: Deploy index.html (no cache)
+        run: |
+          aws s3 cp dist/index.html s3://chassis-forge-web-573499276731/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"

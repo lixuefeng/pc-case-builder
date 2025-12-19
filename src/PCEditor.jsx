@@ -53,7 +53,7 @@ function EditorContent() {
   const [showHorizontalGrid, setShowHorizontalGrid] = useState(true);
   const [transformMode, setTransformMode] = useState("translate");
   const [showGizmos, setShowGizmos] = useState(true);
-  const [activeLeftTab, setActiveLeftTab] = useState("library");
+  const [activeLeftTab, setActiveLeftTab] = useState("projects");
 
   const expandedObjects = useMemo(() => expandObjectsWithEmbedded(objects), [objects]);
 

@@ -34,9 +34,9 @@
     "mode.merge": "合并",
     "action.standoffs": "生成铜柱",
 
-    "label.library": "添加物体 (Library)",
-    "label.hierarchy": "层级 (Hierarchy)",
-    "label.projects": "项目 (Projects)",
+    "label.library": "预设库",
+    "label.hierarchy": "物体列表",
+    "label.projects": "项目",
     "label.inspector": "属性检查器",
     "label.objects": "物体列表",
     "label.noObjects": "暂无物体",
@@ -152,7 +152,7 @@
     "action.standoffs": "Standoffs",
 
     "label.library": "Library",
-    "label.hierarchy": "Hierarchy",
+    "label.hierarchy": "Objects",
     "label.projects": "Projects",
     "label.inspector": "Inspector",
     "label.objects": "Objects",

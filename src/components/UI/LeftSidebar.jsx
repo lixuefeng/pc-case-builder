@@ -20,9 +20,9 @@ const TAB_THEME = {
 };
 
 const TABS = [
+  { key: "projects", labelKey: "label.projects", fallback: "Projects" },
   { key: "library", labelKey: "label.library" },
   { key: "hierarchy", labelKey: "label.hierarchy" },
-  { key: "projects", labelKey: "label.projects", fallback: "Projects" },
 ];
 
 const LeftSidebar = ({

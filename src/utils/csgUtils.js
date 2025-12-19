@@ -17,6 +17,10 @@ export const adjustCSGOperations = (part, originalPos, originalQuat) => {
     const shiftLocal = shiftWorld.applyQuaternion(invQuat);
 
     return part.csgOperations.map(op => {
+        if (!op.relativeTransform || !op.relativeTransform.pos) {
+            console.warn("Invalid CSG op found:", op);
+            return op;
+        }
         const oldRelPos = new THREE.Vector3(...op.relativeTransform.pos);
         const newRelPos = oldRelPos.clone().sub(shiftLocal);
         return {

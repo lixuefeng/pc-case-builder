@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useLanguage } from "../i18n/LanguageContext";
 import * as THREE from "three";
 import { useToast } from "../context/ToastContext";
 import { duplicateObject, generateObjectId } from "../utils/objectUtils";
@@ -7,6 +8,7 @@ import { calculateSplit } from "../utils/splitUtils";
 
 export function useCutTool({ objects, setObjects, selectedIds, setSelectedIds, transformMode, setTransformMode }) {
     const { showToast } = useToast();
+    const { t } = useLanguage();
     const [cutterFace, setCutterFace] = useState(null);
 
     // Clear cutterFace when leaving cut mode
@@ -26,11 +28,11 @@ export function useCutTool({ objects, setObjects, selectedIds, setSelectedIds, t
 
     const performSplit = useCallback(() => {
         if (!cutterFace) {
-            showToast({ type: "error", text: "Please set a split plane (Shift+Click a face)", ttl: 2000 });
+            showToast({ type: "error", text: t("toast.setSplitPlane"), ttl: 2000 });
             return;
         }
         if (selectedIds.length === 0) {
-            showToast({ type: "error", text: "No objects selected to split", ttl: 2000 });
+            showToast({ type: "error", text: t("toast.noSelectionSplit"), ttl: 2000 });
             return;
         }
 
@@ -60,7 +62,7 @@ export function useCutTool({ objects, setObjects, selectedIds, setSelectedIds, t
                 const original = nextObjects.find(o => o.id === id);
                 if (!original) return;
 
-                const splitResult = calculateSplit(original, planePos, planeNormal);
+                const splitResult = calculateSplit(original, planePos, planeNormal, t);
 
                 if (splitResult) {
                     const [partA, partB] = splitResult;
@@ -76,12 +78,12 @@ export function useCutTool({ objects, setObjects, selectedIds, setSelectedIds, t
         setSelectedIds(newSelection);
         setTransformMode('translate'); // Exit cut mode after split
         setCutterFace(null);
-        showToast({ type: "success", text: "Split applied", ttl: 2000 });
+        showToast({ type: "success", text: t("toast.splitApplied"), ttl: 2000 });
 
     }, [cutterFace, selectedIds, setObjects, setSelectedIds, showToast, setTransformMode]);
 
     const handleCutPick = useCallback((faceInfo) => {
-        if (faceInfo.event.shiftKey) {
+        if (faceInfo.shiftKey) {
             // faceInfo.point is already an array [x,y,z] from MovablePart
             // Fix: faceInfo.normal is already World Space (from MovablePart)
             // Do NOT apply transformDirection again!
@@ -91,9 +93,9 @@ export function useCutTool({ objects, setObjects, selectedIds, setSelectedIds, t
                 point: faceInfo.point,
                 normal: worldNormal.toArray()
             });
-            showToast({ type: "info", text: "Split plane set", ttl: 1500 });
+            showToast({ type: "info", text: t("toast.splitPlaneSet"), ttl: 1500 });
         }
-    }, [setCutterFace, showToast]);
+    }, [setCutterFace, showToast, t]);
 
     return {
         cutterFace,

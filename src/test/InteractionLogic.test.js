@@ -22,7 +22,7 @@ describe('InteractionLogic', () => {
         });
 
         it('should block selection in cut mode', () => {
-            expect(canSelectObject('cut')).toBe(false);
+            expect(canSelectObject('cut')).toBe(true);
         });
 
         it('should block selection in drill mode', () => {

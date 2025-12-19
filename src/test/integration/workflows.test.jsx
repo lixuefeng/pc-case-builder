@@ -4,6 +4,7 @@ import ReactThreeTestRenderer from '@react-three/test-renderer';
 import * as THREE from 'three';
 import { useSelection } from '../../hooks/useSelection';
 import { ToastContext } from '../../context/ToastContext';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 
 // Mock Toast Provider
 const MockToastProvider = ({ children }) => {
@@ -58,10 +59,12 @@ describe('Workflow Integration Tests', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestWorkflowComponent
-                    objects={[cubeA, cubeB]}
-                    onViewEvent={ref}
-                />
+                <LanguageProvider>
+                    <TestWorkflowComponent
+                        objects={[cubeA, cubeB]}
+                        onViewEvent={ref}
+                    />
+                </LanguageProvider>
             </MockToastProvider>
         );
 

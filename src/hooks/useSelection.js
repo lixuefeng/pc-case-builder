@@ -1,10 +1,12 @@
 import { useCallback } from "react";
+import { useLanguage } from "../i18n/LanguageContext";
 import * as THREE from "three";
 import { useToast } from "../context/ToastContext";
 import { duplicateObject } from "../utils/objectUtils";
 
 export function useSelection({ objects, setObjects, selectedIds, setSelectedIds }) {
     const { showToast } = useToast();
+    const { t } = useLanguage();
 
     const select = useCallback((id, multi = false) => {
         if (id === null) {
@@ -49,7 +51,7 @@ export function useSelection({ objects, setObjects, selectedIds, setSelectedIds 
         const newGroup = {
             id: `group_${Date.now()}`,
             type: "group",
-            name: "新建编组",
+            name: t("group.defaultName"),
             pos: center.toArray(),
             rot: [0, 0, 0],
             dims: { w: size.x, h: size.y, d: size.z },
@@ -111,7 +113,7 @@ export function useSelection({ objects, setObjects, selectedIds, setSelectedIds 
                     if (!original) {
                         return;
                     }
-                    const duplicate = duplicateObject(original, index + 1);
+                    const duplicate = duplicateObject(original, index + 1, t);
                     if (!duplicate) {
                         return;
                     }
@@ -128,7 +130,7 @@ export function useSelection({ objects, setObjects, selectedIds, setSelectedIds 
                 setSelectedIds(nextSelection);
                 showToast({
                     type: "success",
-                    text: `已复制 ${nextSelection.length} 个零件`,
+                    text: t("toast.copiedCount", { count: nextSelection.length }),
                     ttl: 1500,
                 });
             }

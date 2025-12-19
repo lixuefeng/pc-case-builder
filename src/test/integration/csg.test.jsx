@@ -4,6 +4,7 @@ import ReactThreeTestRenderer from '@react-three/test-renderer';
 import { useCutTool } from '../../hooks/useCutTool';
 import { usePartModifiers } from '../../hooks/usePartModifiers';
 import { ToastContext } from '../../context/ToastContext';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 import * as THREE from 'three';
 
 // Mock Toast Provider
@@ -74,13 +75,15 @@ describe('CSG-01: Simple Split Integration', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestCutComponent
-                    objects={initialObjects}
-                    setObjects={setObjects}
-                    selectedIds={selectedIds}
-                    setSelectedIds={setSelectedIds}
-                    onViewEvent={ref}
-                />
+                <LanguageProvider>
+                    <TestCutComponent
+                        objects={initialObjects}
+                        setObjects={setObjects}
+                        selectedIds={selectedIds}
+                        setSelectedIds={setSelectedIds}
+                        onViewEvent={ref}
+                    />
+                </LanguageProvider>
             </MockToastProvider>
         );
 
@@ -93,7 +96,7 @@ describe('CSG-01: Simple Split Integration', () => {
         const faceInfo = {
             point: [0, 5, 5], // Point on the plane x=0
             normal: [1, 0, 0], // Plane Normal +X
-            event: { shiftKey: true }
+            shiftKey: true
         };
 
         await ReactThreeTestRenderer.act(async () => {
@@ -256,7 +259,9 @@ describe('CSG-05: Drill on Cut Face', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestDrillOnCSG object={baseObj} drillParams={drillParams} onViewEvent={ref} />
+                <LanguageProvider>
+                    <TestDrillOnCSG object={baseObj} drillParams={drillParams} onViewEvent={ref} />
+                </LanguageProvider>
             </MockToastProvider>
         );
 

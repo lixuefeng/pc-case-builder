@@ -12,7 +12,7 @@ import { adjustCSGOperations } from './csgUtils';
  * @param {THREE.Vector3} planeNormal - The normal of the split plane (World Space).
  * @returns {Array|null} - An array of new objects [partA, partB] or null if split failed/skipped.
  */
-export const calculateSplit = (targetObj, planePos, planeNormal) => {
+export const calculateSplit = (targetObj, planePos, planeNormal, t) => {
     if (!targetObj || !planePos || !planeNormal) return null;
 
     const huge = 10000;
@@ -32,7 +32,10 @@ export const calculateSplit = (targetObj, planePos, planeNormal) => {
     const isY = Math.abs(Math.abs(localNormal.y) - 1) < 0.01;
     const isZ = Math.abs(Math.abs(localNormal.z) - 1) < 0.01;
 
-    if (isX || isY || isZ) {
+    // Check for existing modifiers (chamfers/fillets/cuts)
+    const hasModifiers = targetObj.csgOperations && targetObj.csgOperations.length > 0;
+
+    if ((isX || isY || isZ) && !hasModifiers) {
         // --- Perform Actual Geometry Split ---
         // console.log("Axis Aligned Split Detected:", { isX, isY, isZ });
 
@@ -57,7 +60,7 @@ export const calculateSplit = (targetObj, planePos, planeNormal) => {
         const centerB_Local = (size / 2 + splitPos) / 2;
 
         // Create Part A
-        const partA = duplicateObject(targetObj, 0);
+        const partA = duplicateObject(targetObj, 0, t);
         partA.id = generateObjectId(targetObj.type);
         partA.name = `${targetObj.name || targetObj.type} (A)`;
         partA.dims = { ...dims, [axis]: sizeA };
@@ -75,7 +78,7 @@ export const calculateSplit = (targetObj, planePos, planeNormal) => {
         partA.csgOperations = adjustCSGOperations(partA, objPos, objQuat);
 
         // Create Part B
-        const partB = duplicateObject(targetObj, 0);
+        const partB = duplicateObject(targetObj, 0, t);
         partB.id = generateObjectId(targetObj.type);
         partB.name = `${targetObj.name || targetObj.type} (B)`;
         partB.dims = { ...dims, [axis]: sizeB };
@@ -124,7 +127,7 @@ export const calculateSplit = (targetObj, planePos, planeNormal) => {
         const boxLeftPos = planePos.clone().sub(planeNormal.clone().multiplyScalar(huge / 2));
 
         // Part A (Keep "Left" / Negative Side) -> Subtract "Right" Box
-        const partA = duplicateObject(targetObj, 0);
+        const partA = duplicateObject(targetObj, 0, t);
         partA.id = generateObjectId(targetObj.type);
         partA.name = `${targetObj.name || targetObj.type} (A)`;
 
@@ -139,7 +142,7 @@ export const calculateSplit = (targetObj, planePos, planeNormal) => {
         });
 
         // Part B (Keep "Right" / Positive Side) -> Subtract "Left" Box
-        const partB = duplicateObject(targetObj, 0);
+        const partB = duplicateObject(targetObj, 0, t);
         partB.id = generateObjectId(targetObj.type);
         partB.name = `${targetObj.name || targetObj.type} (B)`;
 

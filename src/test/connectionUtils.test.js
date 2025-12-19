@@ -53,7 +53,7 @@ describe('connectionUtils', () => {
 
                 // Mortise should have a subtraction operation
                 expect(result.mortise.csgOperations).toHaveLength(1);
-                expect(result.mortise.csgOperations[0].operation).toBeUndefined(); // Default is subtraction in some contexts, but let's check structure
+                expect(result.mortise.csgOperations[0].operation).toBe('subtract');
                 // The logic in RightSidebar didn't explicitly set 'operation: subtract' for mortise-tenon, 
                 // it relied on the fact that it's a "modifier" which usually implies subtraction or union depending on context.
                 // Wait, looking at the code:

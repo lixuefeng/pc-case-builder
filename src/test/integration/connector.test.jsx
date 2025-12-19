@@ -4,6 +4,7 @@ import ReactThreeTestRenderer from '@react-three/test-renderer';
 import { useConnectors } from '../../hooks/useConnectors';
 import { ToastContext } from '../../context/ToastContext';
 import { PRESETS } from '../../utils/presets';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 import * as THREE from 'three';
 
 // Mock Toast Provider
@@ -102,14 +103,16 @@ describe('Connector Integration Check', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestConnectorComponent
-                    ref={ref}
-                    objects={objects}
-                    setObjects={setObjects}
-                    selectedIds={selectedIds}
-                    setSelectedIds={setSelectedIds}
-                    setConnections={setConnections}
-                />
+                <LanguageProvider>
+                    <TestConnectorComponent
+                        ref={ref}
+                        objects={objects}
+                        setObjects={setObjects}
+                        selectedIds={selectedIds}
+                        setSelectedIds={setSelectedIds}
+                        setConnections={setConnections}
+                    />
+                </LanguageProvider>
             </MockToastProvider>
         );
 

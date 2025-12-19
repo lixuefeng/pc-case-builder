@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import ReactThreeTestRenderer from '@react-three/test-renderer';
 import { useSelection } from '../../hooks/useSelection';
 import { ToastContext } from '../../context/ToastContext';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 
 // Mock Toast Provider
 const MockToastProvider = ({ children }) => {
@@ -58,7 +59,9 @@ describe('CORE-01: Multi-Selection Integration', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestSelectionComponent objects={objects} onViewEvent={ref} />
+                <LanguageProvider>
+                    <TestSelectionComponent objects={objects} onViewEvent={ref} />
+                </LanguageProvider>
             </MockToastProvider>
         );
 

@@ -13,6 +13,7 @@ import { expandObjectsWithEmbedded } from '../../utils/embeddedParts';
 // we must ensure we pass the 'View Quaternion' (simulating the Canvas event) to the hook handle.
 
 import { ToastContext } from '../../context/ToastContext';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 
 // Mock Toast Provider
 const MockToastProvider = ({ children }) => {
@@ -75,11 +76,13 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
         // eslint-disable-next-line
         const renderer = await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestDrillComponent
-                    objects={objects}
-                    drillParams={drillParams}
-                    onViewEvent={ref}
-                />
+                <LanguageProvider>
+                    <TestDrillComponent
+                        objects={objects}
+                        drillParams={drillParams}
+                        onViewEvent={ref}
+                    />
+                </LanguageProvider>
             </MockToastProvider>
         );
 
@@ -124,7 +127,9 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestDrillComponent objects={[cube]} drillParams={drillParams} onViewEvent={ref} />
+                <LanguageProvider>
+                    <TestDrillComponent objects={[cube]} drillParams={drillParams} onViewEvent={ref} />
+                </LanguageProvider>
             </MockToastProvider>
         );
 
@@ -174,7 +179,9 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestDrillComponent objects={[cube]} drillParams={drillParams} onViewEvent={ref} />
+                <LanguageProvider>
+                    <TestDrillComponent objects={[cube]} drillParams={drillParams} onViewEvent={ref} />
+                </LanguageProvider>
             </MockToastProvider>
         );
 
@@ -212,12 +219,14 @@ describe('DRILL-03: Cross Joint Snap Regression (Integration)', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestDrillComponent
-                    objects={capturedObjects}
-                    drillParams={drillParams}
-                    onViewEvent={ref}
-                    onStateUpdate={(newObjs) => { capturedObjects = newObjs; }}
-                />
+                <LanguageProvider>
+                    <TestDrillComponent
+                        objects={capturedObjects}
+                        drillParams={drillParams}
+                        onViewEvent={ref}
+                        onStateUpdate={(newObjs) => { capturedObjects = newObjs; }}
+                    />
+                </LanguageProvider>
             </MockToastProvider>
         );
 

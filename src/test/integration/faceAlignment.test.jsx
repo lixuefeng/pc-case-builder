@@ -4,6 +4,7 @@ import ReactThreeTestRenderer from '@react-three/test-renderer';
 import { useTransformInteraction } from '../../hooks/useTransformInteraction';
 import { ToastContext } from '../../context/ToastContext';
 import * as THREE from 'three';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 
 // Mock Toast Provider
 const MockToastProvider = ({ children }) => {
@@ -69,7 +70,9 @@ describe('CORE-04: Face Alignment Integration', () => {
 
         await ReactThreeTestRenderer.create(
             <MockToastProvider>
-                <TestAlignmentComponent objects={objects} onViewEvent={ref} />
+                <LanguageProvider>
+                    <TestAlignmentComponent objects={objects} onViewEvent={ref} />
+                </LanguageProvider>
             </MockToastProvider>
         );
 

@@ -1,6 +1,8 @@
 import React from "react";
+import { useLanguage } from "../../i18n/LanguageContext";
 
 const ViewportHUD = ({ connectorToast, pendingAlignFace }) => {
+  const { t } = useLanguage();
   return (
     <div
       style={{
@@ -65,7 +67,7 @@ const ViewportHUD = ({ connectorToast, pendingAlignFace }) => {
               backdropFilter: "blur(4px)",
             }}
           >
-            目标面：{pendingAlignFace.face} · {pendingAlignFace.partId}
+            {t("hud.targetFace")}{pendingAlignFace.face} · {pendingAlignFace.partId}
           </div>
         )}
       </div>

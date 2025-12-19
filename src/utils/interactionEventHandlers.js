@@ -94,6 +94,11 @@ export const handlePartClickLogic = ({
         return { stopPropagation: true, action: 'prevent_selection_due_to_face' };
     }
 
+    // Cut Mode: Shift+Click is for setting plane, ignore selection
+    if (mode === 'cut' && hoveredFace && (e.shiftKey || e?.nativeEvent?.shiftKey)) {
+        return { stopPropagation: true, action: 'prevent_selection_due_to_cut_plane' };
+    }
+
     // Edge interaction check (Modify Mode)
     // User Requirement: Clicking edge should NOT select body.
     if (mode === 'modify' && hoveredEdge) {

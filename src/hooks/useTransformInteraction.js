@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useLanguage } from "../i18n/LanguageContext";
 import * as THREE from "three";
 import { useToast } from "../context/ToastContext";
 import { computeFaceTransform } from "../utils/editorGeometry";
@@ -7,6 +8,7 @@ import { formatPartName } from "../utils/objectUtils";
 // NOTE: We renamed it slightly to match the file name convention proposed
 export function useTransformInteraction({ objects, setObjects, expandedObjects, setSelectedIds, transformMode }) {
     const { showToast } = useToast();
+    const { t } = useLanguage();
     const [pendingAlignFace, setPendingAlignFace] = useState(null);
 
     const alignEnabled = transformMode === "translate" || transformMode === "scale" || transformMode === "rotate" || transformMode === "ruler" || transformMode === "drill";
@@ -28,7 +30,7 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
                 setPendingAlignFace(faceInfo);
                 showToast({
                     type: "info",
-                    text: "已选中要移动/调整的面。再选择对齐目标面。",
+                    text: t("toast.selectTargetFace"),
                 });
                 return;
             }
@@ -36,7 +38,7 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
             if (pendingAlignFace.partId === faceInfo.partId) {
                 showToast({
                     type: "warning",
-                    text: "请选择不同零件的面进行对齐。",
+                    text: t("toast.selectDifferentPart"),
                 });
                 setPendingAlignFace(null);
                 return;
@@ -51,7 +53,7 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
             if (movingObj.embeddedParentId) {
                 showToast({
                     type: "warning",
-                    text: "嵌入式部件无法移动，请选择其它零件。",
+                    text: t("toast.cantMoveEmbedded"),
                 });
                 setPendingAlignFace(null);
                 return;
@@ -100,7 +102,10 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
                 setPendingAlignFace(null);
                 showToast({
                     type: "success",
-                    text: `已将 ${formatPartName(movingObj)} 旋转对齐到 ${formatPartName(anchorObj)}`,
+                    text: t("toast.rotatedDetailed", {
+                        moving: formatPartName(movingObj, t),
+                        anchor: formatPartName(anchorObj, t)
+                    }),
                 });
                 return;
             }
@@ -109,7 +114,7 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
             if (parallel < 0.999) {
                 showToast({
                     type: "warning",
-                    text: "两个面的法线不平行，无法对齐。",
+                    text: t("toast.notParallel"),
                 });
                 setPendingAlignFace(null);
                 return;
@@ -132,7 +137,7 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
 
                 const axisInfo = getStretchAxisInfo(movingObj, pendingAlignFace.face);
                 if (!axisInfo) {
-                    showToast({ type: "warning", text: "无法调整该方向的尺寸。" });
+                    showToast({ type: "warning", text: t("toast.cantStretch") });
                     setPendingAlignFace(null);
                     return;
                 }
@@ -177,7 +182,10 @@ export function useTransformInteraction({ objects, setObjects, expandedObjects, 
             setPendingAlignFace(null);
             showToast({
                 type: "success",
-                text: `已将 ${formatPartName(movingObj)} 对齐到 ${formatPartName(anchorObj)}`,
+                text: t("toast.alignedDetailed", {
+                    moving: formatPartName(movingObj, t),
+                    anchor: formatPartName(anchorObj, t)
+                }),
             });
 
         }, [alignEnabled, pendingAlignFace, expandedObjects, transformMode, setObjects, setSelectedIds, showToast]

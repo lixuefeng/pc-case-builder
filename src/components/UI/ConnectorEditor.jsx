@@ -130,7 +130,7 @@ export default function ConnectorEditor({
 
   const handleApply = () => {
     if (!activeConnector) {
-      setError("请选择一个连接点。");
+      setError(t("error.selectConnector"));
       return;
     }
     try {
@@ -142,7 +142,7 @@ export default function ConnectorEditor({
       setUpFields(up.map((value) => `${value}`));
       setError(null);
     } catch (err) {
-      setError(err.message || "无法更新方向，请检查输入值。");
+      setError(err.message || t("error.updateOrientation"));
     }
   };
 

@@ -6,7 +6,7 @@
  */
 export const canSelectObject = (mode) => {
     // These modes require specific interactions (like face picking) and should block generic object selection
-    const blockingModes = ["ruler", "cut", "drill"];
+    const blockingModes = ["ruler", "drill"];
     if (blockingModes.includes(mode)) {
         return false;
     }

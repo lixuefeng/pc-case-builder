@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useLanguage } from "../i18n/LanguageContext";
 import * as THREE from "three";
 import { useToast } from "../context/ToastContext";
 import { computeConnectorTransform, getConnectorLabel } from "../utils/editorGeometry";
@@ -6,6 +7,7 @@ import { formatPartName, generateObjectId } from "../utils/objectUtils";
 
 export function useConnectors({ objects, setObjects, selectedIds, setSelectedIds, setConnections }) {
     const { showToast } = useToast();
+    const { t } = useLanguage();
     const [activeConnectorId, setActiveConnectorId] = useState(null);
     const [pendingConnector, setPendingConnector] = useState(null);
 
@@ -26,7 +28,7 @@ export function useConnectors({ objects, setObjects, selectedIds, setSelectedIds
                 setSelectedIds([partId]);
                 showToast({
                     type: "info",
-                    text: `已选中 ${formatPartName(currentObj)} (移动部件)。请选择目标连接点。`,
+                    text: t("toast.selectConnector", { part: formatPartName(currentObj, t) }),
                     ttl: 4000,
                 });
                 return;
@@ -51,7 +53,7 @@ export function useConnectors({ objects, setObjects, selectedIds, setSelectedIds
             if (anchorObj.id === movingObj.id) {
                 showToast({
                     type: "warning",
-                    text: "请选择不同零件的连接点。",
+                    text: t("toast.selectDifferentPart"),
                     ttl: 2000,
                 });
                 setPendingConnector(null);
@@ -121,7 +123,10 @@ export function useConnectors({ objects, setObjects, selectedIds, setSelectedIds
             setPendingConnector(null);
             showToast({
                 type: "success",
-                text: `已将 ${formatPartName(movingObj)} 连接到 ${formatPartName(anchorObj)}`,
+                text: t("toast.connectedDetailed", {
+                    moving: formatPartName(movingObj, t),
+                    anchor: formatPartName(anchorObj, t)
+                }),
             });
         },
         [
@@ -170,7 +175,7 @@ export function useConnectors({ objects, setObjects, selectedIds, setSelectedIds
 
         let type = typeArg;
         if (!type) {
-            type = window.prompt("Enter connection type (half-lap, external-plate, blind-joint, cross-lap, shear-boss):", "half-lap");
+            type = window.prompt(t("prompt.connectionType"), "half-lap");
         }
         if (!type) return;
 
@@ -186,7 +191,7 @@ export function useConnectors({ objects, setObjects, selectedIds, setSelectedIds
             const next = [...prev, newConnection];
             return next;
         });
-        showToast({ type: "success", text: `Created ${type} connection.`, ttl: 2000 });
+        showToast({ type: "success", text: t("toast.createdConnection", { type }), ttl: 2000 });
 
     }, [selectedIds, objects, setConnections, showToast]);
 

@@ -14,9 +14,16 @@ export const LanguageProvider = ({ children }) => {
     localStorage.setItem("app_language", language);
   }, [language]);
 
-  const t = (key) => {
+  const t = (key, params = {}) => {
     const dict = translations[language] || translations["en"];
-    return dict[key] || key;
+    let str = dict[key] || key;
+    
+    if (params) {
+      Object.keys(params).forEach((paramKey) => {
+        str = str.replace(`{${paramKey}}`, params[paramKey]);
+      });
+    }
+    return str;
   };
 
   return (

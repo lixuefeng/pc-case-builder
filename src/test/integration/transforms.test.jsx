@@ -4,6 +4,7 @@ import ReactThreeTestRenderer from '@react-three/test-renderer';
 import { usePartStretch } from '../../hooks/usePartStretch';
 import MovablePart from '../../components/MovablePart';
 import * as THREE from 'three';
+import { LanguageProvider } from '../../i18n/LanguageContext';
 
 // --- MOCKS ---
 
@@ -115,7 +116,9 @@ describe('CORE-03: Scale Transform Integration', () => {
         const ref = React.createRef();
 
         await ReactThreeTestRenderer.create(
-            <TestStretchComponent obj={initialObj} setObj={setObj} onViewEvent={ref} />
+            <LanguageProvider>
+                <TestStretchComponent obj={initialObj} setObj={setObj} onViewEvent={ref} />
+            </LanguageProvider>
         );
 
         const mockEvent = {
@@ -161,23 +164,25 @@ describe('CORE-02: Transform Propagation (Move)', () => {
 
         // Render MovablePart
         const renderer = await ReactThreeTestRenderer.create(
-            <MovablePart
-                obj={initialObj}
-                selected={true}
-                selectionOrder={0}
-                selectedCount={1}
-                setObj={setObj}
-                onSelect={() => { }}
-                allObjects={[]} // candidates
-                setDragging={() => { }}
-                connections={[]}
-                alignMode={false}
-                onFacePick={() => { }}
-                mode="translate" // Translate Mode
-                showTransformControls={true} // Enable Gizmo
-                gizmoHovered={false}
-                setGizmoHovered={() => { }}
-            />
+            <LanguageProvider>
+                <MovablePart
+                    obj={initialObj}
+                    selected={true}
+                    selectionOrder={0}
+                    selectedCount={1}
+                    setObj={setObj}
+                    onSelect={() => { }}
+                    allObjects={[]} // candidates
+                    setDragging={() => { }}
+                    connections={[]}
+                    alignMode={false}
+                    onFacePick={() => { }}
+                    mode="translate" // Translate Mode
+                    showTransformControls={true} // Enable Gizmo
+                    gizmoHovered={false}
+                    setGizmoHovered={() => { }}
+                />
+            </LanguageProvider>
         );
 
         // 1. Verify Gizmo Trigger exists

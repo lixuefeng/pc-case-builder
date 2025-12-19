@@ -2010,6 +2010,7 @@
   {
     "id": "standoff_mj57eegq_kgupjm",
     "type": "standoff",
+    "visible": true,
     "name": "Standoff",
     "pos": [
       -71.56041635952528,
@@ -2035,6 +2036,7 @@
   {
     "id": "standoff_mj57eegq_f38dl0",
     "type": "standoff",
+    "visible": true,
     "name": "Standoff",
     "pos": [
       85.91958364047471,
@@ -2060,6 +2062,7 @@
   {
     "id": "standoff_mj57eegq_x6sc9s",
     "type": "standoff",
+    "visible": true,
     "name": "Standoff",
     "pos": [
       -71.56041635952528,
@@ -2085,6 +2088,7 @@
   {
     "id": "standoff_mj57eegq_qizush",
     "type": "standoff",
+    "visible": true,
     "name": "Standoff",
     "pos": [
       85.91958364047471,

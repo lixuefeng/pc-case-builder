@@ -11,7 +11,8 @@ export const GPU_SPECS = {
         DROP_BELOW_BODY: 30,
         X_OFFSET: -0.8,
         HOLE_DIA: 4.0, // Clearance for #6-32
-        HOLE_OFFSET_Z: 6.0, // Distance from the bend (face) to center of hole
+        HOLE_OFFSET_Z: 10.8, // Distance from the bend (face) to center of hole (approx center of 0.85" flange)
+        FLANGE_LENGTH: 21.59, // Standard PCIe flange length (0.85 inch)
         HOLE_X_OFFSET: -4.5, // Shift holes left to visually match "edge" alignment
     },
 };

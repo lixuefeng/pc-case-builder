@@ -8,7 +8,7 @@ import { GPU_SPECS, COLORS } from "../constants";
 const buildPcieBracketGeometry = ({ width, height, thickness, slotCount = 1 }) => {
   const tongueHeight = 9;
   const tongueWidth = 10;
-  const flangeLength = 15; // Increased to 15mm based on "too small" feedback
+  const flangeLength = GPU_SPECS.BRACKET.FLANGE_LENGTH || 21.59;
   
   // Vertical face setup
   const yBottom = 0;

@@ -164,3 +164,56 @@ export const COLORS = {
         RED_PAINT: "#ef4444",
     },
 };
+
+export const MATERIAL_PRESETS = {
+    STANDARD: {
+        id: 'standard',
+        name: 'Standard (Matte)',
+        metalness: 0,
+        roughness: 0.8,
+        clearcoat: 0,
+        transmission: 0,
+        opacity: 1,
+        transparent: false,
+    },
+    METAL: {
+        id: 'metal',
+        name: 'Metal (Aluminum)',
+        metalness: 0.9,
+        roughness: 0.3,
+        clearcoat: 0.1,
+        transmission: 0,
+        opacity: 1,
+        isMetal: true, // Helper for UI or logic
+    },
+    POLISHED_METAL: {
+        id: 'polished_metal',
+        name: 'Polished Metal',
+        metalness: 1.0,
+        roughness: 0.1,
+        clearcoat: 0.5,
+        transmission: 0,
+        opacity: 1,
+    },
+    GLASS: {
+        id: 'glass',
+        name: 'Tempered Glass',
+        metalness: 0,
+        roughness: 0.05,
+        clearcoat: 1.0,
+        transmission: 0.95, // High transmission for glass
+        opacity: 0.3, // Visual fallback
+        thickness: 1.5, // Refraction thickness
+        ior: 1.5,
+        transparent: true,
+    },
+    GLOSSY_PLASTIC: {
+        id: 'glossy',
+        name: 'Glossy Plastic',
+        metalness: 0,
+        roughness: 0.1,
+        clearcoat: 0.8,
+        transmission: 0,
+        opacity: 1,
+    }
+};

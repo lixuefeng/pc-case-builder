@@ -9,6 +9,7 @@ import { useToast } from "../../context/ToastContext";
 import { buildGpuFingerPlacement } from "../../utils/gpuPcieSpec";
 import { buildMotherboardLayout } from "../../config/motherboardPresets";
 import { Vector3Input, DimensionsInput, SectionLabel, NumberInput } from "./InputComponents";
+import { MATERIAL_PRESETS } from "../../constants";
 
 const RightSidebar = ({
   selectedIds,
@@ -602,6 +603,31 @@ const RightSidebar = ({
       <div style={cardStyle}>
         <div style={{ ...sectionStyle, marginBottom: 12 }}>
           <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 14, color: "#0f172a" }}>{t("prop.appearance")}</div>
+
+          {/* Material Selector */}
+          <SectionLabel>Material</SectionLabel>
+          <select
+            style={{
+                ...inputStyle,
+                marginBottom: 12
+            }}
+            value={selectedObject.materialConfig?.id || 'standard'}
+            onChange={(e) => {
+                const preset = Object.values(MATERIAL_PRESETS).find(p => p.id === e.target.value);
+                if (preset) {
+                    handleChange("materialConfig", { ...preset });
+                }
+            }}
+          >
+            {Object.values(MATERIAL_PRESETS).map(preset => (
+                <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                </option>
+            ))}
+          </select>
+
+
+          <SectionLabel>Color</SectionLabel>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, border: "1px solid #cbd5e1", borderRadius: 6, padding: "4px 8px", background: "#fff" }}>
               <input
@@ -633,6 +659,9 @@ const RightSidebar = ({
             </button>
           </div>
         </div>
+
+        {/* Advanced Material Props (only if custom/modified, optional for now) */}
+        {/* We can add sliders here later if needed */}
       </div>
 
       {/* Actions */}

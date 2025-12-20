@@ -9,12 +9,62 @@ import { COLORS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, MOTHERBOARD_SPECS } from 
 import { getChamferParams, getFilletParams } from "../utils/editorGeometry";
 export { GPUBracketMesh, GPUMesh } from "./GpuMeshes";
 
+const MaterialRenderer = ({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted, defaultColor, opacity = 1, transparent = false }) => {
+    const { color, materialConfig } = obj;
+    
+    // Default PBR values
+    const metalness = materialConfig?.metalness ?? 0;
+    const roughness = materialConfig?.roughness ?? 0.8;
+    const clearcoat = materialConfig?.clearcoat ?? 0;
+    const transmission = materialConfig?.transmission ?? 0;
+    const ior = materialConfig?.ior ?? 1.5;
+    const thickness = materialConfig?.thickness ?? 0;
+    
+    // Explicit transparency override from config, or fallback to prop
+    const isTransparent = materialConfig?.transparent ?? transparent;
+    const baseOpacity = materialConfig?.opacity ?? opacity;
+
+    // Selection Logic:
+    // If selected, we want to show selection color BUT keep material properties?
+    // Current design: Overlay color. 
+    // If selected, we override color.
+    
+    const selColor = isDebugHighlighted ? "#d946ef" : 
+        (selected ? 
+            (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : 
+            (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : 
+            (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : 
+        null);
+        
+    const finalColor = selColor || color || defaultColor;
+
+    return (
+        <meshPhysicalMaterial
+            color={finalColor}
+            metalness={metalness}
+            roughness={roughness}
+            clearcoat={clearcoat}
+            transmission={transmission}
+            transparent={isTransparent || selected}
+            opacity={selected ? Math.max(baseOpacity, 0.6) : baseOpacity}
+            thickness={thickness}
+            ior={ior}
+        />
+    );
+};
+
+
 export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted }) {
   const { dims, color, meta } = obj;
   const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
   // Switch to Top-Right-Back as reference (User Request)
   const topRightBack = useMemo(() => anchorPoint(dims, "top-right-back"), [dims]);
   const selColor = isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null);
+
+  // Helper for material rendering (to be reused)
+  // We define it here or outside. Let's define it outside for cleaner code, but for this edit I'll insert it before PartBox.
+  // Actually, let's insert MaterialRenderer definition before MotherboardMesh or after imports.
+
 
   // Virtual Anchor Offset (Same as in presets.js)
   const anchorOffset = MOTHERBOARD_SPECS.ANCHOR || { x: 0, y: 0 };
@@ -25,8 +75,8 @@ export function MotherboardMesh({ obj, selected, selectionOrder, selectedCount, 
         <boxGeometry args={[dims.w, dims.h, dims.d]} />
         <meshStandardMaterial
           color={selColor || color || COLORS.DEFAULT.MOTHERBOARD}
-          opacity={selected ? 0.7 : 0.95}
-          transparent
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
         />
       </mesh>
 
@@ -251,10 +301,14 @@ export function PartBox({ obj, selected, modifiers = [], selectionOrder, selecte
             );
           })}
         </Geometry>
-        <meshStandardMaterial
-          color={isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || defaultColor)}
-          opacity={selected ? 0.7 : 1}
-          transparent={true}
+        <MaterialRenderer 
+            obj={obj} 
+            selected={selected} 
+            selectionOrder={selectionOrder} 
+            selectedCount={selectedCount} 
+            isDebugHighlighted={isDebugHighlighted}
+            defaultColor={defaultColor}
+            // transparent prop removed to let MaterialRenderer decide based on config/selection
         />
       </mesh>
     </group>
@@ -267,10 +321,12 @@ export function SphereMesh({ obj, selected, selectionOrder, selectedCount }) {
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <sphereGeometry args={[0.5, 32, 32]} />
-        <meshStandardMaterial
-          color={selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.STRUCTURE}
-          opacity={selected ? 0.7 : 1}
-          transparent={true}
+        <MaterialRenderer 
+            obj={obj} 
+            selected={selected} 
+            selectionOrder={selectionOrder} 
+            selectedCount={selectedCount} 
+            defaultColor={COLORS.DEFAULT.STRUCTURE}
         />
       </mesh>
     </group>
@@ -294,10 +350,13 @@ export function CylinderMesh({ obj, selected, selectionOrder, selectedCount, isD
     <group userData={{ objectId: obj.id }}>
       <mesh scale={[dims.w, dims.h, dims.d]}>
         <cylinderGeometry args={[radiusTop, radiusBottom, 1, 32]} />
-        <meshStandardMaterial
-          color={isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : color || COLORS.DEFAULT.STRUCTURE)}
-          opacity={selected ? 0.7 : 1}
-          transparent={true}
+        <MaterialRenderer 
+            obj={obj} 
+            selected={selected} 
+            selectionOrder={selectionOrder} 
+            selectedCount={selectedCount} 
+            isDebugHighlighted={isDebugHighlighted}
+            defaultColor={COLORS.DEFAULT.STRUCTURE}
         />
       </mesh>
     </group>
@@ -345,12 +404,12 @@ export function ImportedMesh({ obj, selected, selectionOrder, selectedCount }) {
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial
-        color={selected ? (selectedCount > 2 ? COLORS.SELECTION.IMPORTED : (selectionOrder === 0 ? COLORS.SELECTION.IMPORTED : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.IMPORTED))) : COLORS.DEFAULT.IMPORTED_DEFAULT}
-        metalness={0.3}
-        roughness={0.6}
-        opacity={selected ? 0.7 : 1}
-        transparent={selected}
+      <MaterialRenderer 
+        obj={obj} 
+        selected={selected} 
+        selectionOrder={selectionOrder} 
+        selectedCount={selectedCount} 
+        defaultColor={COLORS.DEFAULT.IMPORTED_DEFAULT}
       />
     </mesh>
   );

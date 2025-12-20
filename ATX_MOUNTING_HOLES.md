@@ -1,42 +1,51 @@
-----------------------------------------------
-右上角0，0
-变换后的孔位坐标（inch）
-孔位	X（→ 为正）	Y（↓ 为正）
-A	-11.350	0.400
-B	-8.250	0.400
-C	-6.450	0.400
-F	-0.250	1.300
-G	-11.350	6.500
-H	-6.450	6.500
-J	-0.250	6.500
-K	-11.350	9.350
-L	-6.450	9.350
-M	-0.250	9.350
-----------------------------------------------
+# ATX Motherboard Mounting Holes
 
-你给的新原点是 (-0.25, 0.4)（基于上一套坐标）
+*Unit: mm. Based on derived coordinates in this project.*
 
-变换后的孔位坐标（inch）
-孔位	X	Y
-A	-11.10	0.00
-B	-8.00	0.00
-C	-6.20	0.00
-F	0.00	0.90
-G	-11.10	6.10
-H	-6.20	6.10
-J	0.00	6.10
-K	-11.10	8.95
-L	-6.20	8.95
-M	0.00	8.95
-----------------------------------------------
-孔位	X (mm)	Y (mm)
-A	-281.94	0.00
-B	-203.20	0.00
-C	-157.48	0.00
-F	0.00	22.86
-G	-281.94	154.94
-H	-157.48	154.94
-J	0.00	154.94
-K	-281.94	227.33
-L	-157.48	227.33
-M	0.00	227.33
+**Orientation Definition:**
+*   **View**: **Front** of the Motherboard (Component Side).
+*   **X-Axis**: Horizontal Line passing through vertical mounting column **F, J, M**. (Rightmost holes).
+*   **Y-Axis**: Vertical Line passing through horizontal mounting row **A, B, C**. (Topmost holes).
+*   **Origin (0,0)**: Intersection of these two lines. (Component Area Top-Right).
+    *   *Note: Board PCB extends slightly beyond these axes.*
+
+```
+      (Top Left)                                     (Top Right)
+     Board Edge
+   [  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  ] .  .  .
+   [                                                 ]
+   [ Y=0 +----(A)--------(B)--------(C)--------------+
+   [     |                             .             |
+   [     |                            (F) [0, 22.86] |
+   [     |                (X=0 Line)   .             |
+   [     |                             .             |
+   [     |    (G)        (H)           .  (J)        |
+   [     |                             .             |
+   [     |                             .             |
+   [     |    (K)        (L)           .  (M)        |
+   [     |                                           |
+   [  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  ] .  .  .
+```
+
+**Hole Locations (mm)**
+*Relative to defined origin (Row A-C, Col F-M).*
+
+| Hole | X (mm) | Y (mm) | Description | Compatibility |
+| :--: | :----: | :----: | :---------- | :------------ |
+| **A** | -281.94 | 0.00 | Top-Left (ATX) | ATX |
+| **B** | -203.20 | 0.00 | Top-Left (mATX) | ATX, mATX |
+| **C** | -157.48 | 0.00 | Top-Left (ITX) | ATX, mATX, ITX |
+| **F** | 0.00 | 22.86 | Top-Right (mATX/ITX) | ATX, mATX, ITX |
+| **G** | -281.94 | 154.94 | Mid-Left (ATX) | ATX |
+| **H** | -157.48 | 154.94 | Mid-Left (mATX/ITX) | ATX, mATX, ITX |
+| **J** | 0.00 | 154.94 | Mid-Right | ATX, mATX, ITX |
+| **K** | -281.94 | 227.33 | Bot-Left (ATX) | ATX |
+| **L** | -157.48 | 227.33 | Bot-Left (mATX/ITX) | ATX, mATX |
+| **M** | 0.00 | 227.33 | Bot-Right | ATX, mATX |
+
+*Note: Coordinates based on ATX Specification V2.2 relative to "Reference Point" logic used in calculation.*
+
+**Form Factor Hole Sets:**
+*   **ITX**: C, F, H, J
+*   **mATX**: B, C, F, H, J, L, M
+*   **ATX**: A, B, C, F, G, H, J, K, L, M

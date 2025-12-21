@@ -76,10 +76,20 @@ export const calculateMortiseTenon = (tenon, mortise, insertionDepth, clearance 
         positiveGaps.sort((a, b) => a[1] - b[1]);
         axis = positiveGaps[0][0];
     } else {
-        // Intersection case: Pick longest dimension of Tenon
-        const dims = { x: tenon.dims.w, y: tenon.dims.h, z: tenon.dims.d };
-        const sortedDims = Object.entries(dims).sort((a, b) => b[1] - a[1]); // Descending
-        axis = sortedDims[0][0];
+        // Intersection case: Pick axis with smallest intersection (shallowest overlap).
+        // This handles "touching" surfaces where the overlap is near 0 vs fully embedded axes.
+        const getOverlap = (halfDim, min, max) => {
+            return Math.max(0, Math.min(halfDim, max) - Math.max(-halfDim, min));
+        };
+
+        const overlaps = {
+            x: getOverlap(tenonHalfDims.x, mortiseBounds.min.x, mortiseBounds.max.x),
+            y: getOverlap(tenonHalfDims.y, mortiseBounds.min.y, mortiseBounds.max.y),
+            z: getOverlap(tenonHalfDims.z, mortiseBounds.min.z, mortiseBounds.max.z)
+        };
+
+        const sortedOverlaps = Object.entries(overlaps).sort((a, b) => a[1] - b[1]); // Ascending
+        axis = sortedOverlaps[0][0];
     }
 
     // Determine direction (+ or -)

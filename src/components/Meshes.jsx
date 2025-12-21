@@ -513,6 +513,52 @@ export function ReferenceMesh({ obj, selected, selectionOrder, selectedCount }) 
 
 // ... existing imports
 
+export function PSUMesh({ obj, selected, selectionOrder, selectedCount, isDebugHighlighted }) {
+  const { dims, color, meta } = obj;
+  const holeMap = Array.isArray(meta?.holeMap) ? meta.holeMap : [];
+  
+  // PSU Geometry
+  // Box centered at 0,0,0
+  // Holes on Rear Face (Z = -d/2)
+  
+  const selColor = isDebugHighlighted ? "#d946ef" : (selected ? (selectedCount > 2 ? COLORS.SELECTION.TERTIARY : (selectionOrder === 0 ? COLORS.SELECTION.PRIMARY : (selectionOrder === 1 ? COLORS.SELECTION.SECONDARY : COLORS.SELECTION.TERTIARY))) : null);
+
+  return (
+    <group userData={{ objectId: obj.id }}>
+      <mesh>
+        <boxGeometry args={[dims.w, dims.h, dims.d]} />
+        <meshStandardMaterial
+          color={selColor || color || "#333"} // Default dark grey for PSU
+          opacity={selected ? 0.7 : 1}
+          transparent={selected}
+          metalness={0.6}
+          roughness={0.4}
+        />
+      </mesh>
+
+      {holeMap.length > 0 && (
+        <group position={[0, 0, dims.d / 2]}> 
+          {/* Rear Face Group (Now at +d/2 per user preference/projection logic) */}
+          {holeMap.map(([lx, ly], i) => (
+             <mesh
+               key={i}
+               // Transform Layout Coordinates (Bottom-Left Origin) to Face Local (Center Origin)
+               // X: lx - w/2
+               // Y: ly - h/2
+               position={[lx - dims.w / 2, ly - dims.h / 2, 0]}
+               rotation={[Math.PI / 2, 0, 0]} 
+             >
+               <cylinderGeometry args={[1.6, 1.6, 1.0, 16]} /> 
+               {/* Radius 1.6 = Dia 3.2mm (Clearance for M3). Depth 1mm. */}
+               <meshStandardMaterial color={COLORS.DEFAULT.MOTHERBOARD_HOLE} />
+             </mesh>
+          ))}
+        </group>
+      )}
+    </group>
+  );
+}
+
 export function IOShieldMesh({ obj, selected, selectionOrder, selectedCount }) {
   const { dims, color } = obj;
   const { w, h, d } = dims;

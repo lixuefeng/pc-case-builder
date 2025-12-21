@@ -120,6 +120,23 @@ export const PCIE_SPECS = {
     FINGER_DROP: -5,
 };
 
+export const PSU_HOLE_LAYOUTS = {
+    // Relative to Bottom-Left of Rear Face (Looking at rear)
+    // X is Width (Right+), Y is Height (Up+)
+    ATX: [
+        [6.0, 80.0],   // Top-Left
+        [144.0, 80.0], // Top-Right
+        [120.0, 6.0],  // Bottom-Right
+        [6.0, 16.0],   // Bottom-Left (Indented/Raised)
+    ],
+    SFX: [
+        [6.0, 57.5],   // Top-Left
+        [119.0, 57.5], // Top-Right
+        [119.0, 6.0],  // Bottom-Right
+        [6.0, 6.0],    // Bottom-Left
+    ],
+};
+
 export const REFERENCE_OBJECT_SPECS = {
     COKE_CAN_DIAMETER: 66,
     COKE_CAN_HEIGHT: 115,

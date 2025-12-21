@@ -5,6 +5,7 @@ import {
     CPUCoolerMesh,
     IOShieldMesh,
     CylinderMesh,
+    PSUMesh,
 } from "./Meshes.jsx";
 
 export const getComponentForObject = (object, fallback) => {
@@ -29,6 +30,8 @@ export const getComponentForObject = (object, fallback) => {
             return IOShieldMesh;
         case "cpu-cooler":
             return CPUCoolerMesh;
+        case "psu":
+            return PSUMesh;
         case "cylinder":
         case "cone":
             // CylinderMesh handles both currently (or RenderDispatch logic might handle props)

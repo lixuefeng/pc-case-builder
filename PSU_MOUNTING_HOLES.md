@@ -25,12 +25,12 @@ Typically there are 4 holes. The standard ATX specification defines them relativ
   Short   |                                       |   Short
   Edge    |                                       |   Edge
   (Y)     |      (Fan/Switch/Input Area)          |   (Y)
-          |                                       |
-          |   (D)                           (C)   |
-      0,0 |___(.)___________________________(.)___| 150,0
-            ^                           ^
+          |   (D)                                 |
+          |   (.)                      (C)        |
+      0,0 |____________________________(.)________| 150,0
+               ^                        ^
        (Bottom Left)                   (Bottom Right)
-          6,6         \__ 114 mm __/      120,6
+          6,16        \__ 114 mm __/      120,6
 
           <---------- Long Edge (X) ----------> 150mm
 ```
@@ -44,8 +44,8 @@ Bottom Row is asymmetric (Right hole indented).
 *   **Hole C (Bottom-Right)**: X = 120.0, Y = 6.0
     *   *Right Vertical Span*: 74.0mm (80 - 6)
     *   *Right Horizontal Margin*: 30.0mm (150 - 120)
-*   **Hole D (Bottom-Left)**: X = 6.0, Y = 6.0
-    *   *Left Vertical Span*: 74.0mm (80 - 6)
+*   **Hole D (Bottom-Left)**: X = 6.0, Y = 16.0
+    *   *Left Vertical Span*: 64.0mm (80 - 16)
     *   *Bottom Horizontal Span*: 114.0mm (120 - 6)
 
 *Note: Chassis manufacturers typically include mirrored holes to allow mounting the PSU with the fan facing up or down. A "Universal" case pattern would overlay the standard pattern with its vertically flipped counterpart.*
@@ -56,7 +56,7 @@ Bottom Row is asymmetric (Right hole indented).
 | A | 6.0 | 80.0 | Top-Left |
 | B | 144.0 | 80.0 | Top-Right |
 | C | 120.0 | 6.0 | Bottom-Right |
-| D | 6.0 | 6.0 | Bottom-Left |
+| D | 6.0 | 16.0 | Bottom-Left |
 
 ## SFX PSU Mounting Holes
 

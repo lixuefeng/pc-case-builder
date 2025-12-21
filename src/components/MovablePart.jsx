@@ -760,7 +760,11 @@ export default function MovablePart({
         })()}
 
         {/* Render Connectors */}
-        {showGizmos && obj.connectors?.map((c) => (
+        {showGizmos && obj.connectors?.map((c) => {
+          // Hide screw holes for PSU and Motherboard as per user request to reduce visual clutter
+          if (c.type === 'screw-m3' || c.type === 'screw-m4') return null;
+
+          return (
           <ConnectorMarker
             key={c.id}
             connector={c}
@@ -768,7 +772,7 @@ export default function MovablePart({
             onPick={(c) => onConnectorPick && onConnectorPick({ partId: obj.id, connectorId: c.id })}
             setConnectorHovered={setConnectorHovered}
           />
-        ))}
+        )})}
 
         {/* Render Holes */}
         {showGizmos && obj.holes?.map((hole) => (

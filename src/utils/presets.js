@@ -3,7 +3,7 @@ const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
 import { anchorPoint, addVec } from "./anchors";
 import { buildGpuFingerPlacement } from "./gpuPcieSpec";
-import { MOTHERBOARD_SPECS, RAM_SPECS, PSU_SPECS, PCIE_SPECS, GPU_SPECS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, COLORS } from "../constants";
+import { MOTHERBOARD_SPECS, RAM_SPECS, PSU_SPECS, PCIE_SPECS, GPU_SPECS, COOLER_SPECS, REFERENCE_OBJECT_SPECS, COLORS, PSU_HOLE_LAYOUTS } from "../constants";
 
 const requireParam = (value, name) => {
   if (value === undefined || value === null) {
@@ -179,6 +179,30 @@ const createPsuConnectors = (preset) => {
   const { key, dims } = preset;
   if (!dims) return [];
 
+  // Use holeMap if available, else fallback to calculate generic mounts
+  const holeMap = preset.meta?.holeMap;
+
+  if (holeMap) {
+    const { w, h, d } = dims;
+    // Convert layout (Bottom-Left Origin) to mesh local space (Center Origin)
+    // Mesh local: Center is (0,0,0). Width is X (-w/2 to w/2). Height is Y (-h/2 to h/2).
+    // Layout X: 0..w -> -w/2..w/2 (x - w/2)
+    // Layout Y: 0..h -> -h/2..h/2 (y - h/2)
+    // Z: Rear face is -d/2
+
+    return holeMap.map(([lx, ly], index) => {
+      return {
+        id: `${key}-mount-${index + 1}`,
+        label: `PSU Mount ${index + 1}`,
+        type: "screw-m3", // Changed to M3 based on user feedback (standard is often #6-32, but M3 is requested)
+        size: 3,
+        pos: [lx - w / 2, ly - h / 2, d / 2],
+        normal: [0, 0, -1],
+        up: [0, 1, 0],
+      };
+    });
+  }
+
   const mountWidth = Math.min(dims.w - 20, dims.w * 0.8);
   const mountHeight = Math.min(dims.h - 12, dims.h * 0.75);
   const halfWidth = mountWidth / 2;
@@ -195,8 +219,8 @@ const createPsuConnectors = (preset) => {
   return positions.map(([x, y], index) => ({
     id: `${key}-mount-${index + 1}`,
     label: `PSU Mount ${index + 1}`,
-    type: "screw-m4",
-    size: 4,
+    type: "screw-m3",
+    size: 3,
     pos: [x, y, faceZ],
     normal: [0, 0, -1],
     up: [1, 0, 0],
@@ -271,19 +295,23 @@ export const PRESETS = {
       connectors: [],
     },
   ],
+
+
   psu: [
     {
       key: "sfx",
       label: "SFX 125×63.5×100",
       dims: PSU_SPECS.SFX,
-      meta: { standard: "SFX" },
+      type: "psu",
+      meta: { standard: "SFX", holeMap: PSU_HOLE_LAYOUTS.SFX },
       connectors: [],
     },
     {
       key: "atx",
       label: "ATX 150×86×140",
       dims: PSU_SPECS.ATX,
-      meta: { standard: "ATX" },
+      type: "psu",
+      meta: { standard: "ATX", holeMap: PSU_HOLE_LAYOUTS.ATX },
       connectors: [],
     },
   ],

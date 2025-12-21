@@ -555,14 +555,80 @@ export default function MovablePart({
       setHoveredFace(resolvedFace);
 
       if (resolvedFace && event.point) {
+        const localHit = event.point.clone().sub(worldPos).applyQuaternion(invQuat);
         lastHoverSampleRef.current = {
           world: event.point.clone(),
-          local: localOrigin
+          local: localHit
         };
       }
+      return resolvedFace;
     },
     [alignMode, mode, obj]
   );
+
+    // -- DRILL CANDIDATES (Self + Others) --
+    // Calculate all potential screw points (from self AND other objects) in Self Local Space
+    const drillCandidates = useMemo(() => {
+        if (mode !== 'drill') return [];
+        
+        const candidates = [];
+
+        // 1. Self Connectors
+        if (obj.connectors) {
+            obj.connectors.forEach(c => {
+                if (c.type === 'screw-m3' || c.type === 'screw-m4') {
+                    candidates.push({ ...c, source: 'self' });
+                }
+            });
+        }
+
+        // 2. Others (Projected into Local Space)
+        if (allObjects && allObjects.length > 0) {
+            // Compute Self Inverse Matrix
+            const selfPos = new THREE.Vector3(...(obj.pos || [0,0,0]));
+            const selfRot = new THREE.Euler(...(obj.rot || [0,0,0]));
+            const selfScale = new THREE.Vector3(...(obj.scale || [1,1,1]));
+            const selfMatrix = new THREE.Matrix4().compose(selfPos, new THREE.Quaternion().setFromEuler(selfRot), selfScale);
+            const selfInverse = selfMatrix.clone().invert();
+
+            allObjects.forEach(other => {
+                if (other.id === obj.id) return; // Skip self
+                if (!other.connectors || other.connectors.length === 0) return;
+
+                // Check types first to avoid matrix calc if no screws
+                const hasScrews = other.connectors.some(c => c.type === 'screw-m3' || c.type === 'screw-m4');
+                if (!hasScrews) return;
+
+                // Compute Other Matrix
+                const otherPos = new THREE.Vector3(...(other.pos || [0,0,0]));
+                const otherRot = new THREE.Euler(...(other.rot || [0,0,0]));
+                const otherScale = new THREE.Vector3(...(other.scale || [1,1,1]));
+                const otherMatrix = new THREE.Matrix4().compose(otherPos, new THREE.Quaternion().setFromEuler(otherRot), otherScale);
+
+                other.connectors.forEach(c => {
+                    if (c.type !== 'screw-m3' && c.type !== 'screw-m4') return;
+
+                    // Transform Position: Local Other -> World -> Local Self
+                    const worldPos = new THREE.Vector3(...c.pos).applyMatrix4(otherMatrix);
+                    const localPosHelper = worldPos.clone().applyMatrix4(selfInverse);
+                    
+                    // Transform Normal (Direction)
+                    const worldNormal = new THREE.Vector3(...(c.normal || [0,0,1])).transformDirection(otherMatrix);
+                    const localNormalHelper = worldNormal.clone().transformDirection(selfInverse).normalize();
+
+                    candidates.push({
+                        ...c,
+                        id: `ext_${other.id}_${c.id}`, // Unique ID for key
+                        pos: localPosHelper.toArray(),
+                        normal: localNormalHelper.toArray(),
+                        source: 'external'
+                    });
+                });
+            });
+        }
+        
+        return candidates;
+    }, [mode, obj, allObjects]);
 
   // Moved handlers to component scope
   const handlePartPointerMove = useCallback((e) => {
@@ -585,21 +651,91 @@ export default function MovablePart({
       (mode === "ruler" && (e.shiftKey || e?.nativeEvent?.shiftKey)) ||
       (mode === "drill") ||
       (mode === "cut" && (e.shiftKey || e?.nativeEvent?.shiftKey));
+
+    let currentHoveredFace = hoveredFace;
     if (faceSelectionActive) {
       // console.log("MovablePart: face selection active");
-      resolveHoveredFace(e);
+      const resolved = resolveHoveredFace(e);
+      if (resolved) currentHoveredFace = resolved;
     } else if (!isStretching && (alignMode || mode === "scale" || mode === "ruler" || mode === "drill" || mode === "cut") && hoveredFace) {
       setHoveredFace(null);
+      currentHoveredFace = null;
     }
-    if (mode === "drill" && hoveredFace && onDrillHover) {
+
+    // -- DRILL CANDIDATES MOVED TO TOP LEVEL SCOPE --
+
+
+    // -- SNAP LOGIC for DRILL MODE --
+    let isSnapped = false;
+    if (mode === "drill" && currentHoveredFace && onDrillHover) {
+       // Snap to projected screw holes on this face
+       const dims = obj.dims || { w: 10, h: 10, d: 10 };
+       const sign = currentHoveredFace[0] === '+' ? 1 : -1;
+       const axis = currentHoveredFace.slice(1); // X,Y,Z
+       
+       // Calculate Face Plane info in Local Space
+       let planeLevel = 0;
+       if (axis === 'X') planeLevel = sign * dims.w / 2;
+       else if (axis === 'Y') planeLevel = sign * dims.h / 2;
+       else planeLevel = sign * dims.d / 2;
+       
+       const SNAP_DIST = 12.0; 
+
+       if (drillCandidates.length > 0 && lastHoverSampleRef.current?.local) {
+           // console.log("[SnapDebug] Candidates:", drillCandidates.length);
+           const localHit = lastHoverSampleRef.current.local;
+           let bestDist = Infinity;
+           let bestSnap = null;
+
+           drillCandidates.forEach(c => {
+               // Project connector c.pos onto the face plane
+               const snapP = [...c.pos];
+               if (axis === 'X') snapP[0] = planeLevel;
+               else if (axis === 'Y') snapP[1] = planeLevel;
+               else snapP[2] = planeLevel; 
+
+               const dx = localHit.x - snapP[0];
+               const dy = localHit.y - snapP[1];
+               const dz = localHit.z - snapP[2];
+               const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+               
+               if (dist < 20) {
+                   // console.log("[SnapDebug] Close Candidate:", c.id, "Dist:", dist);
+               }
+
+               if (dist < SNAP_DIST && dist < bestDist) {
+                   bestDist = dist;
+                   bestSnap = new THREE.Vector3(...snapP);
+               }
+           });
+
+           if (bestSnap) {
+               isSnapped = true;
+               lastHoverSampleRef.current.local.copy(bestSnap);
+               
+               const worldPos = new THREE.Vector3();
+               const worldQuat = new THREE.Quaternion();
+               if (groupRef.current) {
+                    groupRef.current.getWorldPosition(worldPos);
+                    groupRef.current.getWorldQuaternion(worldQuat);
+                    
+                    const snappedWorld = bestSnap.clone().applyQuaternion(worldQuat).add(worldPos);
+                    lastHoverSampleRef.current.world.copy(snappedWorld);
+               }
+           }
+       }
+    }
+
+    if (mode === "drill" && currentHoveredFace && onDrillHover) {
       onDrillHover({
         partId: obj.id,
-        face: hoveredFace,
+        face: currentHoveredFace,
         point: lastHoverSampleRef.current?.world?.toArray(),
-        normal: hoveredFaceDetails?.normal,
+        normal: hoveredFaceDetails?.normal, // Note: might be 1 frame stale but usually fine for normal
         faceCenter: hoveredFaceDetails?.center,
         faceSize: hoveredFaceDetails?.size,
-        quaternion: hoveredFaceDetails?.quaternion
+        quaternion: hoveredFaceDetails?.quaternion,
+        snapped: isSnapped
       });
     }
 
@@ -636,7 +772,7 @@ export default function MovablePart({
        if (hoveredEdge) setHoveredEdge(null);
     }
 
-  }, [mode, alignMode, isStretching, hoveredFace, onDrillHover, resolveHoveredFace, hoveredFaceDetails, obj.id, hoveredEdge, obj.dims]);
+  }, [mode, alignMode, isStretching, hoveredFace, onDrillHover, resolveHoveredFace, hoveredFaceDetails, obj.id, hoveredEdge, obj.dims, drillCandidates]);
 
   useEffect(() => {
     if (hoveredFaceDetails) {
@@ -761,18 +897,71 @@ export default function MovablePart({
 
         {/* Render Connectors */}
         {showGizmos && obj.connectors?.map((c) => {
-          // Hide screw holes for PSU and Motherboard as per user request to reduce visual clutter
+          // Hide screw holes for PSU and Motherboard to reduce visual clutter and prevent drill interference
           if (c.type === 'screw-m3' || c.type === 'screw-m4') return null;
 
           return (
-          <ConnectorMarker
-            key={c.id}
-            connector={c}
-            isUsed={connectedConnectorIds.has(c.id)}
-            onPick={(c) => onConnectorPick && onConnectorPick({ partId: obj.id, connectorId: c.id })}
-            setConnectorHovered={setConnectorHovered}
-          />
-        )})}
+            <ConnectorMarker
+              key={c.id}
+              connector={c}
+              isUsed={connectedConnectorIds.has(c.id)}
+              onPick={(c) => onConnectorPick && onConnectorPick({ partId: obj.id, connectorId: c.id })}
+              setConnectorHovered={setConnectorHovered}
+            />
+          );
+        })}
+
+        {/* Render Phantom Hole Projections (Drill Mode Only - Hovered Face Only) */}
+        {showGizmos && mode === 'drill' && hoveredFace && drillCandidates?.map((c) => {
+           // drillCandidates already filtered for screw type
+           
+           // Calculate projection onto hoveredFace
+           const dims = obj.dims || { w: 10, h: 10, d: 10 };
+           const sign = hoveredFace[0] === '+' ? 1 : -1;
+           const axis = hoveredFace.slice(1);
+           
+           let planeLevel = 0;
+           if (axis === 'X') planeLevel = sign * dims.w / 2;
+           else if (axis === 'Y') planeLevel = sign * dims.h / 2;
+           else planeLevel = sign * dims.d / 2;
+           
+           const projPos = [...c.pos];
+           if (axis === 'X') projPos[0] = planeLevel;
+           else if (axis === 'Y') projPos[1] = planeLevel;
+           else projPos[2] = planeLevel; // Exact plane position
+
+           const radius = c.size ? c.size / 2 : (c.type === 'screw-m3' ? 1.5 : 2);
+
+           // Render visual guide at projected position
+           // Orientation: We want the cylinder flat on the face.
+           const normalVec = new THREE.Vector3();
+           if (axis === 'X') normalVec.set(sign, 0, 0);
+           else if (axis === 'Y') normalVec.set(0, sign, 0);
+           else normalVec.set(0, 0, sign);
+           
+           const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normalVec);
+
+           return (
+             <mesh
+               key={`${c.id}_proj_active`}
+               position={projPos}
+               quaternion={q}
+               raycast={() => null} 
+               renderOrder={2000} // Draw on top
+             >
+                <cylinderGeometry args={[radius, radius, 0.2, 16]} />
+                <meshBasicMaterial 
+                    color="#000000" 
+                    opacity={0.3} 
+                    transparent 
+                    depthTest={false}
+                    polygonOffset={true}
+                    polygonOffsetFactor={-1.0}
+                    polygonOffsetUnits={-1.0}
+                />
+             </mesh>
+           );
+        })}
 
         {/* Render Holes */}
         {showGizmos && obj.holes?.map((hole) => (
